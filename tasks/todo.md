@@ -39,11 +39,11 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Acceptance criteria:**
 - [x] `make help` lists every target with its description
 - [x] `make install && make test && make ty && make format` all pass locally
-- [ ] CI workflow passes on a push to `main`
+- [x] CI workflow passes on a push to `main`
 
 **Verification:**
 - [x] Tests pass: `make test`
-- [ ] Manual check: CI run green on GitHub
+- [x] Manual check: CI run green on GitHub
 
 **Dependencies:** Task 1
 
