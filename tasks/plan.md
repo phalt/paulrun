@@ -49,8 +49,8 @@ runner + `paulrun go` walking skeleton (5)
 Full task bodies (acceptance criteria, verification, files) are in [todo.md](todo.md).
 
 ### Phase 1: Foundation
-- [ ] Task 1: Package skeleton with `paulrun --version`
-- [ ] Task 2: Dev tooling and CI, matching clientele
+- [x] Task 1: Package skeleton with `paulrun --version`
+- [x] Task 2: Dev tooling and CI, matching clientele
 - [ ] Task 3: Runbook parser
 
 ### Checkpoint 1: Foundation

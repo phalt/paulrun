@@ -1,0 +1,13 @@
+.venv/
+.ty_cache/
+.ruff_cache/
+.pytest_cache/
+.idea/
+__pycache__
+.DS_Store
+dist/
+site/
+htmlcov/
+*.coverage*
+coverage.xml
+.cache/

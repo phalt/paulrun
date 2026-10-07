@@ -13,13 +13,13 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** Create the flat `paulrun/` package and `pyproject.toml` mirroring clientele: hatchling build, `requires-python = ">=3.12"`, runtime deps (click, rich, markdown-it-py, pyyaml), dev dependency group (pytest, pytest-cov, ruff, ty, mkdocs, mkdocs-material, ipython), ruff config (line length 120, `F`, `E`, `W`, `I001`), pytest and coverage config, the `paulrun` console script, and empty `paulrun.backends` entry point group. `settings.py` reads `VERSION` from `importlib.metadata`. `cli.py` is a Click group with `--version` only.
 
 **Acceptance criteria:**
-- [ ] `uv run paulrun --version` prints `paulrun, version 0.1.0`
-- [ ] `uv run paulrun --help` lists the group with no commands yet
-- [ ] `uv build` produces a wheel and sdist
+- [x] `uv run paulrun --version` prints `paulrun, version 0.1.0`
+- [x] `uv run paulrun --help` lists the group with no commands yet
+- [x] `uv build` produces a wheel and sdist
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_cli.py`
-- [ ] Build succeeds: `uv build`
+- [x] Tests pass: `uv run pytest tests/test_cli.py`
+- [x] Build succeeds: `uv build`
 
 **Dependencies:** None
 
@@ -37,12 +37,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** Add the clientele-shaped Makefile (`help`, `install`, `test`, `format`, `ty`, `docs-serve`, `deploy-docs`, `release`, `clean`, `shell`), `.python-version` (`3.14`), `.gitignore`, MIT `LICENSE`, and `.github/workflows/ci.yml` (checkout, setup-python matrix `3.12`, `3.13`, `3.14`, `3.15-dev` as in clientele, setup-uv with cache, `uv sync --frozen`, ruff format check, ruff check, ty, pytest with coverage reported in the log; no Codecov upload). Commit `uv.lock`.
 
 **Acceptance criteria:**
-- [ ] `make help` lists every target with its description
-- [ ] `make install && make test && make ty && make format` all pass locally
+- [x] `make help` lists every target with its description
+- [x] `make install && make test && make ty && make format` all pass locally
 - [ ] CI workflow passes on a push to `main`
 
 **Verification:**
-- [ ] Tests pass: `make test`
+- [x] Tests pass: `make test`
 - [ ] Manual check: CI run green on GitHub
 
 **Dependencies:** Task 1
