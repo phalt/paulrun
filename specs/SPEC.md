@@ -1,6 +1,6 @@
 # Spec: paulrun
 
-Status: draft, awaiting review
+Status: approved (2026-10-07)
 Version target: 0.1.0
 
 ## Objective
