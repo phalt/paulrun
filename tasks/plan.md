@@ -112,8 +112,8 @@ Mostly sequential: almost everything hangs off the parser, runner and inputs. Af
 | Entry points for paulrun's own backends missing in a fresh checkout | Low | `make install` (`uv sync`) installs the package in editable mode, which registers them. CI runs `uv sync --frozen` first |
 | `ty` is pre-1.0 and may flag false positives | Low | Same approach as clientele: targeted excludes in `[tool.ty.src]` rather than suppressing everywhere |
 
-## Open questions
+## Resolved questions
 
-1. **CI matrix.** The spec says "3.12 and the latest release"; clientele tests every version it supports plus `3.15-dev`. Match clientele (`3.12`, `3.13`, `3.14`, `3.15-dev`)? I'd match clientele.
-2. **Codecov.** clientele uploads coverage to Codecov. Same for paulrun (needs a `CODECOV_TOKEN` secret), or skip it?
-3. **Platforms.** The shell backend needs `bash`, so this is macOS and Linux only. Fine to state that in the README and not support Windows?
+1. **CI matrix:** match clientele (`3.12`, `3.13`, `3.14`, `3.15-dev`).
+2. **Codecov:** skipped. Coverage is reported in the CI log only.
+3. **Platforms:** macOS and Linux only, stated in the README.

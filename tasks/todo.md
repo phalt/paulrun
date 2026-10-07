@@ -34,7 +34,7 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 
 ## Task 2: Dev tooling and CI, matching clientele
 
-**Description:** Add the clientele-shaped Makefile (`help`, `install`, `test`, `format`, `ty`, `docs-serve`, `deploy-docs`, `release`, `clean`, `shell`), `.python-version` (`3.14`), `.gitignore`, MIT `LICENSE`, and `.github/workflows/ci.yml` (checkout, setup-python matrix, setup-uv with cache, `uv sync --frozen`, ruff format check, ruff check, ty, pytest with coverage). Commit `uv.lock`.
+**Description:** Add the clientele-shaped Makefile (`help`, `install`, `test`, `format`, `ty`, `docs-serve`, `deploy-docs`, `release`, `clean`, `shell`), `.python-version` (`3.14`), `.gitignore`, MIT `LICENSE`, and `.github/workflows/ci.yml` (checkout, setup-python matrix `3.12`, `3.13`, `3.14`, `3.15-dev` as in clientele, setup-uv with cache, `uv sync --frozen`, ruff format check, ruff check, ty, pytest with coverage reported in the log; no Codecov upload). Commit `uv.lock`.
 
 **Acceptance criteria:**
 - [ ] `make help` lists every target with its description

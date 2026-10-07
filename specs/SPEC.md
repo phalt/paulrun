@@ -28,6 +28,7 @@ A runbook is a normal markdown file a human can read and follow without paulrun 
 2. Blocks always run with the runbook file's directory as the working directory.
 3. Every input is checked for in the environment first. If `VERSION` is set, paulrun uses it and doesn't prompt.
 4. MIT licence, same as clientele.
+5. macOS and Linux only. The shell backend needs `bash`; Windows isn't supported.
 
 ## Runbook format
 
@@ -193,7 +194,7 @@ Exit codes: 0 success, 1 failure (check errors, failed block, aborted confirm), 
 
 Mirrors clientele.
 
-- Python, `requires-python = ">=3.12"`, CI tests 3.12 and the latest release
+- Python, `requires-python = ">=3.12"`, CI matrix matches clientele: 3.12, 3.13, 3.14, 3.15-dev
 - Build: hatchling. Package management: uv
 - CLI: click, rich
 - Parsing: markdown-it-py (fences give `.info` and `.content`), pyyaml for frontmatter
@@ -305,7 +306,7 @@ Output goes through a single `rich` console in `cli.py`; library modules return 
 - CLI tested with Click's `CliRunner`, feeding prompt answers via `input=`.
 - Transcript tested by running a fixture runbook twice and asserting both runs are in the file and secrets are masked.
 - Coverage reported, no enforced threshold.
-- CI (`ci.yml`): ruff check, ruff format --check, ty, pytest on push and PR.
+- CI (`ci.yml`): ruff check, ruff format --check, ty, pytest on push and PR. No Codecov.
 
 ## Boundaries
 
