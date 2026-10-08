@@ -20,8 +20,9 @@ Issues = "https://github.com/phalt/paulrun/issues"
 [project.scripts]
 paulrun = "paulrun.cli:cli"
 
-# Built-in backends are registered here in Task 4, the same way external backends register theirs.
+# Built-in backends are registered here, the same way external backends register theirs.
 [project.entry-points."paulrun.backends"]
+shell = "paulrun.backends.shell:ShellBackend"
 
 [dependency-groups]
 dev = [

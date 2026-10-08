@@ -92,12 +92,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `backends/__init__.py` defines the `Backend` protocol and `load_backends(entry_points=None) -> dict[str, Backend]` keyed by language, raising a clear error naming both backends when two claim the same language. Settle the exact `run()` shape here (a generator of output lines that returns the exit code, or similar) and record it in the protocol docstring. `backends/shell.py` runs a block as one `bash` script with `set -eo pipefail` via `Popen`, stdout+stderr merged, stdin inherited, lines yielded as they arrive. `validate()` runs `bash -n`. Registered in `pyproject.toml`.
 
 **Acceptance criteria:**
-- [ ] `load_backends()` returns the shell backend for `sh`, `bash` and `shell`
-- [ ] A failing command mid-block stops the block with that command's exit code; a failure inside a pipe is caught
-- [ ] Two fake backends claiming one language raise an error naming both
+- [x] `load_backends()` returns the shell backend for `sh`, `bash` and `shell`
+- [x] A failing command mid-block stops the block with that command's exit code; a failure inside a pipe is caught
+- [x] Two fake backends claiming one language raise an error naming both
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_backend_loading.py tests/backends/test_shell.py`
+- [x] Tests pass: `uv run pytest tests/test_backend_loading.py tests/backends/test_shell.py`
 
 **Dependencies:** Task 1
 

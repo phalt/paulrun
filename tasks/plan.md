@@ -15,7 +15,8 @@ The order is: scaffold, then a thin end-to-end walking skeleton (`paulrun go` ru
 - **Walking skeleton first.** The riskiest part is executing a block while streaming its output live to the terminal *and* capturing it for the transcript. Task 5 proves that with the shell backend before inputs, validation or the transcript exist.
 - **One parse, many consumers.** `runbook.py` turns a file into an immutable `Runbook` (frontmatter, inputs, steps, blocks with line numbers). `check`, `go`, `inputs` and `backends` all consume that model; nothing re-parses markdown.
 - **Validation is one function.** `check` and step 1 of `go` call the same `validate(runbook, backends) -> Report` (errors + warnings), so they can never disagree.
-- **Backends stream lines.** `Backend.run()` yields output lines and finishes with an exit code (exact shape settled in Task 4). The runner owns printing, masking and transcript writing; backends never touch the console.
+- **Backends stream lines.** `Backend.run(code, *, frontmatter, env, cwd, output) -> int` calls `output(line)` for each line as it's printed and returns the exit code (settled in Task 4). The runner owns printing, masking and transcript writing; backends never touch the console.
+- **Backends own their placeholders.** `Backend.validate()` gets the block as written and replaces `<NAME>` placeholders with whatever its language accepts. Core paulrun defines the placeholder syntax but knows nothing about how a language reads it.
 - **Subprocess model.** `Popen` with stdout and stderr merged into one pipe, read line by line, stdin inherited from the terminal. Merged streams keep ordering simple and match how the transcript shows output.
 - **Entry points everywhere.** The built-in shell and Python backends are registered in paulrun's own `pyproject.toml`, so built-ins and external backends share one loading path. The loader takes an optional list of entry points so tests can inject a fake external backend without installing a package.
 - **Console only in `cli.py`.** Library modules return data or raise. Prompts (inputs, confirms, `--step`) go through a small injectable `Prompter` so the runner is testable without a TTY.
@@ -58,7 +59,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [x] Parser handles `tests/runbooks/all_features.md`
 
 ### Phase 2: Walking skeleton
-- [ ] Task 4: Backend protocol, entry point loader, shell backend
+- [x] Task 4: Backend protocol, entry point loader, shell backend
 - [ ] Task 5: Runner and `paulrun go` (shell blocks only)
 
 ### Checkpoint 2: Walking skeleton
