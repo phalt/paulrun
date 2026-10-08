@@ -51,11 +51,11 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 ### Phase 1: Foundation
 - [x] Task 1: Package skeleton with `paulrun --version`
 - [x] Task 2: Dev tooling and CI, matching clientele
-- [ ] Task 3: Runbook parser
+- [x] Task 3: Runbook parser
 
 ### Checkpoint 1: Foundation
 - [ ] `make test`, `make ty`, `make format` clean; CI green on `main`
-- [ ] Parser handles the clientele example runbook
+- [x] Parser handles `tests/runbooks/all_features.md`
 
 ### Phase 2: Walking skeleton
 - [ ] Task 4: Backend protocol, entry point loader, shell backend
@@ -73,7 +73,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [ ] Task 10: Validation and `paulrun check`
 
 ### Checkpoint 3: Core features
-- [ ] `paulrun check` and `paulrun go --dry` work on the clientele example runbook
+- [ ] `paulrun check` and `paulrun go --dry` work on `tests/runbooks/all_features.md`
 - [ ] All `check` error cases from the spec covered by fixture tests
 
 ### Phase 4: Remaining features

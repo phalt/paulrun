@@ -61,26 +61,27 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `runbook.py` parses a file into an immutable `Runbook`: raw frontmatter dict, `title`, `description`, `output_path`, `python`, parsed `Input` list, and ordered `Step`s (name from each `##` heading) containing `Block`s (kind: `docstring` / `confirm` / `run`, language, content, source line). Uses markdown-it-py fence tokens (`.info`, `.content`, `.map`) and pyyaml for frontmatter. Blocks before the first `##` are kept in a preamble so validation can flag them later. A `read_frontmatter(path)` function reads only the frontmatter, stopping at the closing `---`. Parsing does not validate beyond "is this YAML a mapping"; validation is Task 10.
 
 **Acceptance criteria:**
-- [ ] The clientele example runbook parses into 6 steps with the expected block kinds and languages
-- [ ] Plain fences (```` ```sh ````, ```` ```toml ````) are not blocks; ```` ```sh run ```` is
-- [ ] `read_frontmatter` never reads past the closing `---` (tested with a body that would fail to parse)
+- [x] `tests/runbooks/all_features.md` parses into the expected steps, block kinds, languages and line numbers
+- [x] Plain fences (```` ```sh ````, ```` ```toml ````) are not blocks; ```` ```sh run ```` is
+- [x] `read_frontmatter` never reads past the closing `---` (tested with a body that would fail to parse)
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_runbook.py`
+- [x] Tests pass: `uv run pytest tests/test_runbook.py`
 
 **Dependencies:** Task 1
 
 **Files likely touched:**
 - `paulrun/runbook.py`
+- `paulrun/inputs.py` (the `Input` dataclass only; Task 6 fills in the module)
 - `tests/test_runbook.py`
-- `tests/runbooks/clientele_publishing.md`
+- `tests/runbooks/all_features.md`
 - `tests/runbooks/minimal.md`
 
 **Estimated scope:** Medium
 
 ### Checkpoint 1: Foundation
-- [ ] `make test`, `make ty`, `make format` clean; CI green on `main`
-- [ ] Parser handles the clientele example runbook
+- [x] `make test`, `make ty`, `make format` clean; CI green on `main`
+- [x] Parser handles `tests/runbooks/all_features.md`
 
 ---
 
@@ -235,12 +236,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 
 **Acceptance criteria:**
 - [ ] Each error case above has a broken fixture runbook and a test asserting the message and line number
-- [ ] `paulrun check` exits 0 on the clientele example and 1 on every broken fixture
+- [ ] `paulrun check` exits 0 on `tests/runbooks/all_features.md` and 1 on every broken fixture
 - [ ] `paulrun go` refuses to start on a runbook with errors
 
 **Verification:**
 - [ ] Tests pass: `uv run pytest tests/test_validate.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun check tests/runbooks/clientele_publishing.md`
+- [ ] Manual check: `uv run paulrun check tests/runbooks/all_features.md`
 
 **Dependencies:** Tasks 6, 9
 
@@ -254,7 +255,7 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Estimated scope:** Medium
 
 ### Checkpoint 3: Core features
-- [ ] `paulrun check` and `paulrun go --dry` work on the clientele example runbook
+- [ ] `paulrun check` and `paulrun go --dry` work on `tests/runbooks/all_features.md`
 - [ ] All `check` error cases from the spec covered by fixture tests
 
 ---
