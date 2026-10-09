@@ -147,12 +147,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `inputs.py` holds the `Input` model, `PLACEHOLDER` regex, `collect(inputs, env, prompter)` (environment first, then prompt; hidden prompt for secrets; `pattern` full-match with re-prompt, or failure if the bad value came from the environment), `substitute(text, values)` for non-secret inputs only, and `mask(text, secrets)`. The runner exports every input to block env and substitutes non-secret placeholders into `run` block code. A `Prompter` protocol (with a Click-backed implementation in `cli.py`) makes prompts injectable for tests.
 
 **Acceptance criteria:**
-- [ ] An input set in the environment is used without prompting; a pattern mismatch from the environment fails with a clear message
-- [ ] `<VERSION>` in a `run` block is substituted before execution; a secret is available as `$NAME` but never substituted
-- [ ] `mask()` replaces every occurrence of every secret value with `****`
+- [x] An input set in the environment is used without prompting; a pattern mismatch from the environment fails with a clear message
+- [x] `<VERSION>` in a `run` block is substituted before execution; a secret is available as `$NAME` but never substituted
+- [x] `mask()` replaces every occurrence of every secret value with `****`
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runner.py`
+- [x] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runner.py`
 
 **Dependencies:** Task 5
 

@@ -67,7 +67,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [x] Review with Paul before widening (approved 2026-10-08)
 
 ### Phase 3: Core features
-- [ ] Task 6: Inputs: declare, collect, validate, substitute, mask
+- [x] Task 6: Inputs: declare, collect, validate, substitute, mask
 - [ ] Task 7: `docstring` and `confirm` blocks, start prompt, exit codes
 - [ ] Task 8: `--dry`
 - [ ] Task 9: Python backend and the `python:` frontmatter key

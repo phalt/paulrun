@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from paulrun.backends import Backend
+from paulrun.inputs import Prompter, collect, mask, substitute
 from paulrun.runbook import Block, Runbook, Step
 
 # Blocks print to a pipe rather than a terminal. Python would hold its output back until it exits,
@@ -50,17 +51,23 @@ class RunnerError(Exception):
     """The runbook can't be run, e.g. a run block has no backend."""
 
 
-def run(runbook: Runbook, backends: Mapping[str, Backend], sink: Callable[[Event], None]) -> RunFinished:
-    """Run each step's run blocks in order, stopping at the first that fails.
+def run(
+    runbook: Runbook, backends: Mapping[str, Backend], sink: Callable[[Event], None], prompter: Prompter
+) -> RunFinished:
+    """Collect the runbook's inputs, then run each step's run blocks in order, stopping at the first that fails.
 
     Every event goes to sink as it happens, ending with the RunFinished event that's also returned.
-    Blocks run in the runbook's directory with paulrun's environment.
+    Blocks run in the runbook's directory with paulrun's environment plus every input. Plain inputs are
+    substituted into the code first, and secret values are masked in everything sent to sink.
     """
     for step in runbook.steps:
         for block in step.blocks:
             if block.kind == "run" and block.language not in backends:
                 raise RunnerError(f"line {block.line}: no backend runs {block.language!r} blocks")
-    env = {**os.environ, **_BLOCK_ENV}
+    values = collect(runbook.inputs, os.environ, prompter)
+    secrets = [values[input.name] for input in runbook.inputs if input.secret]
+    plain = {input.name: values[input.name] for input in runbook.inputs if not input.secret}
+    env = {**os.environ, **_BLOCK_ENV, **values}
     started = time.monotonic()
     for step in runbook.steps:
         sink(StepStarted(step))
@@ -68,14 +75,15 @@ def run(runbook: Runbook, backends: Mapping[str, Backend], sink: Callable[[Event
             if block.kind != "run":
                 continue
             assert block.language is not None  # always set for run blocks
-            sink(BlockStarted(block, block.content))
+            code = substitute(block.content, plain)
+            sink(BlockStarted(block, code))
             block_started = time.monotonic()
             exit_code = backends[block.language].run(
-                block.content,
+                code,
                 frontmatter=runbook.frontmatter,
                 env=env,
                 cwd=runbook.path.parent,
-                output=lambda line: sink(OutputLine(line)),
+                output=lambda line: sink(OutputLine(mask(line, secrets))),
             )
             sink(BlockFinished(block, exit_code, time.monotonic() - block_started))
             if exit_code != 0:

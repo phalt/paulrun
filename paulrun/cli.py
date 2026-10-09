@@ -1,4 +1,5 @@
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -6,6 +7,7 @@ from rich.console import Console
 
 from paulrun import runner, settings
 from paulrun.backends import BackendError, load_backends
+from paulrun.inputs import Input, InputError
 from paulrun.runbook import RunbookError, parse
 
 
@@ -21,11 +23,26 @@ def go(runbook: Path) -> None:
     """Run a runbook's steps in order, stopping at the first that fails."""
     console = Console(highlight=False)
     try:
-        result = runner.run(parse(runbook), load_backends(), lambda event: _print_event(console, event))
-    except (RunbookError, BackendError, runner.RunnerError) as e:
+        result = runner.run(
+            parse(runbook), load_backends(), lambda event: _print_event(console, event), ClickPrompter(console)
+        )
+    except (RunbookError, BackendError, runner.RunnerError, InputError) as e:
         raise click.ClickException(str(e)) from e
     if result.status != "ok":
         sys.exit(1)
+
+
+@dataclass(frozen=True)
+class ClickPrompter:
+    """Prompts in the terminal, hiding what's typed for secrets."""
+
+    console: Console
+
+    def ask(self, input: Input, problem: str | None) -> str:
+        if problem is not None:
+            # console.out, because a pattern such as [a-z] would be read as markup.
+            self.console.out(problem, style="red")
+        return click.prompt(f"{input.name} ({input.description})", hide_input=input.secret)
 
 
 def _print_event(console: Console, event: runner.Event) -> None:

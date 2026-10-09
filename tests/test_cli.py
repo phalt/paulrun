@@ -31,6 +31,14 @@ def write_runbook(tmp_path: Path, text: str) -> Path:
     return path
 
 
+@pytest.fixture
+def inputs_runbook(monkeypatch):
+    """The inputs example runbook, with neither of its inputs set in the environment."""
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("PUBLISH_TOKEN", raising=False)
+    return RUNBOOKS / "inputs-example.md"
+
+
 def test_version_prints_package_version(runner):
     """--version prints the version from the installed package metadata."""
     result = runner.invoke(cli.cli, ["--version"])
@@ -214,6 +222,65 @@ def test_go_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
 
     assert result.exit_code == 1
     assert result.output == "Error: language 'sh' is claimed by both 'shell' and 'rival'\n"
+
+
+def test_go_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
+    """Inputs not in the environment are asked for by name and description, then used by the blocks."""
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\n")
+
+    assert result.exit_code == 0
+    assert result.output.startswith(
+        "VERSION (The version being released, e.g. 1.2.0): 1.2.0\nPUBLISH_TOKEN (Token for the package index): \n"
+    )
+    lines = result.output.splitlines()
+    assert '$ echo "Tagging 1.2.0"' in lines
+    assert "Tagging 1.2.0" in lines
+    assert '$ echo "Publishing 1.2.0 with $PUBLISH_TOKEN"' in lines
+    assert "Publishing 1.2.0 with ****" in lines
+
+
+def test_go_never_shows_a_secret_typed_at_its_prompt(runner, inputs_runbook):
+    """A secret isn't echoed as it's typed, and a block printing it shows **** instead."""
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\n")
+
+    assert result.exit_code == 0
+    assert "s3cret" not in result.output
+
+
+def test_go_uses_inputs_from_the_environment_without_prompting(runner, inputs_runbook, monkeypatch):
+    """Inputs set in the environment aren't asked for."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)])
+
+    assert result.exit_code == 0
+    assert "VERSION (" not in result.output
+    assert "PUBLISH_TOKEN (" not in result.output
+    assert "Publishing 1.2.0 with ****" in result.output.splitlines()
+
+
+def test_go_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs_runbook):
+    """A typed answer that doesn't match its pattern is refused with the reason, and asked for again."""
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="latest\n1.2.0\ns3cret\n")
+
+    assert result.exit_code == 0
+    assert result.output.startswith(
+        "VERSION (The version being released, e.g. 1.2.0): latest\n"
+        "VERSION must match ^\\d+\\.\\d+\\.\\d+$\n"
+        "VERSION (The version being released, e.g. 1.2.0): 1.2.0\n"
+    )
+    assert "Publishing 1.2.0 with ****" in result.output.splitlines()
+
+
+def test_go_reports_an_environment_value_that_does_not_match_the_pattern(runner, inputs_runbook, monkeypatch):
+    """A bad value from the environment stops go before anything runs, without a traceback."""
+    monkeypatch.setenv("VERSION", "latest")
+
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="s3cret\n")
+
+    assert result.exit_code == 1
+    assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
 
 
 @pytest.mark.parametrize(
