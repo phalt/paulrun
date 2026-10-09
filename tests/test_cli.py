@@ -39,6 +39,13 @@ def inputs_runbook(monkeypatch):
     return RUNBOOKS / "inputs-example.md"
 
 
+@pytest.fixture
+def confirm_runbook(monkeypatch):
+    """The docstring and confirm example runbook, with VERSION set in the environment so it isn't asked for."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    return RUNBOOKS / "docstring-and-confirm-example.md"
+
+
 def test_version_prints_package_version(runner):
     """--version prints the version from the installed package metadata."""
     result = runner.invoke(cli.cli, ["--version"])
@@ -76,11 +83,16 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)])
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
 
     assert result.exit_code == 0
     assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
         """\
+        runbook.md
+          1. Greet
+          2. Again
+        2 run blocks
+        Start? [y/N] y
 
         === Greet ===
         $ echo hello
@@ -103,7 +115,7 @@ def test_go_runs_blocks_in_the_runbook_directory(runner, tmp_path, monkeypatch):
     """Blocks run in the runbook's directory, not the one paulrun is started from."""
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(cli.cli, ["go", str(RUNBOOKS / "two_steps.md")])
+    result = runner.invoke(cli.cli, ["go", str(RUNBOOKS / "two_steps.md")], input="y\n")
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
@@ -136,13 +148,13 @@ def test_go_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)])
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
 
     assert result.exit_code == 1
     assert "passing" in result.output.splitlines()
     assert re.search(r"^exit 3 \(\d+\.\ds\)$", result.output, re.MULTILINE)
     assert result.output.endswith('\nfinished: failed at "Fails" (exit 3)\n')
-    assert "Never reached" not in result.output
+    assert "=== Never reached ===" not in result.output
     assert "unreachable" not in result.output
 
 
@@ -160,7 +172,7 @@ def test_go_prints_output_and_code_verbatim(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)])
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
 
     lines = result.output.splitlines()
     assert "$ echo '[bold]markup[/bold] :smile:'" in lines
@@ -173,8 +185,10 @@ def test_go_streams_output_line_by_line_through_a_pipe():
     command = [sys.executable, "-c", "from paulrun.cli import cli; cli()", "go", str(RUNBOOKS / "two_steps.md")]
     arrivals: dict[str, float] = {}
 
-    with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True) as process:
-        assert process.stdout is not None  # set because stdout is a pipe
+    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) as process:
+        assert process.stdin is not None and process.stdout is not None  # set because both are pipes
+        process.stdin.write("y\n")
+        process.stdin.close()
         for line in process.stdout:
             arrivals.setdefault(line.removesuffix("\n"), time.monotonic())
 
@@ -226,7 +240,7 @@ def test_go_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
 
 def test_go_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
     """Inputs not in the environment are asked for by name and description, then used by the blocks."""
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\n")
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert result.output.startswith(
@@ -241,7 +255,7 @@ def test_go_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
 
 def test_go_never_shows_a_secret_typed_at_its_prompt(runner, inputs_runbook):
     """A secret isn't echoed as it's typed, and a block printing it shows **** instead."""
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\n")
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert "s3cret" not in result.output
@@ -252,7 +266,7 @@ def test_go_uses_inputs_from_the_environment_without_prompting(runner, inputs_ru
     monkeypatch.setenv("VERSION", "1.2.0")
     monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
 
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)])
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="y\n")
 
     assert result.exit_code == 0
     assert "VERSION (" not in result.output
@@ -262,7 +276,7 @@ def test_go_uses_inputs_from_the_environment_without_prompting(runner, inputs_ru
 
 def test_go_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs_runbook):
     """A typed answer that doesn't match its pattern is refused with the reason, and asked for again."""
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="latest\n1.2.0\ns3cret\n")
+    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="latest\n1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert result.output.startswith(
@@ -281,6 +295,91 @@ def test_go_reports_an_environment_value_that_does_not_match_the_pattern(runner,
 
     assert result.exit_code == 1
     assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
+
+
+def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook):
+    """Docstring and confirm text is printed with inputs substituted, and y at a confirm carries on."""
+    result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input="y\ny\n")
+
+    assert result.exit_code == 0
+    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
+        """\
+        Docstring and confirm example
+          1. Build
+          2. Release on GitHub
+        2 run blocks
+        Start? [y/N] y
+
+        === Build ===
+        Building 1.2.0. This only echoes; nothing is built.
+        $ echo "Built 1.2.0"
+        Built 1.2.0
+        exit 0 (Xs)
+
+        === Release on GitHub ===
+        Create a GitHub release for tag 1.2.0 and publish it.
+        Continue? [y/N] y
+        $ echo "Released 1.2.0"
+        Released 1.2.0
+        exit 0 (Xs)
+
+        finished: ok (Xs)
+        """
+    )
+
+
+@pytest.mark.parametrize("answer", ["n", "", "yes"])
+def test_go_aborts_at_a_confirm_not_answered_y(runner, confirm_runbook, answer):
+    """Any answer but y at a confirm ends the run there with exit code 1, naming the step."""
+    result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input=f"y\n{answer}\n")
+
+    assert result.exit_code == 1
+    assert "Built 1.2.0" in result.output.splitlines()
+    assert "Released 1.2.0" not in result.output.splitlines()
+    assert result.output.endswith(f'Continue? [y/N] {answer}\n\nfinished: aborted at "Release on GitHub"\n')
+
+
+@pytest.mark.parametrize("answer", ["n", "", "yes"])
+def test_go_runs_nothing_when_the_start_prompt_is_not_answered_y(runner, confirm_runbook, answer):
+    """Declining to start runs no steps and exits 1."""
+    result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input=f"{answer}\n")
+
+    assert result.exit_code == 1
+    assert "===" not in result.output
+    assert result.output.endswith(f"Start? [y/N] {answer}\n\nfinished: aborted before starting\n")
+
+
+def test_go_overview_counts_one_run_block_in_the_singular(runner, tmp_path):
+    """The overview says "1 run block", not "1 run blocks"."""
+    path = write_runbook(tmp_path, "---\ntitle: One\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.output.startswith("One\n  1. Only\n1 run block\nStart? [y/N] y\n")
+
+
+def test_go_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
+    """Text that looks like rich markup or emoji codes is printed exactly as written."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Verbatim
+
+        ```docstring
+        Run [bold]make[/bold] :smile:
+        ```
+
+        ```confirm
+        Check [red]this[/red] :+1:
+        ```
+        """,
+    )
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\ny\n")
+
+    lines = result.output.splitlines()
+    assert "Run [bold]make[/bold] :smile:" in lines
+    assert "Check [red]this[/red] :+1:" in lines
 
 
 @pytest.mark.parametrize(

@@ -44,13 +44,28 @@ class ClickPrompter:
             self.console.out(problem, style="red")
         return click.prompt(f"{input.name} ({input.description})", hide_input=input.secret)
 
+    def confirm(self, question: str) -> str:
+        # An empty default lets enter through as "", which the runner reads as no.
+        return click.prompt(question, default="", show_default=False, prompt_suffix=" ")
+
 
 def _print_event(console: Console, event: runner.Event) -> None:
     # console.out never reads markup or emoji codes and never wraps, so code and output appear as written.
     match event:
+        case runner.Overview(title=title, steps=steps, run_blocks=run_blocks):
+            console.out(title, style="bold")
+            for number, step in enumerate(steps, start=1):
+                console.out(f"  {number}. {step.name}")
+            console.out(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}")
         case runner.StepStarted(step=step):
             console.out()
             console.out(f"=== {step.name} ===", style="bold")
+        case runner.Docstring(text=text):
+            for line in text.splitlines():
+                console.out(line)
+        case runner.Confirm(text=text):
+            for line in text.splitlines():
+                console.out(line, style="yellow")
         case runner.BlockStarted(code=code):
             for index, line in enumerate(code.splitlines()):
                 console.out(f"{'$' if index == 0 else ' '} {line}", style="cyan")
@@ -61,6 +76,10 @@ def _print_event(console: Console, event: runner.Event) -> None:
         case runner.RunFinished(status="ok", duration=duration):
             console.out()
             console.out(f"finished: ok ({_duration(duration)})", style="green")
+        case runner.RunFinished(status="aborted", step=step):
+            console.out()
+            where = "before starting" if step is None else f'at "{step.name}"'
+            console.out(f"finished: aborted {where}", style="red")
         case runner.RunFinished(step=step, exit_code=exit_code):
             assert step is not None  # always set when a run fails
             console.out()

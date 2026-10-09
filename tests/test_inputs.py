@@ -20,6 +20,9 @@ class FakePrompter:
         self.asked.append((input.name, problem))
         return self.answers.pop(0)
 
+    def confirm(self, question: str) -> str:
+        raise AssertionError(f"collecting inputs shouldn't ask {question!r}")
+
 
 def test_collect_uses_a_value_from_the_environment_without_prompting():
     """An input set in the environment is taken from there."""

@@ -170,12 +170,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** The runner prints `docstring` blocks and pauses on `confirm` blocks (both with placeholder substitution). Before running, `go` prints the title, step list and `run` block count and asks to start. Any answer other than `y` to a `confirm` or the start prompt ends the run as aborted. Exit codes: 0 success, 1 for failed block or abort.
 
 **Acceptance criteria:**
-- [ ] `docstring` text is printed with inputs substituted
-- [ ] Answering `n` to a `confirm` stops the run, exits 1, and later steps don't run
-- [ ] Declining the start prompt runs nothing and exits 1
+- [x] `docstring` text is printed with inputs substituted
+- [x] Answering `n` to a `confirm` stops the run, exits 1, and later steps don't run
+- [x] Declining the start prompt runs nothing and exits 1
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
+- [x] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
 
 **Dependencies:** Task 6
 

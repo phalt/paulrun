@@ -17,13 +17,16 @@ class Input:
 
 
 class Prompter(Protocol):
-    """Asks the person running the runbook for values."""
+    """Asks the person running the runbook for values and answers."""
 
     def ask(self, input: Input, problem: str | None) -> str:
         """Ask for an input's value, hiding what's typed if it's secret.
 
         problem is None the first time, then says why the previous answer was refused.
         """
+
+    def confirm(self, question: str) -> str:
+        """Ask a question, e.g. "Start? [y/N]", and return the answer as typed. Pressing enter gives ""."""
 
 
 class InputError(Exception):

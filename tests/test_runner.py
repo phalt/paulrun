@@ -28,15 +28,24 @@ inputs:
 
 @dataclass
 class FakePrompter:
-    """Gives the answers in order, recording the name of each input it was asked for."""
+    """Answers input prompts from answers and questions from replies, in order, recording what it was asked.
+
+    Once replies run out, every question is answered y, so the run starts and goes past every confirm.
+    """
 
     answers: list[str] = field(default_factory=list)
+    replies: list[str] = field(default_factory=list)
     asked: list[str] = field(default_factory=list)
+    questions: list[str] = field(default_factory=list)
 
     def ask(self, input: Input, problem: str | None) -> str:
         assert self.answers, f"unexpected prompt for {input.name}"
         self.asked.append(input.name)
         return self.answers.pop(0)
+
+    def confirm(self, question: str) -> str:
+        self.questions.append(question)
+        return self.replies.pop(0) if self.replies else "y"
 
 
 def write_runbook(directory: Path, text: str) -> Path:
@@ -50,7 +59,7 @@ def write_runbook(directory: Path, text: str) -> Path:
 def run(path: Path, prompter: FakePrompter | None = None) -> tuple[list[runner.Event], runner.RunFinished]:
     """Run the runbook at path with the installed backends, returning every event sent and the result.
 
-    Without a prompter, any prompt fails the test.
+    Without a prompter, asking for an input fails the test and every question is answered y.
     """
     events: list[runner.Event] = []
     result = runner.run(parse(path), load_backends(), events.append, prompter or FakePrompter())
@@ -63,7 +72,7 @@ def output(events: list[runner.Event]) -> list[str]:
 
 
 def test_run_sends_events_for_each_step_and_block_in_order(tmp_path):
-    """Each step starts, then each of its blocks starts, prints and finishes, and the run finishes last."""
+    """The overview comes first, then each step starts and each of its blocks starts, prints and finishes."""
     path = write_runbook(
         tmp_path,
         """\
@@ -84,6 +93,7 @@ def test_run_sends_events_for_each_step_and_block_in_order(tmp_path):
     events, _ = run(path)
 
     assert [type(event) for event in events] == [
+        runner.Overview,
         runner.StepStarted,
         runner.BlockStarted,
         runner.OutputLine,
@@ -384,6 +394,9 @@ def test_run_collects_inputs_before_the_first_step_starts(tmp_path, monkeypatch)
             events_when_asked.append(len(events))
             return "answer"
 
+        def confirm(self, question: str) -> str:
+            return "y"
+
     runner.run(parse(path), load_backends(), events.append, CountingPrompter())
 
     assert events_when_asked == [0, 0]
@@ -400,3 +413,222 @@ def test_run_does_not_ask_for_inputs_when_a_block_has_no_backend(tmp_path, monke
         run(path, prompter)
 
     assert prompter.asked == []
+
+
+def test_run_shows_an_overview_after_collecting_inputs_then_asks_to_start(tmp_path, monkeypatch):
+    """The title, steps and number of run blocks are sent once inputs are in, and then paulrun asks to start."""
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("TOKEN", raising=False)
+    path = write_runbook(
+        tmp_path,
+        INPUTS_FRONTMATTER
+        + textwrap.dedent(
+            """\
+
+            ## First
+
+            ```sh run
+            true
+            ```
+
+            ```docstring
+            Not a run block.
+            ```
+
+            ## Second
+
+            ```sh run
+            true
+            ```
+
+            ```sh run
+            true
+            ```
+            """
+        ),
+    )
+    events: list[runner.Event] = []
+    prompted: list[tuple[str, int]] = []
+
+    class RecordingPrompter:
+        def ask(self, input: Input, problem: str | None) -> str:
+            prompted.append((input.name, len(events)))
+            return "answer"
+
+        def confirm(self, question: str) -> str:
+            prompted.append((question, len(events)))
+            return "y"
+
+    runner.run(parse(path), load_backends(), events.append, RecordingPrompter())
+
+    overview = events[0]
+    assert isinstance(overview, runner.Overview)
+    assert overview.title == "Inputs"
+    assert [step.name for step in overview.steps] == ["First", "Second"]
+    assert overview.run_blocks == 3
+    assert prompted == [("VERSION", 0), ("TOKEN", 0), ("Start? [y/N]", 1)]
+
+
+def test_run_overview_uses_the_file_name_when_there_is_no_title(tmp_path):
+    """A runbook with no title is shown by its file name."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+
+    events, _ = run(path)
+
+    assert events[0] == runner.Overview(title="runbook.md", steps=parse(path).steps, run_blocks=1)
+
+
+@pytest.mark.parametrize("reply", ["", "n", "no", "yes", "Y"])
+def test_run_runs_nothing_unless_the_answer_to_start_is_y(tmp_path, reply):
+    """Only y starts the run. Any other answer aborts it before the first step."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntouch ran\n```\n")
+
+    events, result = run(path, FakePrompter(replies=[reply]))
+
+    assert not (tmp_path / "ran").exists()
+    assert [type(event) for event in events] == [runner.Overview, runner.RunFinished]
+    assert result.status == "aborted"
+    assert result.step is None
+
+
+def test_run_ignores_spaces_around_a_y(tmp_path):
+    """A y with stray spaces around it still counts as y."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntouch ran\n```\n")
+
+    _, result = run(path, FakePrompter(replies=[" y "]))
+
+    assert (tmp_path / "ran").exists()
+    assert result.status == "ok"
+
+
+def test_run_sends_docstring_and_confirm_blocks_in_order_with_run_blocks(tmp_path):
+    """Every block in a step is sent in the order it's written, whatever its kind."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Mixed
+
+        ```docstring
+        About to check.
+        ```
+
+        ```confirm
+        Check it by hand.
+        ```
+
+        ```sh run
+        echo checked
+        ```
+        """,
+    )
+
+    events, _ = run(path)
+
+    assert [type(event) for event in events] == [
+        runner.Overview,
+        runner.StepStarted,
+        runner.Docstring,
+        runner.Confirm,
+        runner.BlockStarted,
+        runner.OutputLine,
+        runner.BlockFinished,
+        runner.RunFinished,
+    ]
+
+
+def test_run_substitutes_plain_inputs_into_docstring_and_confirm_text(tmp_path, monkeypatch):
+    """<VERSION> is replaced in docstring and confirm text, and a secret's placeholder is left as written."""
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("TOKEN", raising=False)
+    path = write_runbook(
+        tmp_path,
+        INPUTS_FRONTMATTER
+        + textwrap.dedent(
+            """\
+
+            ## Release
+
+            ```docstring
+            Releasing <VERSION> with <TOKEN>.
+            ```
+
+            ```confirm
+            Tag <VERSION> on GitHub.
+            ```
+            """
+        ),
+    )
+
+    events, _ = run(path, FakePrompter(answers=["1.2.0", "s3cret"]))
+
+    [docstring] = [event for event in events if isinstance(event, runner.Docstring)]
+    [confirm] = [event for event in events if isinstance(event, runner.Confirm)]
+    assert docstring.text == "Releasing 1.2.0 with <TOKEN>.\n"
+    assert confirm.text == "Tag 1.2.0 on GitHub.\n"
+
+
+def test_run_asks_to_continue_after_each_confirm_and_carries_on_after_y(tmp_path):
+    """A confirm block waits for an answer, and y carries on with the rest of the run."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Manual
+
+        ```confirm
+        Do the manual thing.
+        ```
+
+        ```sh run
+        touch ran
+        ```
+        """,
+    )
+    prompter = FakePrompter(replies=["y", "y"])
+
+    _, result = run(path, prompter)
+
+    assert prompter.questions == ["Start? [y/N]", "Continue? [y/N]"]
+    assert (tmp_path / "ran").exists()
+    assert result.status == "ok"
+
+
+@pytest.mark.parametrize("reply", ["", "n", "yes"])
+def test_run_aborts_at_a_confirm_not_answered_y(tmp_path, reply):
+    """Any answer but y to a confirm stops the run there: nothing after it runs, in its step or later ones."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Before
+
+        ```sh run
+        touch before-ran
+        ```
+
+        ## Manual
+
+        ```confirm
+        Do the manual thing.
+        ```
+
+        ```sh run
+        touch same-step-ran
+        ```
+
+        ## After
+
+        ```sh run
+        touch later-step-ran
+        ```
+        """,
+    )
+
+    events, result = run(path, FakePrompter(replies=["y", reply]))
+
+    assert (tmp_path / "before-ran").exists()
+    assert not (tmp_path / "same-step-ran").exists()
+    assert not (tmp_path / "later-step-ran").exists()
+    assert [event.step.name for event in events if isinstance(event, runner.StepStarted)] == ["Before", "Manual"]
+    assert result.status == "aborted"
+    assert result.step is not None
+    assert result.step.name == "Manual"
+    assert result.exit_code is None
