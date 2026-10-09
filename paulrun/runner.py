@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from paulrun.backends import Backend
-from paulrun.inputs import Prompter, collect, mask, substitute
+from paulrun.inputs import MASK, Prompter, collect, mask, substitute
 from paulrun.runbook import Block, Runbook, Step
 
 # Blocks print to a pipe rather than a terminal. Python would hold its output back until it exits,
@@ -18,6 +18,7 @@ class Overview:
     title: str  # the runbook's title, or its file name if it has none
     steps: tuple[Step, ...]
     run_blocks: int
+    inputs: tuple[tuple[str, str], ...]  # (name, value) in declared order, with **** for each secret
 
 
 @dataclass(frozen=True)
@@ -57,7 +58,7 @@ class BlockFinished:
 
 @dataclass(frozen=True)
 class RunFinished:
-    status: Literal["ok", "failed", "aborted"]
+    status: Literal["ok", "failed", "aborted", "dry"]
     duration: float  # seconds
     step: Step | None = None  # the step that failed or was aborted; None if the run was never started
     exit_code: int | None = None  # the failed block's exit code
@@ -71,7 +72,12 @@ class RunnerError(Exception):
 
 
 def run(
-    runbook: Runbook, backends: Mapping[str, Backend], sink: Callable[[Event], None], prompter: Prompter
+    runbook: Runbook,
+    backends: Mapping[str, Backend],
+    sink: Callable[[Event], None],
+    prompter: Prompter,
+    *,
+    dry: bool = False,
 ) -> RunFinished:
     """Collect the runbook's inputs, ask to start, then go through each step's blocks in order.
 
@@ -80,17 +86,21 @@ def run(
     with the RunFinished event that's also returned. Blocks run in the runbook's directory with paulrun's
     environment plus every input. Plain inputs are substituted into each block's text first, and secret
     values are masked in block output.
+
+    With dry, every block is still sent with inputs substituted, but nothing runs, nothing is asked
+    except plain inputs, and secrets are never collected.
     """
     run_blocks = [block for step in runbook.steps for block in step.blocks if block.kind == "run"]
     for block in run_blocks:
         if block.language not in backends:
             raise RunnerError(f"line {block.line}: no backend runs {block.language!r} blocks")
-    values = collect(runbook.inputs, os.environ, prompter)
-    secrets = [values[input.name] for input in runbook.inputs if input.secret]
+    values = collect(runbook.inputs, os.environ, prompter, skip_secrets=dry)
+    secrets = [values[input.name] for input in runbook.inputs if input.secret and not dry]
     plain = {input.name: values[input.name] for input in runbook.inputs if not input.secret}
     env = {**os.environ, **_BLOCK_ENV, **values}
-    sink(Overview(runbook.title or runbook.path.name, runbook.steps, len(run_blocks)))
-    if not _yes(prompter.confirm("Start? [y/N]")):
+    shown = tuple((input.name, MASK if input.secret else values[input.name]) for input in runbook.inputs)
+    sink(Overview(runbook.title or runbook.path.name, runbook.steps, len(run_blocks), shown))
+    if not dry and not _yes(prompter.confirm("Start? [y/N]")):
         return _finish(sink, RunFinished("aborted", 0.0))
     started = time.monotonic()
     for step in runbook.steps:
@@ -101,12 +111,14 @@ def run(
                 continue
             if block.kind == "confirm":
                 sink(Confirm(block, substitute(block.content, plain)))
-                if not _yes(prompter.confirm("Continue? [y/N]")):
+                if not dry and not _yes(prompter.confirm("Continue? [y/N]")):
                     return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
                 continue
             assert block.language is not None  # always set for run blocks
             code = substitute(block.content, plain)
             sink(BlockStarted(block, code))
+            if dry:
+                continue
             block_started = time.monotonic()
             exit_code = backends[block.language].run(
                 code,
@@ -118,7 +130,7 @@ def run(
             sink(BlockFinished(block, exit_code, time.monotonic() - block_started))
             if exit_code != 0:
                 return _finish(sink, RunFinished("failed", time.monotonic() - started, step, exit_code))
-    return _finish(sink, RunFinished("ok", time.monotonic() - started))
+    return _finish(sink, RunFinished("dry" if dry else "ok", time.monotonic() - started))
 
 
 def _yes(answer: str) -> bool:

@@ -79,6 +79,17 @@ def test_collect_needs_the_pattern_to_match_the_whole_value():
     assert len(prompter.asked) == 2
 
 
+def test_collect_can_skip_secrets():
+    """With skip_secrets, secrets are neither asked for nor read from the environment, and have no value."""
+    inputs = [VERSION, Input(name="TOKEN", description="A token", pattern="t-.*", secret=True)]
+    prompter = FakePrompter(answers=["1.2.0"])
+
+    values = collect(inputs, {"TOKEN": "doesn't match"}, prompter, skip_secrets=True)
+
+    assert values == {"VERSION": "1.2.0"}
+    assert prompter.asked == [("VERSION", None)]
+
+
 def test_collect_fails_when_an_environment_value_does_not_match_the_pattern():
     """A bad value from the environment can't be asked for again, so it's an error that doesn't show the value."""
     with pytest.raises(InputError) as error:

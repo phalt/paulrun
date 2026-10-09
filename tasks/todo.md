@@ -192,12 +192,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `go --dry` walks the runbook exactly like a real run but executes nothing: `run` blocks are printed with inputs substituted, `confirm` blocks are printed without waiting, the start prompt is skipped, and secrets aren't prompted for (shown as `****`).
 
 **Acceptance criteria:**
-- [ ] `go --dry` on a runbook whose blocks would create files creates nothing
-- [ ] Every `run` block is printed with non-secret inputs substituted
-- [ ] No prompt for secret inputs; non-secret inputs still collected
+- [x] `go --dry` on a runbook whose blocks would create files creates nothing
+- [x] Every `run` block is printed with non-secret inputs substituted
+- [x] No prompt for secret inputs; non-secret inputs still collected
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
+- [x] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
 
 **Dependencies:** Task 7
 

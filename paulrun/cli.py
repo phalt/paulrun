@@ -19,16 +19,21 @@ def cli() -> None:
 
 @cli.command()
 @click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-def go(runbook: Path) -> None:
+@click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
+def go(runbook: Path, dry: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails."""
     console = Console(highlight=False)
     try:
         result = runner.run(
-            parse(runbook), load_backends(), lambda event: _print_event(console, event), ClickPrompter(console)
+            parse(runbook),
+            load_backends(),
+            lambda event: _print_event(console, event, dry=dry),
+            ClickPrompter(console),
+            dry=dry,
         )
     except (RunbookError, BackendError, runner.RunnerError, InputError) as e:
         raise click.ClickException(str(e)) from e
-    if result.status != "ok":
+    if result.status not in ("ok", "dry"):
         sys.exit(1)
 
 
@@ -49,14 +54,18 @@ class ClickPrompter:
         return click.prompt(question, default="", show_default=False, prompt_suffix=" ")
 
 
-def _print_event(console: Console, event: runner.Event) -> None:
+def _print_event(console: Console, event: runner.Event, *, dry: bool = False) -> None:
     # console.out never reads markup or emoji codes and never wraps, so code and output appear as written.
     match event:
-        case runner.Overview(title=title, steps=steps, run_blocks=run_blocks):
+        case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs):
             console.out(title, style="bold")
+            if inputs:
+                console.out("inputs: " + " ".join(f"{name}={value}" for name, value in inputs))
             for number, step in enumerate(steps, start=1):
                 console.out(f"  {number}. {step.name}")
             console.out(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}")
+            if dry:
+                console.out("dry run: nothing will be run", style="yellow")
         case runner.StepStarted(step=step):
             console.out()
             console.out(f"=== {step.name} ===", style="bold")
@@ -76,6 +85,9 @@ def _print_event(console: Console, event: runner.Event) -> None:
         case runner.RunFinished(status="ok", duration=duration):
             console.out()
             console.out(f"finished: ok ({_duration(duration)})", style="green")
+        case runner.RunFinished(status="dry"):
+            console.out()
+            console.out("finished: dry run, nothing was run", style="yellow")
         case runner.RunFinished(status="aborted", step=step):
             console.out()
             where = "before starting" if step is None else f'at "{step.name}"'

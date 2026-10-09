@@ -2,6 +2,7 @@
 
 import importlib.metadata
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -44,6 +45,17 @@ def confirm_runbook(monkeypatch):
     """The docstring and confirm example runbook, with VERSION set in the environment so it isn't asked for."""
     monkeypatch.setenv("VERSION", "1.2.0")
     return RUNBOOKS / "docstring-and-confirm-example.md"
+
+
+@pytest.fixture
+def dry_runbook(tmp_path, monkeypatch):
+    """A copy of the dry run example runbook in tmp_path, so a broken --dry can only write files there.
+
+    Neither input is set in the environment.
+    """
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("PUBLISH_TOKEN", raising=False)
+    return Path(shutil.copy(RUNBOOKS / "dry-run-example.md", tmp_path))
 
 
 def test_version_prints_package_version(runner):
@@ -305,6 +317,7 @@ def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook):
     assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
         """\
         Docstring and confirm example
+        inputs: VERSION=1.2.0
           1. Build
           2. Release on GitHub
         2 run blocks
@@ -380,6 +393,64 @@ def test_go_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
     lines = result.output.splitlines()
     assert "Run [bold]make[/bold] :smile:" in lines
     assert "Check [red]this[/red] :+1:" in lines
+
+
+def test_go_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbook):
+    """--dry asks only for plain inputs, shows every block with them filled in, and creates none of its files."""
+    result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)], input="1.2.0\n")
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        """\
+        VERSION (The version being released, e.g. 1.2.0): 1.2.0
+        Dry run example
+        inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
+          1. Build
+          2. Publish
+        2 run blocks
+        dry run: nothing will be run
+
+        === Build ===
+        $ echo "1.2.0" > built-1.2.0.txt
+
+        === Publish ===
+        Check built-1.2.0.txt before publishing.
+        $ echo "published with $PUBLISH_TOKEN" > published-1.2.0.txt
+
+        finished: dry run, nothing was run
+        """
+    )
+    assert sorted(path.name for path in dry_runbook.parent.iterdir()) == ["dry-run-example.md"]
+
+
+def test_go_dry_never_reads_or_shows_a_secret(runner, dry_runbook, monkeypatch):
+    """A secret set in the environment is shown as **** and never appears in the output."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+
+    result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)])
+
+    assert result.exit_code == 0
+    assert "inputs: VERSION=1.2.0 PUBLISH_TOKEN=****" in result.output.splitlines()
+    assert "s3cret" not in result.output
+
+
+def test_go_dry_still_rejects_a_bad_plain_input_from_the_environment(runner, dry_runbook, monkeypatch):
+    """Plain inputs are checked under --dry exactly as in a real run."""
+    monkeypatch.setenv("VERSION", "latest")
+
+    result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
+
+
+def test_go_help_describes_dry(runner):
+    """go --help lists --dry."""
+    result = runner.invoke(cli.cli, ["go", "--help"])
+
+    assert result.exit_code == 0
+    assert "--dry" in result.output
 
 
 @pytest.mark.parametrize(

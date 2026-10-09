@@ -56,13 +56,15 @@ def write_runbook(directory: Path, text: str) -> Path:
     return path
 
 
-def run(path: Path, prompter: FakePrompter | None = None) -> tuple[list[runner.Event], runner.RunFinished]:
+def run(
+    path: Path, prompter: FakePrompter | None = None, *, dry: bool = False
+) -> tuple[list[runner.Event], runner.RunFinished]:
     """Run the runbook at path with the installed backends, returning every event sent and the result.
 
     Without a prompter, asking for an input fails the test and every question is answered y.
     """
     events: list[runner.Event] = []
-    result = runner.run(parse(path), load_backends(), events.append, prompter or FakePrompter())
+    result = runner.run(parse(path), load_backends(), events.append, prompter or FakePrompter(), dry=dry)
     return events, result
 
 
@@ -475,7 +477,7 @@ def test_run_overview_uses_the_file_name_when_there_is_no_title(tmp_path):
 
     events, _ = run(path)
 
-    assert events[0] == runner.Overview(title="runbook.md", steps=parse(path).steps, run_blocks=1)
+    assert events[0] == runner.Overview(title="runbook.md", steps=parse(path).steps, run_blocks=1, inputs=())
 
 
 @pytest.mark.parametrize("reply", ["", "n", "no", "yes", "Y"])
@@ -632,3 +634,178 @@ def test_run_aborts_at_a_confirm_not_answered_y(tmp_path, reply):
     assert result.step is not None
     assert result.step.name == "Manual"
     assert result.exit_code is None
+
+
+def test_run_overview_lists_inputs_with_secrets_masked(tmp_path, monkeypatch):
+    """The overview shows each input's value in declared order, with **** in place of each secret."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("TOKEN", "s3cret")
+    path = write_runbook(tmp_path, INPUTS_FRONTMATTER + "\n## Only\n\n```sh run\ntrue\n```\n")
+
+    events, _ = run(path)
+
+    overview = events[0]
+    assert isinstance(overview, runner.Overview)
+    assert overview.inputs == (("VERSION", "1.2.0"), ("TOKEN", "****"))
+
+
+def test_dry_run_runs_nothing(tmp_path):
+    """No block runs under dry, so nothing it would have done happens."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## First
+
+        ```sh run
+        touch first-ran
+        ```
+
+        ## Second
+
+        ```sh run
+        touch second-ran
+        ```
+        """,
+    )
+
+    events, result = run(path, dry=True)
+
+    assert not (tmp_path / "first-ran").exists()
+    assert not (tmp_path / "second-ran").exists()
+    assert output(events) == []
+    assert result.status == "dry"
+
+
+def test_dry_run_sends_every_step_and_block_in_order_without_finishing_any(tmp_path):
+    """A dry run goes through the whole runbook like a real one, but no run block finishes because none ran."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## First
+
+        ```docstring
+        About to build.
+        ```
+
+        ```sh run
+        echo one
+        ```
+
+        ## Second
+
+        ```confirm
+        Check it by hand.
+        ```
+
+        ```sh run
+        exit 3
+        ```
+        """,
+    )
+
+    events, _ = run(path, dry=True)
+
+    assert [type(event) for event in events] == [
+        runner.Overview,
+        runner.StepStarted,
+        runner.Docstring,
+        runner.BlockStarted,
+        runner.StepStarted,
+        runner.Confirm,
+        runner.BlockStarted,
+        runner.RunFinished,
+    ]
+
+
+def test_dry_run_asks_no_questions(tmp_path):
+    """There's no start prompt and confirms don't wait, so a dry run can't be aborted part way."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Manual
+
+        ```confirm
+        Do the manual thing.
+        ```
+
+        ```sh run
+        true
+        ```
+        """,
+    )
+    prompter = FakePrompter(replies=["n", "n"])
+
+    _, result = run(path, prompter, dry=True)
+
+    assert prompter.questions == []
+    assert result.status == "dry"
+
+
+def test_dry_run_substitutes_plain_inputs_into_every_block(tmp_path, monkeypatch):
+    """Run, docstring and confirm blocks show plain inputs filled in, exactly as a real run would."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("TOKEN", "s3cret")
+    path = write_runbook(
+        tmp_path,
+        INPUTS_FRONTMATTER
+        + textwrap.dedent(
+            """\
+
+            ## Release
+
+            ```docstring
+            Releasing <VERSION>.
+            ```
+
+            ```confirm
+            Tag <VERSION>.
+            ```
+
+            ```sh run
+            git tag <VERSION> && echo "$TOKEN"
+            ```
+            """
+        ),
+    )
+
+    events, _ = run(path, dry=True)
+
+    assert [event.text for event in events if isinstance(event, runner.Docstring)] == ["Releasing 1.2.0.\n"]
+    assert [event.text for event in events if isinstance(event, runner.Confirm)] == ["Tag 1.2.0.\n"]
+    assert [event.code for event in events if isinstance(event, runner.BlockStarted)] == [
+        'git tag 1.2.0 && echo "$TOKEN"\n'
+    ]
+
+
+def test_dry_run_collects_plain_inputs_but_never_asks_for_secrets(tmp_path, monkeypatch):
+    """Plain inputs are still asked for, so the blocks can be shown filled in, but secrets aren't needed."""
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("TOKEN", raising=False)
+    path = write_runbook(tmp_path, INPUTS_FRONTMATTER + "\n## Only\n\n```sh run\ntrue\n```\n")
+    prompter = FakePrompter(answers=["1.2.0"])
+
+    events, _ = run(path, prompter, dry=True)
+
+    assert prompter.asked == ["VERSION"]
+    overview = events[0]
+    assert isinstance(overview, runner.Overview)
+    assert overview.inputs == (("VERSION", "1.2.0"), ("TOKEN", "****"))
+
+
+def test_dry_run_ignores_a_secret_set_in_the_environment(tmp_path, monkeypatch):
+    """A secret from the environment is never read under dry, so a bad value can't stop it and it's shown as ****."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("TOKEN", "s3cret")
+    path = write_runbook(tmp_path, INPUTS_FRONTMATTER + "\n## Only\n\n```sh run\ntrue\n```\n")
+
+    events, _ = run(path, dry=True)
+
+    assert "s3cret" not in repr(events)
+
+
+def test_dry_run_still_rejects_a_block_with_no_backend(tmp_path):
+    """A dry run checks what a real run would, so it catches a block nothing can run."""
+    path = write_runbook(tmp_path, "## No backend\n\n```cobol run\nDISPLAY 'HELLO'.\n```\n")
+
+    with pytest.raises(runner.RunnerError):
+        run(path, dry=True)

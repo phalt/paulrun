@@ -33,10 +33,17 @@ class InputError(Exception):
     """An input can't be collected, e.g. its value from the environment doesn't match its pattern."""
 
 
-def collect(inputs: Iterable[Input], env: Mapping[str, str], prompter: Prompter) -> dict[str, str]:
-    """Get a value for each input, from env if it's set there, otherwise by asking until the answer matches."""
+def collect(
+    inputs: Iterable[Input], env: Mapping[str, str], prompter: Prompter, *, skip_secrets: bool = False
+) -> dict[str, str]:
+    """Get a value for each input, from env if it's set there, otherwise by asking until the answer matches.
+
+    With skip_secrets, secrets are left out entirely: not read from env, not asked for, and not in the result.
+    """
     values = {}
     for input in inputs:
+        if skip_secrets and input.secret:
+            continue
         # An empty variable counts as unset, so a stray `VERSION=` can't release an empty version.
         if value := env.get(input.name):
             if not _matches(input, value):
