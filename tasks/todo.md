@@ -112,16 +112,16 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 
 ## Task 5: Runner and `paulrun go` (shell blocks only)
 
-**Description:** `runner.py` walks a `Runbook`'s steps and runs each `run` block through its backend, with the runbook's directory as `cwd`. It emits events (step started, block code, output line, block finished with exit code and duration, run finished) to a sink, so the CLI can print them and the transcript can later record them from the same stream. Block env sets `PYTHONUNBUFFERED=1`, `GIT_PAGER=cat`, `PAGER=cat`. `cli.py` adds `go RUNBOOK` printing events with rich (`markup=False, highlight=False` for output lines). Stops on the first non-zero exit.
+**Description:** `runner.py` walks a `Runbook`'s steps and runs each `run` block through its backend, with the runbook's directory as `cwd`. It emits events (step started, block code, output line, block finished with exit code and duration, run finished) to a sink, so the CLI can print them and the transcript can later record them from the same stream. Block env sets `PYTHONUNBUFFERED=1`, `GIT_PAGER=cat`, `PAGER=cat`. `cli.py` adds `go RUNBOOK` printing events with rich (`console.out()` for code and output lines; `print(markup=False)` still converts `:emoji:` codes and wraps long lines). Stops on the first non-zero exit. Until Task 10's `validate()` exists, the runner refuses up front to start a runbook with a `run` block no backend handles.
 
 **Acceptance criteria:**
-- [ ] Output from a slow block (e.g. `for i in 1 2 3; do echo $i; sleep 0.2; done`) appears line by line, not all at the end
-- [ ] Blocks run in the runbook's directory regardless of where `paulrun` is invoked
-- [ ] A failing block stops the run; later steps don't run
+- [x] Output from a slow block (e.g. `for i in 1 2 3; do echo $i; sleep 0.2; done`) appears line by line, not all at the end
+- [x] Blocks run in the runbook's directory regardless of where `paulrun` is invoked
+- [x] A failing block stops the run; later steps don't run
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
-- [ ] Manual check: run a two-step shell runbook from another directory and watch output stream
+- [x] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
+- [x] Manual check: run a two-step shell runbook from another directory and watch output stream
 
 **Dependencies:** Tasks 3, 4
 
@@ -135,8 +135,8 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Estimated scope:** Medium
 
 ### Checkpoint 2: Walking skeleton
-- [ ] `paulrun go` on a two-step shell runbook streams output live and stops on failure
-- [ ] Review with Paul before widening
+- [x] `paulrun go` on a two-step shell runbook streams output live and stops on failure
+- [x] Review with Paul before widening (approved 2026-10-08)
 
 ---
 

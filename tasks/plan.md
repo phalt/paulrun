@@ -60,11 +60,11 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 
 ### Phase 2: Walking skeleton
 - [x] Task 4: Backend protocol, entry point loader, shell backend
-- [ ] Task 5: Runner and `paulrun go` (shell blocks only)
+- [x] Task 5: Runner and `paulrun go` (shell blocks only)
 
 ### Checkpoint 2: Walking skeleton
-- [ ] `paulrun go` on a two-step shell runbook streams output live and stops on failure
-- [ ] Review with Paul before widening
+- [x] `paulrun go` on a two-step shell runbook streams output live and stops on failure
+- [x] Review with Paul before widening (approved 2026-10-08)
 
 ### Phase 3: Core features
 - [ ] Task 6: Inputs: declare, collect, validate, substitute, mask
@@ -106,7 +106,7 @@ Mostly sequential: almost everything hangs off the parser, runner and inputs. Af
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Live streaming and capture interfere (buffering, rich mangling output, lost lines) | High | Proved first in Task 5. Read raw lines from the pipe, print with `markup=False, highlight=False`. Set `PYTHONUNBUFFERED=1` in block env so Python child output isn't held back |
+| Live streaming and capture interfere (buffering, rich mangling output, lost lines) | High | Proved in Task 5. Read raw lines from the pipe, print with `console.out()` on a `Console(highlight=False)` (`print(markup=False)` still converts `:emoji:` codes and wraps). The terminal drops `\r` and expands tabs; the transcript gets raw lines. Set `PYTHONUNBUFFERED=1` in block env so Python child output isn't held back |
 | Interactive commands inside `run` blocks (a credentials prompt, a pager) hang or hide their prompt because stdout is piped | Medium | stdin is inherited so input still works. Set `GIT_PAGER=cat` and `PAGER=cat` in block env. Document in `runbook-format.md` that `run` blocks should be non-interactive and secrets should come through `inputs` |
 | A secret is split across lines or reformatted by a tool, so line-based masking misses it | Medium | Mask on every line, plus mask the full transcript text before each write. Accept that a tool that transforms the secret (e.g. base64s it) isn't covered; note it in docs |
 | `<NAME>` placeholder regex hits something that isn't a placeholder (e.g. `<HTML>` in a heredoc) | Low | Only flagged if undeclared, as a `check` error with line number; the fix is obvious. Revisit if it bites |
