@@ -453,6 +453,45 @@ def test_go_help_describes_dry(runner):
     assert "--dry" in result.output
 
 
+def test_go_runs_python_blocks(runner, monkeypatch):
+    """The python example's blocks run under Python, with inputs substituted and exported."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+
+    result = runner.invoke(cli.cli, ["go", str(RUNBOOKS / "python-example.md")], input="y\n")
+
+    assert result.exit_code == 0
+    lines = result.output.splitlines()
+    assert "Releasing 1.2.0" in lines
+    assert "Next version: 1.2.1" in lines
+
+
+def test_go_stops_at_a_python_block_that_raises(runner, tmp_path):
+    """A Python block that raises fails the run, naming its step, and later steps don't run."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Raises
+
+        ```python run
+        raise SystemExit("not today")
+        ```
+
+        ## Never reached
+
+        ```sh run
+        echo unreachable
+        ```
+        """,
+    )
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 1
+    assert "not today" in result.output.splitlines()
+    assert result.output.endswith('\nfinished: failed at "Raises" (exit 1)\n')
+    assert "unreachable" not in result.output
+
+
 @pytest.mark.parametrize(
     "seconds, expected",
     [

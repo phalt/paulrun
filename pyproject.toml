@@ -23,6 +23,7 @@ paulrun = "paulrun.cli:cli"
 # Built-in backends are registered here, the same way external backends register theirs.
 [project.entry-points."paulrun.backends"]
 shell = "paulrun.backends.shell:ShellBackend"
+python = "paulrun.backends.python:PythonBackend"
 
 [dependency-groups]
 dev = [

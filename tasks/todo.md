@@ -214,12 +214,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `backends/python.py` handles `python` and `py`. It reads the core `python` frontmatter key (split with `shlex`), defaulting to `sys.executable`, writes the block to a temp file and runs `<command> <tempfile>` with the same streaming model as the shell backend. `validate()` runs `compile()` on the block after replacing placeholders with dummy values. Registered in `pyproject.toml`.
 
 **Acceptance criteria:**
-- [ ] A Python block runs with `sys.executable` when no `python` key is set
-- [ ] With `python: <command>` set, blocks run under that command (tested with a stub interpreter script in `tmp_path`)
-- [ ] A Python block that raises exits non-zero and stops the run
+- [x] A Python block runs with `sys.executable` when no `python` key is set
+- [x] With `python: <command>` set, blocks run under that command (tested with a stub interpreter script in `tmp_path`)
+- [x] A Python block that raises exits non-zero and stops the run
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/backends/test_python.py`
+- [x] Tests pass: `uv run pytest tests/backends/test_python.py`
 
 **Dependencies:** Task 5
 

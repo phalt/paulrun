@@ -5,6 +5,7 @@ from importlib.metadata import EntryPoint
 import pytest
 
 from paulrun import backends
+from paulrun.backends.python import PythonBackend
 from paulrun.backends.shell import ShellBackend
 
 
@@ -48,6 +49,14 @@ def test_load_backends_finds_shell_backend_from_installed_entry_points():
 
     assert isinstance(loaded["sh"], ShellBackend)
     assert loaded["sh"] is loaded["bash"] is loaded["shell"]
+
+
+def test_load_backends_finds_python_backend_from_installed_entry_points():
+    """paulrun's own pyproject.toml registers the Python backend for python and py."""
+    loaded = backends.load_backends()
+
+    assert isinstance(loaded["python"], PythonBackend)
+    assert loaded["python"] is loaded["py"]
 
 
 def test_load_backends_maps_every_language_to_its_backend():

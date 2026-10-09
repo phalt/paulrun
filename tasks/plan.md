@@ -70,7 +70,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [x] Task 6: Inputs: declare, collect, validate, substitute, mask
 - [x] Task 7: `docstring` and `confirm` blocks, start prompt, exit codes
 - [x] Task 8: `--dry`
-- [ ] Task 9: Python backend and the `python:` frontmatter key
+- [x] Task 9: Python backend and the `python:` frontmatter key
 - [ ] Task 10: Validation and `paulrun check`
 
 ### Checkpoint 3: Core features
