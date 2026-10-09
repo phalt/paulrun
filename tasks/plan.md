@@ -71,11 +71,11 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [x] Task 7: `docstring` and `confirm` blocks, start prompt, exit codes
 - [x] Task 8: `--dry`
 - [x] Task 9: Python backend and the `python:` frontmatter key
-- [ ] Task 10: Validation and `paulrun check`
+- [x] Task 10: Validation and `paulrun check`
 
 ### Checkpoint 3: Core features
-- [ ] `paulrun check` and `paulrun go --dry` work on `tests/runbooks/all_features.md`
-- [ ] All `check` error cases from the spec covered by fixture tests
+- [x] `paulrun check` and `paulrun go --dry` work on `tests/runbooks/all_features.md`
+- [x] All `check` error cases from the spec covered by fixture tests
 
 ### Phase 4: Remaining features
 - [ ] Task 11: `--step`

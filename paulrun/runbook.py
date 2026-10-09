@@ -34,6 +34,8 @@ class Runbook:
 
     path: Path
     frontmatter: Mapping[str, Any]
+    # The file line each frontmatter key starts on, and "inputs.N" for each item in inputs, for error messages.
+    lines: Mapping[str, int]
     title: str | None
     description: str | None
     output_path: str | None
@@ -53,7 +55,7 @@ _MARKDOWN = MarkdownIt("commonmark")
 def parse(path: Path) -> Runbook:
     """Parse a runbook into steps and blocks. Only checks what's needed to read it; validation is separate."""
     with path.open("rb") as file:
-        frontmatter, offset = _read_frontmatter(file)
+        frontmatter, lines, offset = _read_frontmatter(file)
         body = "".join(_decode(raw, number) for number, raw in enumerate(file, start=offset + 1))
     preamble: list[Block] = []
     steps: list[tuple[str, int, list[Block]]] = []
@@ -66,6 +68,7 @@ def parse(path: Path) -> Runbook:
     return Runbook(
         path=path,
         frontmatter=frontmatter,
+        lines=lines,
         title=_string(frontmatter.get("title")),
         description=_string(frontmatter.get("description")),
         output_path=_string(frontmatter.get("output_path")),
@@ -79,24 +82,25 @@ def parse(path: Path) -> Runbook:
 def read_frontmatter(path: Path) -> Mapping[str, Any]:
     """Read only the frontmatter. Nothing after the closing --- is decoded or parsed."""
     with path.open("rb") as file:
-        frontmatter, _ = _read_frontmatter(file)
+        frontmatter, _, _ = _read_frontmatter(file)
     return frontmatter
 
 
-def _read_frontmatter(file: BinaryIO) -> tuple[Mapping[str, Any], int]:
+def _read_frontmatter(file: BinaryIO) -> tuple[Mapping[str, Any], Mapping[str, int], int]:
     """Read the frontmatter at the start of file, leaving file at the start of the body.
 
-    Returns the frontmatter and how many lines it took up. Lines are decoded one at a time,
-    so a body that isn't UTF-8 can't break reading the frontmatter.
+    Returns the frontmatter, the line each key starts on, and how many lines it took up. Lines are
+    decoded one at a time, so a body that isn't UTF-8 can't break reading the frontmatter.
     """
     if _decode(file.readline(), 1).rstrip() != "---":
         file.seek(0)
-        return MappingProxyType({}), 0
+        return MappingProxyType({}), MappingProxyType({}), 0
     lines = []
     for number, raw in enumerate(file, start=2):
         line = _decode(raw, number)
         if line.rstrip() == "---":
-            return _load_yaml("".join(lines)), number
+            text = "".join(lines)
+            return _load_yaml(text), _key_lines(text), number
         lines.append(line)
     raise RunbookError("frontmatter has no closing ---")
 
@@ -122,6 +126,20 @@ def _load_yaml(text: str) -> Mapping[str, Any]:
     if not isinstance(data, dict):
         raise RunbookError("frontmatter must be a YAML mapping")
     return MappingProxyType(data)
+
+
+def _key_lines(text: str) -> Mapping[str, int]:
+    """The file line each top-level key in valid frontmatter YAML starts on, plus "inputs.N" for each input."""
+    # Node marks count from the first line inside the frontmatter, which is line 2 of the file.
+    node = yaml.compose(text, Loader=yaml.SafeLoader)
+    lines: dict[str, int] = {}
+    if isinstance(node, yaml.MappingNode):
+        for key, value in node.value:
+            lines[str(key.value)] = key.start_mark.line + 2
+            if key.value == "inputs" and isinstance(value, yaml.SequenceNode):
+                for index, item in enumerate(value.value):
+                    lines[f"inputs.{index}"] = item.start_mark.line + 2
+    return MappingProxyType(lines)
 
 
 def _string(value: Any) -> str | None:

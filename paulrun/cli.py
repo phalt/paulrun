@@ -6,9 +6,10 @@ import click
 from rich.console import Console
 
 from paulrun import runner, settings
-from paulrun.backends import BackendError, load_backends
+from paulrun.backends import Backend, BackendError, load_backends
 from paulrun.inputs import Input, InputError
-from paulrun.runbook import RunbookError, parse
+from paulrun.runbook import Runbook, RunbookError, parse
+from paulrun.validate import Report, validate
 
 
 @click.group("paulrun")
@@ -23,18 +24,61 @@ def cli() -> None:
 def go(runbook: Path, dry: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails."""
     console = Console(highlight=False)
+    parsed, backends, report = _validated(runbook)
+    _print_report(console, runbook, report, summary_if_ok=False)
+    if not report.ok:
+        sys.exit(1)
     try:
         result = runner.run(
-            parse(runbook),
-            load_backends(),
+            parsed,
+            backends,
             lambda event: _print_event(console, event, dry=dry),
             ClickPrompter(console),
             dry=dry,
         )
-    except (RunbookError, BackendError, runner.RunnerError, InputError) as e:
+    except (runner.RunnerError, InputError) as e:
         raise click.ClickException(str(e)) from e
     if result.status not in ("ok", "dry"):
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def check(runbook: Path) -> None:
+    """Check a runbook for problems without running anything. Exits 1 if there are any errors."""
+    console = Console(highlight=False)
+    _, _, report = _validated(runbook)
+    _print_report(console, runbook, report, summary_if_ok=True)
+    if not report.ok:
+        sys.exit(1)
+
+
+def _validated(path: Path) -> tuple[Runbook, dict[str, Backend], Report]:
+    """Parse and validate a runbook, turning anything that stops it being read into a clean error."""
+    try:
+        parsed = parse(path)
+        backends = load_backends()
+    except (RunbookError, BackendError) as e:
+        raise click.ClickException(str(e)) from e
+    return parsed, backends, validate(parsed, backends)
+
+
+def _print_report(console: Console, path: Path, report: Report, *, summary_if_ok: bool) -> None:
+    """Print each finding as path:line: kind: message, then a count. A clean report prints only if asked."""
+    if not report.findings:
+        if summary_if_ok:
+            console.out(f"{path}: ok", style="green")
+        return
+    for finding in report.findings:
+        kind, style = ("warning", "yellow") if finding.warning else ("error", "red")
+        console.out(f"{path}:{finding.line}: {kind}: {finding.message}", style=style)
+    counts = [_count(len(report.errors), "error"), _count(len(report.warnings), "warning")]
+    console.out()
+    console.out(", ".join(count for count in counts if count), style="bold")
+
+
+def _count(number: int, noun: str) -> str:
+    return f"{number} {noun}{'' if number == 1 else 's'}" if number else ""
 
 
 @dataclass(frozen=True)

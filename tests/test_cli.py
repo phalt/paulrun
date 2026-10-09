@@ -1,6 +1,7 @@
 """Tests for CLI commands."""
 
 import importlib.metadata
+import os
 import re
 import shutil
 import subprocess
@@ -25,10 +26,27 @@ def runner(monkeypatch):
     return CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def path_without_shellcheck(monkeypatch):
+    """Drop any directory with shellcheck in it from PATH, so output is the same whether or not it's installed.
+
+    CI runners have shellcheck, and its warnings depend on its version. They're tested in the shell backend's tests.
+    """
+    directories = os.environ["PATH"].split(os.pathsep)
+    kept = [directory for directory in directories if not (Path(directory) / "shellcheck").exists()]
+    monkeypatch.setenv("PATH", os.pathsep.join(kept))
+
+
 def write_runbook(tmp_path: Path, text: str) -> Path:
-    """Write a dedented runbook into tmp_path and return its path."""
+    """Write a dedented runbook into tmp_path and return its path.
+
+    go validates first and a title is required, so a runbook written without frontmatter gets `title: Test`.
+    """
+    text = textwrap.dedent(text)
+    if not text.startswith("---\n"):
+        text = "---\ntitle: Test\n---\n\n" + text
     path = tmp_path / "runbook.md"
-    path.write_text(textwrap.dedent(text))
+    path.write_text(text)
     return path
 
 
@@ -100,7 +118,7 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path):
     assert result.exit_code == 0
     assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
         """\
-        runbook.md
+        Test
           1. Greet
           2. Again
         2 run blocks
@@ -225,14 +243,160 @@ def test_go_reports_runbook_it_cannot_read(runner, tmp_path):
     assert result.output == "Error: frontmatter has no closing ---\n"
 
 
-def test_go_reports_run_block_with_no_backend(runner, tmp_path):
-    """A run block for a language no backend runs is reported before anything runs."""
-    path = write_runbook(tmp_path, "## Step\n\n```cobol run\nDISPLAY 'HELLO'.\n```\n")
+def test_go_refuses_to_start_a_runbook_with_errors(runner, tmp_path):
+    """go checks the runbook first, and any error stops it before inputs are asked for or anything runs."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Broken
+        inputs:
+          - name: VERSION
+            description: The version
+        ---
 
-    result = runner.invoke(cli.cli, ["go", str(path)])
+        ## Step
+
+        ```sh run
+        touch ran
+        ```
+
+        ```cobol run
+        DISPLAY '<VERSION>'.
+        ```
+        """,
+    )
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="1.2.0\ny\n")
 
     assert result.exit_code == 1
-    assert result.output == "Error: line 3: no backend runs 'cobol' blocks\n"
+    assert result.output == f"{path}:14: error: no backend runs 'cobol' blocks\n\n1 error\n"
+    assert not (tmp_path / "ran").exists()
+
+
+def test_go_dry_also_refuses_a_runbook_with_errors(runner, tmp_path):
+    """--dry checks the runbook the same way, so a dry run can't hide a broken block."""
+    path = write_runbook(tmp_path, "## Step\n\n```sh run\nif true; then\nfi\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", "--dry", str(path)])
+
+    assert result.exit_code == 1
+    assert result.output == f"{path}:9: error: syntax error near unexpected token `fi'\n\n1 error\n"
+
+
+def test_go_prints_warnings_and_carries_on(runner, tmp_path):
+    """Warnings are printed before the run, but don't stop it."""
+    path = write_runbook(tmp_path, "---\ntitle: Warns\nextra: 1\n---\n\n## Step\n\n```sh run\necho ran\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    assert result.output.startswith(f"{path}:3: warning: unknown frontmatter key 'extra'\n\n1 warning\nWarns\n")
+    assert "ran" in result.output.splitlines()
+
+
+def test_check_passes_a_valid_runbook(runner):
+    """check exits 0 and says so for a runbook with no problems."""
+    path = RUNBOOKS / "all_features.md"
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output == f"{path}: ok\n"
+
+
+@pytest.mark.parametrize("fixture", sorted(path.name for path in (RUNBOOKS / "broken").glob("*.md")))
+def test_check_fails_every_broken_fixture(runner, fixture):
+    """check exits 1 on each broken fixture, reporting its error with file and line."""
+    path = RUNBOOKS / "broken" / fixture
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert result.exit_code == 1
+    assert re.match(rf"{re.escape(str(path))}:\d+: error: ", result.output)
+    assert result.output.endswith("\n\n1 error\n")
+
+
+def test_check_prints_every_finding_with_a_summary(runner, tmp_path):
+    """Every error and warning is listed in line order, then how many of each there were."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Several
+        extra: 1
+        ---
+
+        ## Step
+
+        ```sh run
+        echo <ONE> <TWO>
+        ```
+        """,
+    )
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert result.exit_code == 1
+    assert result.output == (
+        f"{path}:3: warning: unknown frontmatter key 'extra'\n"
+        f"{path}:9: error: <ONE> isn't a declared input\n"
+        f"{path}:9: error: <TWO> isn't a declared input\n"
+        "\n"
+        "2 errors, 1 warning\n"
+    )
+
+
+def test_check_passes_a_runbook_with_only_warnings(runner, tmp_path):
+    """Warnings are printed, but check still exits 0."""
+    path = write_runbook(tmp_path, "---\ntitle: Warns\nextra: 1\nmore: 2\n---\n\n## Step\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output.endswith("\n\n2 warnings\n")
+
+
+def test_check_prints_messages_verbatim(runner, tmp_path):
+    """A message quoting rich-markup-like text, such as a pattern with [brackets], is printed as it is."""
+    path = write_runbook(
+        tmp_path, "---\ntitle: T\ninputs:\n  - name: V\n    description: v\n    pattern: '[bold'\n---\n\n## S\n"
+    )
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert "input V's pattern isn't a valid regex: unterminated character set at position 0" in result.output
+
+
+def test_check_reports_a_runbook_it_cannot_read(runner, tmp_path):
+    """A runbook check can't parse is an error, without a traceback."""
+    path = write_runbook(tmp_path, "---\ntitle: Unclosed\n\n## Step\n")
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: frontmatter has no closing ---\n"
+
+
+def test_check_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
+    """If the installed backends conflict, check says so instead of crashing."""
+
+    def conflicting_backends():
+        raise BackendError("language 'sh' is claimed by both 'shell' and 'rival'")
+
+    monkeypatch.setattr(cli, "load_backends", conflicting_backends)
+
+    result = runner.invoke(cli.cli, ["check", str(RUNBOOKS / "minimal.md")])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: language 'sh' is claimed by both 'shell' and 'rival'\n"
+
+
+def test_help_lists_check_command(runner):
+    """--help lists the check command."""
+    result = runner.invoke(cli.cli, ["--help"])
+
+    assert "\n  check " in result.output
 
 
 def test_go_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):

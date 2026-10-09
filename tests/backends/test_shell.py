@@ -1,6 +1,9 @@
 """Tests for the shell backend. Blocks really run under bash in tmp_path."""
 
+import json
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -8,8 +11,43 @@ import time
 from collections.abc import Mapping
 from pathlib import Path
 
-from paulrun.backends import Backend
+import pytest
+
+from paulrun.backends import Backend, Problem
 from paulrun.backends.shell import ShellBackend
+
+
+@pytest.fixture
+def no_shellcheck(monkeypatch, tmp_path_factory):
+    """A PATH with bash but no shellcheck, so validation is just bash -n, whether or not shellcheck is installed."""
+    bin_dir = tmp_path_factory.mktemp("bin")
+    (bin_dir / "bash").symlink_to(shutil.which("bash"))
+    monkeypatch.setenv("PATH", str(bin_dir))
+
+
+@pytest.fixture
+def fake_shellcheck(monkeypatch, tmp_path_factory):
+    """Put a stub shellcheck first on PATH. Call it with the findings it should print as JSON.
+
+    The stub writes the arguments and script it was given to the returned file.
+    """
+    bin_dir = tmp_path_factory.mktemp("bin")
+    record = bin_dir / "record.txt"
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+    def install(findings: list[dict]) -> Path:
+        script = bin_dir / "shellcheck"
+        script.write_text(
+            "#!/bin/sh\n"
+            f'{{ echo "args: $*"; printf "script: "; cat; }} > {shlex.quote(str(record))}\n'
+            f"echo {shlex.quote(json.dumps(findings))}\n"
+            # shellcheck exits 1 when it has findings, which isn't a failure to run.
+            f"exit {1 if findings else 0}\n"
+        )
+        script.chmod(0o755)
+        return record
+
+    return install
 
 
 def run(code: str, cwd: Path, env: Mapping[str, str] = os.environ) -> tuple[list[str], int]:
@@ -142,35 +180,110 @@ def test_run_reads_stdin_from_the_terminal(tmp_path):
     assert result.stdout == "['got typed']\n"
 
 
-def test_validate_accepts_valid_code():
+def test_validate_accepts_valid_code(no_shellcheck):
     """A block bash can parse has no problems."""
     assert ShellBackend().validate("if true; then\n  echo ok\nfi\n") == []
 
 
-def test_validate_reports_syntax_error_with_block_line():
-    """A syntax error is reported with its line, counted from the top of the block."""
+def test_validate_reports_syntax_error_as_an_error_on_its_block_line(no_shellcheck):
+    """A syntax error is an error, on its line counted from the top of the block, without bash's name in front."""
     problems = ShellBackend().validate("echo ok\nif true; then\nfi\n")
 
-    assert problems
-    assert problems[0].startswith("line 3: syntax error")
+    assert problems == [Problem("syntax error near unexpected token `fi'", line=3)]
 
 
-def test_validate_accepts_placeholders():
+def test_validate_reports_each_error_bash_finds(no_shellcheck):
+    """Every message bash prints is kept, each on its own line."""
+    problems = ShellBackend().validate('echo "unclosed\n')
+
+    assert problems == [
+        Problem("unexpected EOF while looking for matching `\"'", line=1),
+        Problem("syntax error: unexpected end of file", line=2),
+    ]
+
+
+def test_validate_accepts_placeholders(no_shellcheck):
     """<NAME> placeholders are allowed, even where bash would read them as a redirect."""
     assert ShellBackend().validate("git tag <VERSION>\ngit push origin <VERSION>\n") == []
 
 
-def test_validate_still_reports_errors_in_blocks_with_placeholders():
+def test_validate_still_reports_errors_in_blocks_with_placeholders(no_shellcheck):
     """Replacing placeholders doesn't hide a real syntax error elsewhere, or move its line number."""
     problems = ShellBackend().validate("git tag <VERSION>\nif true; then\nfi\n")
 
-    assert problems
-    assert problems[0].startswith("line 3: syntax error")
+    assert problems == [Problem("syntax error near unexpected token `fi'", line=3)]
 
 
-def test_validate_does_not_run_the_block(tmp_path):
+def test_validate_does_not_run_the_block(tmp_path, no_shellcheck):
     """Validation only parses the block."""
     created = tmp_path / "created"
 
     assert ShellBackend().validate(f"touch {created}\n") == []
     assert not created.exists()
+
+
+def test_validate_adds_shellcheck_findings_as_warnings(fake_shellcheck):
+    """When shellcheck is installed, its findings are warnings on their block lines, with their codes."""
+    fake_shellcheck(
+        [
+            {"line": 2, "level": "warning", "code": 2086, "message": "Double quote to prevent globbing."},
+            {"line": 1, "level": "info", "code": 2164, "message": "Use cd ... || exit."},
+        ]
+    )
+
+    problems = ShellBackend().validate("cd somewhere\necho $1\n")
+
+    assert problems == [
+        Problem("SC2086: Double quote to prevent globbing.", line=2, warning=True),
+        Problem("SC2164: Use cd ... || exit.", line=1, warning=True),
+    ]
+
+
+def test_validate_runs_shellcheck_on_the_block_as_bash_with_placeholders_replaced(fake_shellcheck):
+    """shellcheck checks the same script bash -n does, as bash, so it doesn't complain about a missing shebang."""
+    record = fake_shellcheck([])
+
+    ShellBackend().validate("git tag <VERSION>\n")
+
+    assert record.read_text() == "args: --shell=bash --format=json -\nscript: git tag VERSION\n"
+
+
+def test_validate_skips_shellcheck_when_bash_finds_errors(fake_shellcheck):
+    """A script that doesn't parse only gets bash's errors, not shellcheck's view of the same mistake."""
+    record = fake_shellcheck([{"line": 3, "level": "error", "code": 1089, "message": "Parsing stopped."}])
+
+    problems = ShellBackend().validate("echo ok\nif true; then\nfi\n")
+
+    assert problems == [Problem("syntax error near unexpected token `fi'", line=3)]
+    assert not record.exists()
+
+
+def test_validate_warns_when_shellcheck_cannot_check_the_block(monkeypatch, tmp_path):
+    """If shellcheck is installed but doesn't give findings, that's a warning rather than a crash or an error."""
+    (tmp_path / "shellcheck").write_text("#!/bin/sh\necho 'shellcheck: broken install' >&2\nexit 2\n")
+    (tmp_path / "shellcheck").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+
+    problems = ShellBackend().validate("echo ok\n")
+
+    assert problems == [Problem("shellcheck failed: shellcheck: broken install", warning=True)]
+
+
+def test_validate_keeps_bash_messages_it_cannot_read_a_line_number_from(monkeypatch, tmp_path):
+    """A message from bash -n in an unexpected shape is still an error, on the whole block."""
+    (tmp_path / "bash").write_text("#!/bin/sh\necho 'bash: some new complaint' >&2\nexit 2\n")
+    (tmp_path / "bash").chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    problems = ShellBackend().validate("echo ok\n")
+
+    assert problems == [Problem("bash: some new complaint")]
+
+
+def test_validate_reports_a_bash_failure_that_prints_nothing(monkeypatch, tmp_path):
+    """If bash -n fails without saying why, the block still gets an error."""
+    (tmp_path / "bash").write_text("#!/bin/sh\nexit 2\n")
+    (tmp_path / "bash").chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    assert ShellBackend().validate("echo ok\n") == [Problem("bash -n failed with exit code 2")]

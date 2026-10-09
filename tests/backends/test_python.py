@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from paulrun.backends import Backend
+from paulrun.backends import Backend, Problem
 from paulrun.backends.python import PythonBackend
 
 # The runner sets this for every block, so Python's output isn't held back while it's piped.
@@ -163,11 +163,21 @@ def test_validate_accepts_valid_code():
     assert PythonBackend().validate("if True:\n    print('ok')\n") == []
 
 
-def test_validate_reports_syntax_error_with_block_line():
-    """A syntax error is reported with its line, counted from the top of the block."""
+def test_validate_reports_syntax_error_as_an_error_on_its_block_line():
+    """A syntax error is an error, on its line counted from the top of the block."""
     problems = PythonBackend().validate("print('ok')\nif True\n    print('no colon')\n")
 
-    assert problems == ["line 2: expected ':'"]
+    assert problems == [Problem("expected ':'", line=2)]
+
+
+def test_validate_reports_syntax_warnings_as_warnings():
+    """Code that compiles but that Python warns about, such as an invalid escape, gets a warning."""
+    problems = PythonBackend().validate('x = 1\npattern = "\\d+"\n')
+
+    assert len(problems) == 1
+    assert problems[0].line == 2
+    assert problems[0].warning
+    assert '"\\d" is an invalid escape sequence' in problems[0].message
 
 
 def test_validate_accepts_placeholders():
@@ -179,8 +189,8 @@ def test_validate_still_reports_errors_in_blocks_with_placeholders():
     """Replacing placeholders doesn't hide a real syntax error elsewhere, or move its line number."""
     problems = PythonBackend().validate('version = "<VERSION>"\nprint(<VERSION>\n\n')
 
-    assert problems
-    assert problems[0].startswith("line 2: ")
+    assert [problem.line for problem in problems] == [2]
+    assert not problems[0].warning
 
 
 def test_validate_does_not_run_the_block(tmp_path):

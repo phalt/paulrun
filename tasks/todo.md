@@ -235,13 +235,13 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `validate(runbook, backends) -> Report` collects errors and warnings with line numbers, and `go` calls it first. Errors: missing `title`; input missing `name` or `description`; input name not UPPER_SNAKE_CASE; invalid `pattern` regex; undeclared placeholder in a `run`/`docstring`/`confirm` block or `output_path`; secret used as a placeholder; `run` block with no backend; `run`/`docstring`/`confirm` block before the first `##`; `python` command not on `PATH`; backend `validate()` failures (`bash -n`, `compile()`). Warnings: unknown top-level keys, unknown input keys, declared-but-unused inputs, `shellcheck` findings when it's installed. `check RUNBOOK` prints the report and exits 1 on any error.
 
 **Acceptance criteria:**
-- [ ] Each error case above has a broken fixture runbook and a test asserting the message and line number
-- [ ] `paulrun check` exits 0 on `tests/runbooks/all_features.md` and 1 on every broken fixture
-- [ ] `paulrun go` refuses to start on a runbook with errors
+- [x] Each error case above has a broken fixture runbook and a test asserting the message and line number
+- [x] `paulrun check` exits 0 on `tests/runbooks/all_features.md` and 1 on every broken fixture
+- [x] `paulrun go` refuses to start on a runbook with errors
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_validate.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun check tests/runbooks/all_features.md`
+- [x] Tests pass: `uv run pytest tests/test_validate.py tests/test_cli.py`
+- [x] Manual check: `uv run paulrun check tests/runbooks/all_features.md`
 
 **Dependencies:** Tasks 6, 9
 
@@ -255,8 +255,8 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Estimated scope:** Medium
 
 ### Checkpoint 3: Core features
-- [ ] `paulrun check` and `paulrun go --dry` work on `tests/runbooks/all_features.md`
-- [ ] All `check` error cases from the spec covered by fixture tests
+- [x] `paulrun check` and `paulrun go --dry` work on `tests/runbooks/all_features.md`
+- [x] All `check` error cases from the spec covered by fixture tests
 
 ---
 

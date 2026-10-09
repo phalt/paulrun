@@ -563,3 +563,40 @@ def test_parse_secret_that_is_not_a_bool_is_still_secret(tmp_path):
     parsed = runbook.parse(path)
 
     assert parsed.inputs[0].secret is True
+
+
+def test_parse_records_the_line_of_each_frontmatter_key_and_input(tmp_path):
+    """Each top-level key and each input entry has the file line it starts on, so validation can point at it."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release
+
+        inputs:
+          - name: VERSION
+            description: The version
+          - name: TOKEN
+            secret: true
+        extra: 1
+        ---
+        """,
+    )
+
+    parsed = runbook.parse(path)
+
+    assert parsed.lines == {"title": 2, "inputs": 4, "inputs.0": 5, "inputs.1": 7, "extra": 9}
+
+
+def test_parse_records_no_lines_without_frontmatter(tmp_path):
+    """A runbook with no frontmatter has no frontmatter lines."""
+    path = write_runbook(tmp_path, "## Step\n")
+
+    assert runbook.parse(path).lines == {}
+
+
+def test_parse_records_lines_of_inputs_that_are_not_mappings(tmp_path):
+    """Every list item gets a line, even ones that aren't valid inputs, so validation can point at those too."""
+    path = write_runbook(tmp_path, "---\ninputs:\n  - VERSION\n  - name: OK\n    description: ok\n---\n")
+
+    assert runbook.parse(path).lines == {"inputs": 2, "inputs.0": 3, "inputs.1": 4}

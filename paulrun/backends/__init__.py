@@ -1,10 +1,20 @@
 import importlib.metadata
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from importlib.metadata import EntryPoint
 from pathlib import Path
 from typing import Any, Protocol
 
 ENTRY_POINT_GROUP = "paulrun.backends"
+
+
+@dataclass(frozen=True)
+class Problem:
+    """Something a backend found wrong with a block."""
+
+    message: str
+    line: int | None = None  # line in the block, counting its first line as 1; None if it's about the whole block
+    warning: bool = False  # warnings are reported but don't stop the runbook running
 
 
 class Backend(Protocol):
@@ -22,11 +32,12 @@ class Backend(Protocol):
     def languages(self) -> tuple[str, ...]:
         """The fence languages this backend runs, e.g. ("sh", "bash")."""
 
-    def validate(self, code: str) -> list[str]:
+    def validate(self, code: str) -> list[Problem]:
         """Return the problems found in a block, without running it. An empty list means it's fine.
 
         code is the block as written, so it can contain <NAME> placeholders. Replacing them with
-        something this language accepts is up to the backend.
+        something this language accepts is up to the backend. Any error stops the runbook running;
+        warnings are only reported.
         """
 
     def run(

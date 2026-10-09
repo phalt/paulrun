@@ -2,10 +2,12 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import warnings
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
+from paulrun.backends import Problem
 from paulrun.inputs import PLACEHOLDER
 
 
@@ -15,16 +17,22 @@ class PythonBackend:
     name = "python"
     languages = ("python", "py")
 
-    def validate(self, code: str) -> list[str]:
+    def validate(self, code: str) -> list[Problem]:
         # Swap each placeholder for its bare name, which is a plain identifier wherever it appears, so the code
         # still compiles and keeps its line numbers. compile() uses paulrun's own interpreter, so syntax only the
         # runbook's python understands isn't caught.
         source = PLACEHOLDER.sub(lambda match: match.group(1), code)
-        try:
-            compile(source, "<block>", "exec")
-        except SyntaxError as e:
-            return [f"line {e.lineno}: {e.msg}"]
-        return []
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", SyntaxWarning)
+            try:
+                compile(source, "<block>", "exec")
+            except SyntaxError as e:
+                return [Problem(e.msg, line=e.lineno)]
+        return [
+            Problem(str(warning.message), line=warning.lineno, warning=True)
+            for warning in caught
+            if issubclass(warning.category, SyntaxWarning)
+        ]
 
     def run(
         self,
