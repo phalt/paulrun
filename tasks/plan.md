@@ -78,7 +78,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [x] All `check` error cases from the spec covered by fixture tests
 
 ### Phase 4: Remaining features
-- [ ] Task 11: `--step`
+- [x] Task 11: `--step`
 - [ ] Task 12: Transcript (`output_path`)
 - [ ] Task 13: `paulrun inputs`, `paulrun backends`, external backend test
 

@@ -57,14 +57,16 @@ def write_runbook(directory: Path, text: str) -> Path:
 
 
 def run(
-    path: Path, prompter: FakePrompter | None = None, *, dry: bool = False
+    path: Path, prompter: FakePrompter | None = None, *, dry: bool = False, step_by_step: bool = False
 ) -> tuple[list[runner.Event], runner.RunFinished]:
     """Run the runbook at path with the installed backends, returning every event sent and the result.
 
     Without a prompter, asking for an input fails the test and every question is answered y.
     """
     events: list[runner.Event] = []
-    result = runner.run(parse(path), load_backends(), events.append, prompter or FakePrompter(), dry=dry)
+    result = runner.run(
+        parse(path), load_backends(), events.append, prompter or FakePrompter(), dry=dry, step_by_step=step_by_step
+    )
     return events, result
 
 
@@ -809,3 +811,180 @@ def test_dry_run_still_rejects_a_block_with_no_backend(tmp_path):
 
     with pytest.raises(runner.RunnerError):
         run(path, dry=True)
+
+
+# Three steps of one run block each, for the step_by_step tests. Each block leaves a file behind if it runs.
+THREE_STEPS = """\
+## Build
+
+```sh run
+touch built
+```
+
+## Publish
+
+```sh run
+touch published
+```
+
+## Announce
+
+```sh run
+touch announced
+```
+"""
+
+
+def test_step_by_step_runs_each_block_answered_y(tmp_path):
+    """After each run block's code, paulrun asks about it, and y runs it."""
+    path = write_runbook(tmp_path, THREE_STEPS)
+    prompter = FakePrompter(replies=["y", "y", "y", "y"])
+
+    _, result = run(path, prompter, step_by_step=True)
+
+    assert prompter.questions == ["Start? [y/N]"] + ["Run this block? [y]es / [s]kip / [q]uit"] * 3
+    assert (tmp_path / "built").exists()
+    assert (tmp_path / "published").exists()
+    assert (tmp_path / "announced").exists()
+    assert result.status == "ok"
+
+
+def test_step_by_step_skips_a_block_answered_s_and_carries_on(tmp_path):
+    """s skips the block, which is sent as skipped instead of finished, and the run goes on to the next one."""
+    path = write_runbook(tmp_path, THREE_STEPS)
+
+    events, result = run(path, FakePrompter(replies=["y", "y", "s", "y"]), step_by_step=True)
+
+    assert (tmp_path / "built").exists()
+    assert not (tmp_path / "published").exists()
+    assert (tmp_path / "announced").exists()
+    assert [type(event) for event in events] == [
+        runner.Overview,
+        runner.StepStarted,
+        runner.BlockStarted,
+        runner.BlockFinished,
+        runner.StepStarted,
+        runner.BlockStarted,
+        runner.BlockSkipped,
+        runner.StepStarted,
+        runner.BlockStarted,
+        runner.BlockFinished,
+        runner.RunFinished,
+    ]
+    [skipped] = [event for event in events if isinstance(event, runner.BlockSkipped)]
+    assert skipped.block.content == "touch published\n"
+    assert result.status == "ok"
+
+
+def test_step_by_step_quits_at_a_block_answered_q(tmp_path):
+    """q stops the run before the block: it and everything after it are left, and the run is aborted at its step."""
+    path = write_runbook(tmp_path, THREE_STEPS)
+
+    events, result = run(path, FakePrompter(replies=["y", "y", "q"]), step_by_step=True)
+
+    assert (tmp_path / "built").exists()
+    assert not (tmp_path / "published").exists()
+    assert not (tmp_path / "announced").exists()
+    assert not [event for event in events if isinstance(event, runner.BlockSkipped)]
+    assert result.status == "aborted"
+    assert result.step is not None
+    assert result.step.name == "Publish"
+    assert result.exit_code is None
+
+
+@pytest.mark.parametrize("reply", ["", "n", "Y", "yes", "skip"])
+def test_step_by_step_asks_again_until_the_answer_is_y_s_or_q(tmp_path, reply):
+    """Any other answer gets the question again, and nothing runs until it's answered."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntouch ran\n```\n")
+    prompter = FakePrompter(replies=["y", reply, reply, "y"])
+
+    run(path, prompter, step_by_step=True)
+
+    assert prompter.questions == ["Start? [y/N]"] + ["Run this block? [y]es / [s]kip / [q]uit"] * 3
+    assert (tmp_path / "ran").exists()
+
+
+def test_step_by_step_ignores_spaces_around_the_answer(tmp_path):
+    """An s with stray spaces around it still skips."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntouch ran\n```\n")
+
+    _, result = run(path, FakePrompter(replies=["y", " s "]), step_by_step=True)
+
+    assert not (tmp_path / "ran").exists()
+    assert result.status == "ok"
+
+
+def test_step_by_step_asks_once_the_block_code_has_been_sent(tmp_path):
+    """The question comes after the code, so it's about code that's already on screen."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+    events: list[runner.Event] = []
+    last_event_when_asked: dict[str, type] = {}
+
+    class RecordingPrompter:
+        def ask(self, input: Input, problem: str | None) -> str:
+            raise AssertionError(f"unexpected prompt for {input.name}")
+
+        def confirm(self, question: str) -> str:
+            last_event_when_asked[question] = type(events[-1])
+            return "y"
+
+    runner.run(parse(path), load_backends(), events.append, RecordingPrompter(), step_by_step=True)
+
+    assert last_event_when_asked["Run this block? [y]es / [s]kip / [q]uit"] is runner.BlockStarted
+
+
+def test_step_by_step_only_asks_about_run_blocks(tmp_path):
+    """docstring blocks are just printed, and confirm blocks still ask their own question."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Mixed
+
+        ```docstring
+        A note.
+        ```
+
+        ```confirm
+        Do the manual thing.
+        ```
+
+        ```sh run
+        true
+        ```
+        """,
+    )
+    prompter = FakePrompter()
+
+    run(path, prompter, step_by_step=True)
+
+    assert prompter.questions == ["Start? [y/N]", "Continue? [y/N]", "Run this block? [y]es / [s]kip / [q]uit"]
+
+
+def test_step_by_step_leaves_time_spent_answering_out_of_the_block_duration(tmp_path):
+    """A block's duration is how long it ran, not how long someone took to answer; the run's includes both."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+
+    class SlowToAnswer(FakePrompter):
+        def confirm(self, question: str) -> str:
+            if question.startswith("Run this block?"):
+                time.sleep(0.5)
+            return super().confirm(question)
+
+    events, result = run(path, SlowToAnswer(), step_by_step=True)
+
+    [finished] = [event for event in events if isinstance(event, runner.BlockFinished)]
+    assert finished.duration < 0.4
+    assert result.duration >= 0.5
+
+
+def test_dry_run_ignores_step_by_step(tmp_path):
+    """Nothing runs under dry, so there's nothing to ask about, and the run is exactly a plain dry run."""
+    path = write_runbook(tmp_path, THREE_STEPS)
+    prompter = FakePrompter(replies=["q", "q", "q", "q"])
+
+    stepped, stepped_result = run(path, prompter, dry=True, step_by_step=True)
+    plain, _ = run(path, dry=True)
+
+    assert prompter.questions == []
+    assert stepped[:-1] == plain[:-1]
+    assert stepped_result.status == "dry"

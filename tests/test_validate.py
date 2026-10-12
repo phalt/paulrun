@@ -1,6 +1,5 @@
 """Tests for validating runbooks. Each error case has a broken fixture runbook in tests/runbooks/broken/."""
 
-import shutil
 import textwrap
 from pathlib import Path
 
@@ -49,22 +48,13 @@ VALID_FIXTURES = [
     "docstring-and-confirm-example.md",
     "dry-run-example.md",
     "python-example.md",
+    "step-example.md",
 ]
 
 
 @pytest.fixture(autouse=True)
-def path_without_shellcheck(monkeypatch, tmp_path_factory):
-    """A PATH with only bash and python3 on it.
-
-    shellcheck findings depend on which version is installed, so they're tested with a stub in the shell
-    backend's tests. Here, validation gives the same result whether or not shellcheck is installed.
-    """
-    bin_dir = tmp_path_factory.mktemp("bin")
-    for tool in ("bash", "python3"):
-        found = shutil.which(tool)
-        assert found is not None, f"{tool} is needed to run these tests"
-        (bin_dir / tool).symlink_to(found)
-    monkeypatch.setenv("PATH", str(bin_dir))
+def shellcheck_not_installed(without_shellcheck):
+    """Output is the same whether or not shellcheck is installed. See without_shellcheck in conftest.py."""
 
 
 def write_runbook(tmp_path: Path, text: str) -> Path:

@@ -63,12 +63,18 @@ def _bash_errors(script: str) -> list[Problem]:
     return problems or [Problem(f"bash -n failed with exit code {result.returncode}")]
 
 
+def _shellcheck() -> str | None:
+    """Where shellcheck is installed, or None if it isn't."""
+    return shutil.which("shellcheck")
+
+
 def _shellcheck_warnings(script: str) -> list[Problem]:
     """shellcheck's findings, all as warnings, or nothing if shellcheck isn't installed."""
-    if shutil.which("shellcheck") is None:
+    shellcheck = _shellcheck()
+    if shellcheck is None:
         return []
     result = subprocess.run(
-        ["shellcheck", "--shell=bash", "--format=json", "-"], input=script, capture_output=True, text=True
+        [shellcheck, "--shell=bash", "--format=json", "-"], input=script, capture_output=True, text=True
     )
     try:
         findings = json.loads(result.stdout)

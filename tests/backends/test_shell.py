@@ -193,13 +193,15 @@ def test_validate_reports_syntax_error_as_an_error_on_its_block_line(no_shellche
 
 
 def test_validate_reports_each_error_bash_finds(no_shellcheck):
-    """Every message bash prints is kept, each on its own line."""
+    """Every message bash prints is kept as an error on its own line.
+
+    How many messages bash prints for one mistake varies by version: bash 3.2 on macOS follows this one with
+    "syntax error: unexpected end of file", and bash 5 doesn't.
+    """
     problems = ShellBackend().validate('echo "unclosed\n')
 
-    assert problems == [
-        Problem("unexpected EOF while looking for matching `\"'", line=1),
-        Problem("syntax error: unexpected end of file", line=2),
-    ]
+    assert problems[0] == Problem("unexpected EOF while looking for matching `\"'", line=1)
+    assert all(problem.line is not None and not problem.warning for problem in problems)
 
 
 def test_validate_accepts_placeholders(no_shellcheck):

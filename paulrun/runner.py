@@ -45,6 +45,11 @@ class BlockStarted:
 
 
 @dataclass(frozen=True)
+class BlockSkipped:
+    block: Block  # a run block skipped under step_by_step
+
+
+@dataclass(frozen=True)
 class OutputLine:
     text: str  # one line the block printed, without its newline
 
@@ -64,7 +69,19 @@ class RunFinished:
     exit_code: int | None = None  # the failed block's exit code
 
 
-Event = Overview | StepStarted | Docstring | Confirm | BlockStarted | OutputLine | BlockFinished | RunFinished
+Event = (
+    Overview
+    | StepStarted
+    | Docstring
+    | Confirm
+    | BlockStarted
+    | BlockSkipped
+    | OutputLine
+    | BlockFinished
+    | RunFinished
+)
+
+STEP_QUESTION = "Run this block? [y]es / [s]kip / [q]uit"
 
 
 class RunnerError(Exception):
@@ -78,6 +95,7 @@ def run(
     prompter: Prompter,
     *,
     dry: bool = False,
+    step_by_step: bool = False,
 ) -> RunFinished:
     """Collect the runbook's inputs, ask to start, then go through each step's blocks in order.
 
@@ -89,6 +107,9 @@ def run(
 
     With dry, every block is still sent with inputs substituted, but nothing runs, nothing is asked
     except plain inputs, and secrets are never collected.
+
+    With step_by_step, each run block's code is sent and then paulrun asks whether to run it, skip it
+    or quit. Quitting aborts the run. step_by_step does nothing under dry, since nothing runs.
     """
     run_blocks = [block for step in runbook.steps for block in step.blocks if block.kind == "run"]
     for block in run_blocks:
@@ -119,6 +140,13 @@ def run(
             sink(BlockStarted(block, code))
             if dry:
                 continue
+            if step_by_step:
+                answer = _step_answer(prompter)
+                if answer == "s":
+                    sink(BlockSkipped(block))
+                    continue
+                if answer == "q":
+                    return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
             block_started = time.monotonic()
             exit_code = backends[block.language].run(
                 code,
@@ -135,6 +163,13 @@ def run(
 
 def _yes(answer: str) -> bool:
     return answer.strip() == "y"
+
+
+def _step_answer(prompter: Prompter) -> str:
+    """Ask whether to run a block until the answer is y, s or q. With three choices, none is a safe default."""
+    while (answer := prompter.confirm(STEP_QUESTION).strip()) not in ("y", "s", "q"):
+        pass
+    return answer
 
 
 def _finish(sink: Callable[[Event], None], finished: RunFinished) -> RunFinished:

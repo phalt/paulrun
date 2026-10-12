@@ -171,13 +171,17 @@ def test_validate_reports_syntax_error_as_an_error_on_its_block_line():
 
 
 def test_validate_reports_syntax_warnings_as_warnings():
-    """Code that compiles but that Python warns about, such as an invalid escape, gets a warning."""
+    """Code that compiles but that Python warns about, such as an invalid escape, gets a warning.
+
+    The message is Python's own, and its wording changes between versions, so only its gist is checked.
+    """
     problems = PythonBackend().validate('x = 1\npattern = "\\d+"\n')
 
     assert len(problems) == 1
     assert problems[0].line == 2
     assert problems[0].warning
-    assert '"\\d" is an invalid escape sequence' in problems[0].message
+    assert "invalid escape sequence" in problems[0].message
+    assert "\\d" in problems[0].message
 
 
 def test_validate_accepts_placeholders():

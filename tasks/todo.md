@@ -267,11 +267,11 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `go --step` asks `[y]es / [s]kip / [q]uit` after printing each `run` block's code. Skip moves on; quit ends the run as aborted (exit 1). Ignored with `--dry`. Skips are emitted as events so Task 12 can record them.
 
 **Acceptance criteria:**
-- [ ] `y` runs the block, `s` skips it and the run continues, `q` aborts with exit 1
-- [ ] `--dry --step` behaves exactly like `--dry`
+- [x] `y` runs the block, `s` skips it and the run continues, `q` aborts with exit 1
+- [x] `--dry --step` behaves exactly like `--dry`
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
+- [x] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py`
 
 **Dependencies:** Task 10
 

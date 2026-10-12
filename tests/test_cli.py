@@ -1,7 +1,6 @@
 """Tests for CLI commands."""
 
 import importlib.metadata
-import os
 import re
 import shutil
 import subprocess
@@ -27,14 +26,8 @@ def runner(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def path_without_shellcheck(monkeypatch):
-    """Drop any directory with shellcheck in it from PATH, so output is the same whether or not it's installed.
-
-    CI runners have shellcheck, and its warnings depend on its version. They're tested in the shell backend's tests.
-    """
-    directories = os.environ["PATH"].split(os.pathsep)
-    kept = [directory for directory in directories if not (Path(directory) / "shellcheck").exists()]
-    monkeypatch.setenv("PATH", os.pathsep.join(kept))
+def shellcheck_not_installed(without_shellcheck):
+    """Output is the same whether or not shellcheck is installed. See without_shellcheck in conftest.py."""
 
 
 def write_runbook(tmp_path: Path, text: str) -> Path:
@@ -607,6 +600,74 @@ def test_go_dry_still_rejects_a_bad_plain_input_from_the_environment(runner, dry
 
     assert result.exit_code == 1
     assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
+
+
+def test_go_step_runs_skips_and_quits_block_by_block(runner):
+    """--step asks after each run block's code: y runs it, s skips it, and q ends the run there with exit 1."""
+    result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\ny\ns\nq\n")
+
+    assert result.exit_code == 1
+    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
+        """\
+        Step example
+          1. Build
+          2. Publish
+          3. Announce
+        3 run blocks
+        Start? [y/N] y
+
+        === Build ===
+        $ echo "Building"
+        Run this block? [y]es / [s]kip / [q]uit y
+        Building
+        exit 0 (Xs)
+
+        === Publish ===
+        $ echo "Publishing"
+        Run this block? [y]es / [s]kip / [q]uit s
+        skipped (--step)
+
+        === Announce ===
+        $ echo "Announcing"
+        Run this block? [y]es / [s]kip / [q]uit q
+
+        finished: aborted at "Announce"
+        """
+    )
+
+
+def test_go_step_finishes_ok_when_blocks_are_only_skipped(runner):
+    """Skipping isn't failing: a run where every block is skipped still exits 0."""
+    result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\ns\ns\ns\n")
+
+    assert result.exit_code == 0
+    assert result.output.count("skipped (--step)") == 3
+    assert "Building" not in result.output.splitlines()
+
+
+def test_go_step_asks_again_after_an_answer_it_does_not_know(runner):
+    """An answer other than y, s or q gets the question again."""
+    result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\nmaybe\n\nq\n")
+
+    assert result.exit_code == 1
+    assert result.output.count("Run this block? [y]es / [s]kip / [q]uit") == 3
+
+
+def test_go_dry_step_behaves_exactly_like_dry(runner, dry_runbook):
+    """--step is ignored with --dry: same output, nothing asked, nothing run."""
+    dry = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)], input="1.2.0\n")
+    dry_step = runner.invoke(cli.cli, ["go", "--dry", "--step", str(dry_runbook)], input="1.2.0\n")
+
+    assert dry_step.exit_code == 0
+    assert dry_step.output == dry.output
+    assert sorted(path.name for path in dry_runbook.parent.iterdir()) == ["dry-run-example.md"]
+
+
+def test_go_help_describes_step(runner):
+    """go --help lists --step."""
+    result = runner.invoke(cli.cli, ["go", "--help"])
+
+    assert "--step" in result.output
 
 
 def test_go_help_describes_dry(runner):

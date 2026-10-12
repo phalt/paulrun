@@ -21,7 +21,8 @@ def cli() -> None:
 @cli.command()
 @click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
-def go(runbook: Path, dry: bool) -> None:
+@click.option("--step", is_flag=True, help="Ask before each run block whether to run it, skip it or quit.")
+def go(runbook: Path, dry: bool, step: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails."""
     console = Console(highlight=False)
     parsed, backends, report = _validated(runbook)
@@ -35,6 +36,7 @@ def go(runbook: Path, dry: bool) -> None:
             lambda event: _print_event(console, event, dry=dry),
             ClickPrompter(console),
             dry=dry,
+            step_by_step=step,
         )
     except (runner.RunnerError, InputError) as e:
         raise click.ClickException(str(e)) from e
@@ -122,6 +124,8 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
         case runner.BlockStarted(code=code):
             for index, line in enumerate(code.splitlines()):
                 console.out(f"{'$' if index == 0 else ' '} {line}", style="cyan")
+        case runner.BlockSkipped():
+            console.out("skipped (--step)", style="yellow")
         case runner.OutputLine(text=text):
             console.out(text)
         case runner.BlockFinished(exit_code=exit_code, duration=duration):
