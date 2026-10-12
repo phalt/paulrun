@@ -7,13 +7,15 @@ import subprocess
 import sys
 import textwrap
 import time
+from importlib.metadata import EntryPoint
 from pathlib import Path
 
+import click
 import pytest
 from click.testing import CliRunner
 
-from paulrun import cli
-from paulrun.backends import BackendError
+from paulrun import backends, cli
+from paulrun.backends import BackendError, Problem
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
 
@@ -129,14 +131,14 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path):
         Start? [y/N] y
 
         === Greet ===
-        $ echo hello
-          echo world
+            echo hello
+            echo world
         hello
         world
         exit 0 (Xs)
 
         === Again ===
-        $ echo again
+            echo again
         again
         exit 0 (Xs)
 
@@ -209,7 +211,7 @@ def test_go_prints_output_and_code_verbatim(runner, tmp_path):
     result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
 
     lines = result.output.splitlines()
-    assert "$ echo '[bold]markup[/bold] :smile:'" in lines
+    assert "    echo '[bold]markup[/bold] :smile:'" in lines
     assert "[bold]markup[/bold] :smile:" in lines
     assert "0" * 200 in lines
 
@@ -427,9 +429,9 @@ def test_go_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
         "VERSION (The version being released, e.g. 1.2.0): 1.2.0\nPUBLISH_TOKEN (Token for the package index): \n"
     )
     lines = result.output.splitlines()
-    assert '$ echo "Tagging 1.2.0"' in lines
+    assert '    echo "Tagging 1.2.0"' in lines
     assert "Tagging 1.2.0" in lines
-    assert '$ echo "Publishing 1.2.0 with $PUBLISH_TOKEN"' in lines
+    assert '    echo "Publishing 1.2.0 with $PUBLISH_TOKEN"' in lines
     assert "Publishing 1.2.0 with ****" in lines
 
 
@@ -493,14 +495,14 @@ def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook):
 
         === Build ===
         Building 1.2.0. This only echoes; nothing is built.
-        $ echo "Built 1.2.0"
+            echo "Built 1.2.0"
         Built 1.2.0
         exit 0 (Xs)
 
         === Release on GitHub ===
         Create a GitHub release for tag 1.2.0 and publish it.
         Continue? [y/N] y
-        $ echo "Released 1.2.0"
+            echo "Released 1.2.0"
         Released 1.2.0
         exit 0 (Xs)
 
@@ -579,11 +581,11 @@ def test_go_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runboo
         dry run: nothing will be run
 
         === Build ===
-        $ echo "1.2.0" > built-1.2.0.txt
+            echo "1.2.0" > built-1.2.0.txt
 
         === Publish ===
         Check built-1.2.0.txt before publishing.
-        $ echo "published with $PUBLISH_TOKEN" > published-1.2.0.txt
+            echo "published with $PUBLISH_TOKEN" > published-1.2.0.txt
 
         finished: dry run, nothing was run
         """
@@ -628,18 +630,18 @@ def test_go_step_runs_skips_and_quits_block_by_block(runner):
         Start? [y/N] y
 
         === Build ===
-        $ echo "Building"
+            echo "Building"
         Run this block? [y]es / [s]kip / [q]uit y
         Building
         exit 0 (Xs)
 
         === Publish ===
-        $ echo "Publishing"
+            echo "Publishing"
         Run this block? [y]es / [s]kip / [q]uit s
         skipped (--step)
 
         === Announce ===
-        $ echo "Announcing"
+            echo "Announcing"
         Run this block? [y]es / [s]kip / [q]uit q
 
         finished: aborted at "Announce"
@@ -743,7 +745,7 @@ def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook):
         --- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
 
         === Build ===
-        $ echo "Building 1.2.0"
+            echo "Building 1.2.0"
         Building 1.2.0
         exit 0 (Xs)
 
@@ -751,7 +753,7 @@ def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook):
         confirm: Create a GitHub release for tag 1.2.0 and publish it. -> yes
 
         === Publish ===
-        $ echo "Publishing 1.2.0 with $PUBLISH_TOKEN"
+            echo "Publishing 1.2.0 with $PUBLISH_TOKEN"
         Publishing 1.2.0 with ****
         exit 0 (Xs)
 
@@ -821,3 +823,263 @@ def test_go_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, t
     # The reason after the colon is the operating system's, so only the start is checked.
     assert error.startswith(f"Error: can't write the transcript to {tmp_path / 'logs' / 'run.md'}: ")
     assert not (tmp_path / "ran").exists()
+
+
+def test_inputs_lists_each_input_with_its_description_pattern_and_secret_flag(runner):
+    """inputs shows every declared input, lined up, with its pattern and whether it's secret."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "transcript-example.md")])
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        """\
+        VERSION        The version being released, e.g. 1.2.0
+                       pattern: ^\\d+\\.\\d+\\.\\d+$
+        PUBLISH_TOKEN  Token for the package index
+                       secret
+        """
+    )
+
+
+def test_inputs_reads_only_the_frontmatter(runner):
+    """inputs works on a runbook whose body can't even be read, since it never reads past the frontmatter."""
+    path = RUNBOOKS / "broken-body.md"
+    assert runner.invoke(cli.cli, ["check", str(path)]).exit_code == 1
+
+    result = runner.invoke(cli.cli, ["inputs", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines()[0].startswith("VERSION ")
+    assert "PUBLISH_TOKEN" in result.output
+
+
+def test_inputs_says_when_a_runbook_has_none(runner):
+    """A runbook without inputs says so rather than printing nothing."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "minimal.md")])
+
+    assert result.exit_code == 0
+    assert result.output == "no inputs\n"
+
+
+def test_inputs_skips_entries_that_are_not_valid_inputs(runner, tmp_path):
+    """Entries missing a name or description aren't listed; check is what reports them."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        inputs:
+          - name: GOOD
+            description: Kept
+          - name: NO_DESCRIPTION
+          - just a string
+        ---
+        """,
+    )
+
+    result = runner.invoke(cli.cli, ["inputs", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output == "GOOD  Kept\n"
+
+
+def test_inputs_prints_descriptions_verbatim(runner, tmp_path):
+    """Text that looks like rich markup is printed exactly as written."""
+    path = write_runbook(
+        tmp_path, "---\ntitle: T\ninputs:\n  - name: TAG\n    description: '[bold]tag[/bold] :smile:'\n---\n"
+    )
+
+    result = runner.invoke(cli.cli, ["inputs", str(path)])
+
+    assert result.output == "TAG  [bold]tag[/bold] :smile:\n"
+
+
+def test_inputs_reports_frontmatter_it_cannot_read(runner, tmp_path):
+    """Broken frontmatter is a clean error, like check gives."""
+    path = write_runbook(tmp_path, "---\ntitle: Unclosed\n\n## Step\n")
+
+    result = runner.invoke(cli.cli, ["inputs", str(path)])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: frontmatter has no closing ---\n"
+
+
+def test_help_lists_inputs_command(runner):
+    """--help lists the inputs command."""
+    result = runner.invoke(cli.cli, ["--help"])
+
+    assert "\n  inputs " in result.output
+
+
+class EchoBackend:
+    """An external backend, defined here as if it shipped in another package.
+
+    It prints each line of a fakelang block back as "echo: <line>", and fails with exit 7 at a line that
+    says FAIL. Validation flags a line that says BAD.
+    """
+
+    name = "echo"
+    languages = ("fakelang",)
+
+    def validate(self, code):
+        return [
+            Problem("BAD isn't allowed", line=n) for n, line in enumerate(code.splitlines(), start=1) if line == "BAD"
+        ]
+
+    def run(self, code, *, frontmatter, env, cwd, output):
+        for line in code.splitlines():
+            if line == "FAIL":
+                return 7
+            output(f"echo: {line}")
+        return 0
+
+
+@pytest.fixture
+def external_backend(monkeypatch):
+    """Install EchoBackend alongside paulrun's own backends, the way another package registering it would."""
+    installed = list(backends.installed_entry_points())
+    echo = EntryPoint(name="echo", value=f"{__name__}:EchoBackend", group=backends.ENTRY_POINT_GROUP)
+    monkeypatch.setattr(backends, "installed_entry_points", lambda: [*installed, echo])
+
+
+def test_backends_lists_each_backend_with_its_languages_and_where_it_came_from(runner):
+    """backends shows paulrun's own backends, the languages each runs, and the package that registered it."""
+    version = importlib.metadata.version("paulrun")
+
+    result = runner.invoke(cli.cli, ["backends"])
+
+    assert result.exit_code == 0
+    assert result.output == (
+        f"python  python, py       paulrun.backends.python:PythonBackend (paulrun {version})\n"
+        f"shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun {version})\n"
+    )
+
+
+def test_backends_lists_an_external_backend(runner, external_backend):
+    """A backend registered by another package is listed with the built-in ones."""
+    result = runner.invoke(cli.cli, ["backends"])
+
+    assert result.exit_code == 0
+    [echo] = [line for line in result.output.splitlines() if line.startswith("echo ")]
+    assert echo.split() == ["echo", "fakelang", f"{__name__}:EchoBackend"]
+
+
+def test_go_runs_an_external_backends_blocks(runner, external_backend, tmp_path):
+    """go runs a block in an external backend's language end to end, alongside built-in blocks."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Mixed
+
+        ```sh run
+        echo "from shell"
+        ```
+
+        ```fakelang run
+        hello
+        world
+        ```
+        """,
+    )
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    lines = result.output.splitlines()
+    assert "from shell" in lines
+    assert lines[lines.index("    hello") : lines.index("    hello") + 4] == [
+        "    hello",
+        "    world",
+        "echo: hello",
+        "echo: world",
+    ]
+
+
+def test_go_stops_at_an_external_block_that_fails(runner, external_backend, tmp_path):
+    """An external backend's exit code fails the run like any other block's."""
+    path = write_runbook(tmp_path, "## Fails\n\n```fakelang run\nbefore\nFAIL\nafter\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 1
+    assert "echo: before" in result.output.splitlines()
+    assert "echo: after" not in result.output
+    assert result.output.endswith('finished: failed at "Fails" (exit 7)\n')
+
+
+def test_check_uses_an_external_backends_validation(runner, external_backend, tmp_path):
+    """check reports an external backend's problems on the right runbook line."""
+    path = write_runbook(tmp_path, "## Step\n\n```fakelang run\nfine\nBAD\n```\n")
+
+    result = runner.invoke(cli.cli, ["check", str(path)])
+
+    assert result.exit_code == 1
+    assert f"{path}:9: error: BAD isn't allowed\n" in result.output
+
+
+def test_backends_reports_backends_that_cannot_load(runner, monkeypatch):
+    """Two backends claiming one language is a clean error here too, not a crash."""
+
+    def conflicting():
+        raise BackendError("language 'sh' is claimed by both 'shell' and 'rival'")
+
+    monkeypatch.setattr(cli, "load_backend_sources", conflicting)
+
+    result = runner.invoke(cli.cli, ["backends"])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: language 'sh' is claimed by both 'shell' and 'rival'\n"
+
+
+def test_help_lists_backends_command(runner):
+    """--help lists the backends command."""
+    result = runner.invoke(cli.cli, ["--help"])
+
+    assert "\n  backends " in result.output
+
+
+def test_go_step_records_skipped_blocks_in_the_transcript(runner, transcript_runbook):
+    """A block skipped under --step is in the transcript as skipped, and the run still finishes ok."""
+    result = runner.invoke(cli.cli, ["go", "--step", str(transcript_runbook)], input="y\ny\ny\ns\n")
+
+    assert result.exit_code == 0
+    text = (transcript_runbook.parent / "logs" / "release-1.2.0.md").read_text()
+    assert '=== Publish ===\n    echo "Publishing 1.2.0 with $PUBLISH_TOKEN"\nskipped (--step)\n' in text
+    assert "Building 1.2.0\n" in text
+    assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
+
+
+def test_go_refuses_a_runbook_that_declares_an_input_twice(runner):
+    """go won't start a runbook with a repeated input name, since it can't tell which declaration is meant."""
+    path = RUNBOOKS / "broken" / "duplicate-input-name.md"
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="1.2.0\ny\n")
+
+    assert result.exit_code == 1
+    assert result.output == f"{path}:6: error: input VERSION is declared twice (first on line 4)\n\n1 error\n"
+
+
+@pytest.mark.parametrize(
+    "ask", [lambda prompter: prompter.confirm("Start? [y/N]"), lambda prompter: prompter.ask(cli.Input("V", "v"), None)]
+)
+def test_click_prompter_turns_ctrl_c_back_into_keyboard_interrupt(monkeypatch, ask):
+    """Click turns Ctrl-C at a prompt into Abort. The prompter turns it back, so the runner can finish the run."""
+
+    def ctrl_c(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(click.termui, "visible_prompt_func", ctrl_c)
+
+    with pytest.raises(KeyboardInterrupt):
+        ask(cli.ClickPrompter(cli.Console()))
+
+
+def test_click_prompter_leaves_end_of_input_as_abort(monkeypatch):
+    """Running out of input isn't Ctrl-C, so it stays Click's Abort."""
+
+    def end_of_input(*args, **kwargs):
+        raise EOFError
+
+    monkeypatch.setattr(click.termui, "visible_prompt_func", end_of_input)
+
+    with pytest.raises(click.Abort):
+        cli.ClickPrompter(cli.Console()).confirm("Start? [y/N]")

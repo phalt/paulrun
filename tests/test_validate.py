@@ -15,6 +15,7 @@ BROKEN = RUNBOOKS / "broken"
 # Each broken fixture, the file line of its one error, and the error's message.
 BROKEN_CASES = [
     ("missing-title.md", 1, "title is required"),
+    ("duplicate-input-name.md", 6, "input VERSION is declared twice (first on line 4)"),
     ("title-not-a-string.md", 2, "title must be a string"),
     ("input-missing-name.md", 4, "input 1 needs a name"),
     ("input-missing-description.md", 4, "input VERSION needs a description"),
@@ -365,3 +366,34 @@ def test_validate_reports_a_python_command_that_cannot_be_split(tmp_path):
     path = write_runbook(tmp_path, "---\ntitle: T\npython: '\"uv run'\n---\n\n## S\n\n```python run\npass\n```\n")
 
     assert check(path).errors == [Finding(3, "python command can't be read: No closing quotation")]
+
+
+def test_validate_reports_every_repeat_of_an_input_name(tmp_path):
+    """Each extra declaration of a name is an error on its own line, pointing back to the first."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        inputs:
+          - name: TOKEN
+            description: First
+          - name: TOKEN
+            description: Second
+            secret: true
+          - name: TOKEN
+            description: Third
+        ---
+
+        ## S
+
+        ```sh run
+        echo "$TOKEN"
+        ```
+        """,
+    )
+
+    assert check(path).errors == [
+        Finding(6, "input TOKEN is declared twice (first on line 4)"),
+        Finding(9, "input TOKEN is declared twice (first on line 4)"),
+    ]

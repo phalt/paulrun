@@ -285,7 +285,7 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 
 ## Task 12: Transcript (`output_path`)
 
-**Description:** `transcript.py` subscribes to runner events and appends the plain transcript format from the spec to `output_path`: run header with timestamp and masked inputs, `=== step ===` lines, `$ code`, verbatim output, `exit N (Xs)`, confirm answers, `skipped (--step)`, and the `--- finished:` line for ok, failed and aborted. Path has placeholders substituted, is resolved relative to the runbook, and parent directories are created. All text is masked before writing. Not written under `--dry`.
+**Description:** `transcript.py` subscribes to runner events and appends the plain transcript format from the spec to `output_path`: run header with timestamp and masked inputs, `=== step ===` lines, the code indented four spaces, verbatim output, `exit N (Xs)`, confirm answers, `skipped (--step)`, and the `--- finished:` line for ok, failed and aborted. Path has placeholders substituted, is resolved relative to the runbook, and parent directories are created. All text is masked before writing. Not written under `--dry`.
 
 **Acceptance criteria:**
 - [x] Two runs append two complete transcripts to the same file
@@ -310,12 +310,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `inputs RUNBOOK` lists declared inputs (name, description, pattern, secret) using `read_frontmatter` only. `backends` lists loaded backends, their languages and where each came from (entry point value). Add a test that injects a fake external backend through `load_backends(entry_points=...)` and runs one of its blocks end to end.
 
 **Acceptance criteria:**
-- [ ] `paulrun inputs` works on a runbook whose body is deliberately malformed
-- [ ] `paulrun backends` lists shell and python with their languages
-- [ ] An injected external backend shows up in `backends` and runs its block via `go`
+- [x] `paulrun inputs` works on a runbook whose body is deliberately malformed
+- [x] `paulrun backends` lists shell and python with their languages
+- [x] An injected external backend shows up in `backends` and runs its block via `go`
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_cli.py tests/test_backend_loading.py`
+- [x] Tests pass: `uv run pytest tests/test_cli.py tests/test_backend_loading.py`
 
 **Dependencies:** Task 10
 
@@ -327,7 +327,7 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Estimated scope:** Small
 
 ### Checkpoint 4: Feature complete
-- [ ] Every code-level success criterion in the spec has a passing test
+- [x] Every code-level success criterion in the spec has a passing test
 - [ ] Review with Paul
 
 ---

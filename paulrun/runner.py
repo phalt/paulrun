@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Literal
 
-from paulrun.backends import Backend
+from paulrun.backends import Backend, Interrupted
 from paulrun.inputs import MASK, Prompter, collect, mask, substitute
 from paulrun.runbook import Block, Runbook, Step
 
@@ -70,9 +70,9 @@ class BlockFinished:
 
 @dataclass(frozen=True)
 class RunFinished:
-    status: Literal["ok", "failed", "aborted", "dry"]
+    status: Literal["ok", "failed", "aborted", "interrupted", "dry"]
     duration: float  # seconds
-    step: Step | None = None  # the step that failed or was aborted; None if the run was never started
+    step: Step | None = None  # the step it stopped at; None if the run was never started
     exit_code: int | None = None  # the failed block's exit code
 
 
@@ -119,6 +119,9 @@ def run(
 
     With step_by_step, each run block's code is sent and then paulrun asks whether to run it, skip it
     or quit. Quitting aborts the run. step_by_step does nothing under dry, since nothing runs.
+
+    Ctrl-C once the run has started finishes it as interrupted, so whatever is listening still gets a
+    RunFinished. A block that was running has already stopped and had its output and exit code sent.
     """
     run_blocks = [block for step in runbook.steps for block in step.blocks if block.kind == "run"]
     for block in run_blocks:
@@ -132,38 +135,82 @@ def run(
     # Steps keep their blocks as written, so blocks still run as written; only the names sent are masked.
     steps = tuple(replace(step, name=mask(step.name, secrets)) for step in runbook.steps)
     sink(Overview(mask(runbook.title or runbook.path.name, secrets), steps, len(run_blocks), shown))
-    if not dry and not _yes(prompter.confirm("Start? [y/N]")):
-        return _finish(sink, RunFinished("aborted", 0.0))
+    try:
+        if not dry and not _yes(prompter.confirm("Start? [y/N]")):
+            return _finish(sink, RunFinished("aborted", 0.0))
+    except KeyboardInterrupt:
+        return _finish(sink, RunFinished("interrupted", 0.0))
+    return _steps(runbook, backends, sink, prompter, steps, plain, secrets, env, dry, step_by_step)
+
+
+def _steps(
+    runbook: Runbook,
+    backends: Mapping[str, Backend],
+    sink: Callable[[Event], None],
+    prompter: Prompter,
+    steps: tuple[Step, ...],
+    plain: Mapping[str, str],
+    secrets: list[str],
+    env: Mapping[str, str],
+    dry: bool,
+    step_by_step: bool,
+) -> RunFinished:
+    """Go through each step's blocks in order, finishing the run as interrupted at the step Ctrl-C arrives in."""
     started = time.monotonic()
     for step in steps:
-        sink(StepStarted(step))
-        for block in step.blocks:
-            text = mask(substitute(block.content, plain), secrets)
-            if block.kind == "docstring":
-                sink(Docstring(block, text))
-                continue
-            if block.kind == "confirm":
-                sink(Confirm(block, text))
-                if dry:
-                    continue
-                yes = _yes(prompter.confirm("Continue? [y/N]"))
-                sink(ConfirmAnswered(block, text, yes))
-                if not yes:
-                    return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
-                continue
-            assert block.language is not None  # always set for run blocks
-            code = substitute(block.content, plain)
-            sink(BlockStarted(block, text))
+        try:
+            finished = _step(runbook, backends, sink, prompter, step, plain, secrets, env, started, dry, step_by_step)
+        except KeyboardInterrupt:
+            # A block that was running has already stopped and had its output and exit code sent.
+            return _finish(sink, RunFinished("interrupted", time.monotonic() - started, step))
+        if finished is not None:
+            return finished
+    return _finish(sink, RunFinished("dry" if dry else "ok", time.monotonic() - started))
+
+
+def _step(
+    runbook: Runbook,
+    backends: Mapping[str, Backend],
+    sink: Callable[[Event], None],
+    prompter: Prompter,
+    step: Step,
+    plain: Mapping[str, str],
+    secrets: list[str],
+    env: Mapping[str, str],
+    started: float,
+    dry: bool,
+    step_by_step: bool,
+) -> RunFinished | None:
+    """Go through one step's blocks. Returns how the run finished if it stops here, or None to carry on."""
+    sink(StepStarted(step))
+    for block in step.blocks:
+        text = mask(substitute(block.content, plain), secrets)
+        if block.kind == "docstring":
+            sink(Docstring(block, text))
+            continue
+        if block.kind == "confirm":
+            sink(Confirm(block, text))
             if dry:
                 continue
-            if step_by_step:
-                answer = _step_answer(prompter)
-                if answer == "s":
-                    sink(BlockSkipped(block))
-                    continue
-                if answer == "q":
-                    return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
-            block_started = time.monotonic()
+            yes = _yes(prompter.confirm("Continue? [y/N]"))
+            sink(ConfirmAnswered(block, text, yes))
+            if not yes:
+                return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
+            continue
+        assert block.language is not None  # always set for run blocks
+        code = substitute(block.content, plain)
+        sink(BlockStarted(block, text))
+        if dry:
+            continue
+        if step_by_step:
+            answer = _step_answer(prompter)
+            if answer == "s":
+                sink(BlockSkipped(block))
+                continue
+            if answer == "q":
+                return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
+        block_started = time.monotonic()
+        try:
             exit_code = backends[block.language].run(
                 code,
                 frontmatter=runbook.frontmatter,
@@ -171,10 +218,22 @@ def run(
                 cwd=runbook.path.parent,
                 output=lambda line: sink(OutputLine(mask(line, secrets))),
             )
-            sink(BlockFinished(block, exit_code, time.monotonic() - block_started))
-            if exit_code != 0:
-                return _finish(sink, RunFinished("failed", time.monotonic() - started, step, exit_code))
-    return _finish(sink, RunFinished("dry" if dry else "ok", time.monotonic() - started))
+        except Interrupted as interrupted:
+            # The block has stopped. Record how it ended before the run finishes as interrupted.
+            sink(BlockFinished(block, interrupted.exit_code, time.monotonic() - block_started))
+            raise
+        sink(BlockFinished(block, exit_code, time.monotonic() - block_started))
+        if exit_code != 0:
+            return _finish(sink, RunFinished("failed", time.monotonic() - started, step, exit_code))
+    return None
+
+
+def code_lines(code: str) -> list[str]:
+    """A block's code as it's shown: each line indented by four spaces, so it stands apart from its output.
+
+    Blank lines stay empty, so a transcript has no trailing whitespace.
+    """
+    return [f"    {line}" if line else "" for line in code.splitlines()]
 
 
 def format_duration(seconds: float) -> str:

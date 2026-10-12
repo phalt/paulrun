@@ -89,6 +89,7 @@ def _inputs(runbook: Runbook) -> Iterator[Finding]:
     entries = runbook.frontmatter.get("inputs")
     if not isinstance(entries, list):
         return
+    first_seen: dict[str, int] = {}
     for index, entry in enumerate(entries):
         line = runbook.lines.get(f"inputs.{index}", 1)
         if not isinstance(entry, dict):
@@ -97,8 +98,13 @@ def _inputs(runbook: Runbook) -> Iterator[Finding]:
         name = entry.get("name")
         if not isinstance(name, str):
             yield Finding(line, f"input {index + 1} needs a name")
+        elif name in first_seen:
+            # Only one value can be collected for a name, so a second declaration could never be used.
+            yield Finding(line, f"input {name} is declared twice (first on line {first_seen[name]})")
         elif not _UPPER_SNAKE_CASE.fullmatch(name):
             yield Finding(line, f"input name {name!r} must be UPPER_SNAKE_CASE, e.g. {_upper_snake(name)}")
+        if isinstance(name, str):
+            first_seen.setdefault(name, line)
         label = name if isinstance(name, str) else str(index + 1)
         if not isinstance(entry.get("description"), str):
             yield Finding(line, f"input {label} needs a description")

@@ -45,6 +45,8 @@ packages = ["paulrun"]
 
 [tool.ruff]
 line-length = 120
+# Fixture runbooks are test data: their exact bytes matter, and one is deliberately not valid UTF-8.
+extend-exclude = ["tests/runbooks"]
 
 [tool.ruff.lint]
 select = [

@@ -89,3 +89,44 @@ def test_load_backends_rejects_two_backends_claiming_one_language():
         "language 'sh' is claimed by both 'shell' (paulrun.backends.shell:ShellBackend) "
         f"and 'rival' ({__name__}:RivalShellBackend)"
     )
+
+
+def test_load_backend_sources_gives_each_backend_once_with_its_entry_point():
+    """Each backend is listed once, however many languages it claims, with the entry point it was loaded from."""
+    fake = entry_point("fake", FakeBackend)
+
+    [loaded] = backends.load_backend_sources([fake])
+
+    assert isinstance(loaded.backend, FakeBackend)
+    assert loaded.entry_point == fake
+
+
+def test_load_backend_sources_uses_the_installed_entry_points_by_default():
+    """With no entry points given, the installed ones are used, which include paulrun's own backends."""
+    names = {loaded.backend.name for loaded in backends.load_backend_sources()}
+
+    assert {"shell", "python"} <= names
+
+
+def test_load_backend_sources_rejects_two_backends_claiming_one_language():
+    """The language conflict check applies to sources too, since load_backends is built on them."""
+    entry_points = [
+        entry_point("fake", FakeBackend),
+        entry_point("rival", RivalShellBackend),
+        entry_point("again", FakeBackend),
+    ]
+
+    with pytest.raises(backends.BackendError, match="language 'fake' is claimed by both 'fake'"):
+        backends.load_backend_sources(entry_points)
+
+
+def test_an_external_backend_loads_alongside_the_built_in_ones(monkeypatch):
+    """A backend another package registers is loaded like paulrun's own, from the same entry point group."""
+    installed = backends.installed_entry_points()
+    monkeypatch.setattr(backends, "installed_entry_points", lambda: [*installed, entry_point("fake", FakeBackend)])
+
+    loaded = backends.load_backends()
+
+    assert isinstance(loaded["fake"], FakeBackend)
+    assert isinstance(loaded["sh"], ShellBackend)
+    assert isinstance(loaded["python"], PythonBackend)

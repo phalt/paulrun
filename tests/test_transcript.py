@@ -107,20 +107,20 @@ def test_transcript_records_a_run_in_the_spec_format(tmp_path, monkeypatch):
         --- inputs: VERSION=1.2.0 TOKEN=****
 
         === Build ===
-        $ echo "Building 1.2.0"
-          echo "warning on stderr" >&2
+            echo "Building 1.2.0"
+            echo "warning on stderr" >&2
         Building 1.2.0
         warning on stderr
         exit 0 (Xs)
 
         === Tag ===
-        $ echo "Tagged 1.2.0"
+            echo "Tagged 1.2.0"
         Tagged 1.2.0
         exit 0 (Xs)
         confirm: Create a release from tag 1.2.0. ... -> yes
 
         === Publish ===
-        $ echo "Publishing with $TOKEN"
+            echo "Publishing with $TOKEN"
         Publishing with ****
         exit 0 (Xs)
 
@@ -190,7 +190,7 @@ def test_transcript_records_a_failed_run(tmp_path):
     run_with_transcript(path, output)
 
     text = without_durations(output.read_text())
-    assert text.endswith('=== Fails ===\n$ exit 3\nexit 3 (Xs)\n\n--- finished: failed at "Fails" (exit 3)\n')
+    assert text.endswith('=== Fails ===\n    exit 3\nexit 3 (Xs)\n\n--- finished: failed at "Fails" (exit 3)\n')
     assert "=== Never ===" not in text
 
 
@@ -218,11 +218,11 @@ def test_transcript_records_skipped_blocks_and_a_quit(tmp_path):
             """\
 
             === One ===
-            $ echo one
+                echo one
             skipped (--step)
 
             === Two ===
-            $ echo two
+                echo two
 
             --- finished: aborted at "Two"
             """
@@ -277,7 +277,7 @@ def test_transcript_is_written_as_the_run_goes(tmp_path):
         runner.run(parse(path), load_backends(), sink, FakePrompter())
 
     [before_finishing] = seen_when_finishing
-    assert without_durations(before_finishing).endswith("=== Only ===\n$ echo hi\nhi\nexit 0 (Xs)\n")
+    assert without_durations(before_finishing).endswith("=== Only ===\n    echo hi\nhi\nexit 0 (Xs)\n")
 
 
 def test_transcript_path_fills_in_plain_inputs_relative_to_the_runbook(tmp_path):
@@ -389,3 +389,26 @@ def test_transcript_is_written_only_once_a_step_starts(tmp_path):
 
     assert not declined.written
     assert started.written
+
+
+def test_transcript_records_an_interrupted_run(tmp_path):
+    """Ctrl-C finishes the transcript as interrupted at its step, after the stopped block's exit line."""
+    output = tmp_path / "transcript.md"
+    transcript = Transcript(output, "PUBLISHING.md", clock=lambda: STARTED)
+    step = parse(write_runbook(tmp_path, "## Slow\n\n```sh run\nsleep 60\n```\n")).steps[0]
+    [block] = step.blocks
+
+    with transcript:
+        for event in [
+            runner.Overview("T", (step,), 1, ()),
+            runner.StepStarted(step),
+            runner.BlockStarted(block, "sleep 60\n"),
+            runner.OutputLine("stopping"),
+            runner.BlockFinished(block, 130, 2.1),
+            runner.RunFinished("interrupted", 2.2, step),
+        ]:
+            transcript(event)
+
+    assert output.read_text().endswith(
+        '=== Slow ===\n    sleep 60\nstopping\nexit 130 (2.1s)\n\n--- finished: interrupted at "Slow"\n'
+    )

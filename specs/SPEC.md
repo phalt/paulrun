@@ -160,23 +160,23 @@ Plain and boring on purpose:
 --- inputs: VERSION=2.3.2 UV_PUBLISH_TOKEN=****
 
 === Regenerate test clients ===
-$ make generate-test-clients
+    make generate-test-clients
 <stdout and stderr, verbatim>
 exit 0 (4.2s)
 
 === Create a new tag ===
-$ git tag 2.3.2
+    git tag 2.3.2
 exit 0 (0.1s)
 confirm: Create a release from tag 2.3.2 ... -> yes
 
 === Publish documentation ===
-$ make deploy-docs
+    make deploy-docs
 skipped (--step)
 
 --- finished: ok (3m12s)
 ```
 
-A failed run ends with `--- finished: failed at "<step>" (exit N)`. A `confirm` answered with anything but `y`, or `q` under `--step`, ends with `--- finished: aborted at "<step>"`.
+Each block's code is indented by four spaces, with no prompt character, so it reads the same in any language. A failed run ends with `--- finished: failed at "<step>" (exit N)`. A `confirm` answered with anything but `y`, or `q` under `--step`, ends with `--- finished: aborted at "<step>"`. Ctrl-C ends it with `--- finished: interrupted at "<step>"`; a block that was running when it was pressed still gets its `exit N` line first.
 
 ## Commands (CLI)
 

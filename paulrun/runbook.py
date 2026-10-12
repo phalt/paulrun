@@ -73,7 +73,7 @@ def parse(path: Path) -> Runbook:
         description=_string(frontmatter.get("description")),
         output_path=_string(frontmatter.get("output_path")),
         python=_string(frontmatter.get("python")),
-        inputs=_inputs(frontmatter.get("inputs")),
+        inputs=parse_inputs(frontmatter.get("inputs")),
         preamble=tuple(preamble),
         steps=tuple(Step(name=name, line=line, blocks=tuple(blocks)) for name, line, blocks in steps),
     )
@@ -146,7 +146,7 @@ def _string(value: Any) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _inputs(value: Any) -> tuple[Input, ...]:
+def parse_inputs(value: Any) -> tuple[Input, ...]:
     """Read the inputs that have a string name and description. Validation reports the rest from the frontmatter."""
     if not isinstance(value, list):
         return ()

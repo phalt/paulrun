@@ -1,5 +1,4 @@
 import shlex
-import subprocess
 import sys
 import tempfile
 import warnings
@@ -7,7 +6,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from paulrun.backends import Problem
+from paulrun.backends import Problem, stream
 from paulrun.inputs import PLACEHOLDER
 
 
@@ -49,11 +48,4 @@ class PythonBackend:
         with tempfile.TemporaryDirectory(prefix="paulrun-") as directory:
             script = Path(directory) / "block.py"
             script.write_text(code, encoding="utf-8")
-            with subprocess.Popen(
-                [*command, str(script)], cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-            ) as process:
-                assert process.stdout is not None  # set because stdout is a pipe
-                # Read bytes so only newlines split lines; text mode would also split on carriage returns.
-                for raw in process.stdout:
-                    output(raw.decode("utf-8", errors="replace").removesuffix("\n"))
-        return process.returncode
+            return stream([*command, str(script)], env=env, cwd=cwd, output=output)

@@ -77,7 +77,7 @@ class Transcript:
                     self._open()
                 self._write("", f"=== {step.name} ===")
             case runner.BlockStarted(code=code):
-                self._write(*(f"{'$' if index == 0 else ' '} {line}" for index, line in enumerate(code.splitlines())))
+                self._write(*runner.code_lines(code))
             case runner.OutputLine(text=text):
                 self._write(text)
             case runner.BlockFinished(exit_code=exit_code, duration=duration):
@@ -126,9 +126,9 @@ def _finished(event: runner.RunFinished) -> str:
         case runner.RunFinished(status="failed", step=step, exit_code=exit_code):
             assert step is not None  # always set when a run fails
             return f'failed at "{step.name}" (exit {exit_code})'
-        case runner.RunFinished(status="aborted", step=step):
-            # A transcript is only open once a step has started, so an aborted run always has a step.
+        case runner.RunFinished(status="aborted" | "interrupted" as status, step=step):
+            # A transcript is only open once a step has started, so a run that stopped early always has a step.
             assert step is not None
-            return f'aborted at "{step.name}"'
+            return f'{status} at "{step.name}"'
         case _:
             return f"ok ({runner.format_duration(event.duration)})"

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from paulrun import runner
-from paulrun.backends import load_backends
+from paulrun.backends import Interrupted, load_backends
 from paulrun.inputs import Input
 from paulrun.runbook import parse
 
@@ -1118,3 +1118,111 @@ def test_run_masks_a_secret_value_in_code_it_shows_but_runs_the_real_code(tmp_pa
     [started] = [event for event in events if isinstance(event, runner.BlockStarted)]
     assert started.code == 'test "$TOKEN" = **** && echo "matched"\n'
     assert output(events) == ["matched"]
+
+
+def test_code_lines_indents_each_line_and_leaves_blank_lines_empty():
+    """Code is shown four spaces in, and a blank line inside a block stays blank, without trailing spaces."""
+    assert runner.code_lines("first\n\n  nested\nlast\n") == ["    first", "", "      nested", "    last"]
+
+
+class InterruptedBackend:
+    """A backend whose block is stopped by Ctrl-C, as stream() reports it: output first, then Interrupted."""
+
+    name = "interrupted"
+    languages = ("stopped",)
+
+    def validate(self, code):
+        return []
+
+    def run(self, code, *, frontmatter, env, cwd, output):
+        output("cleaning up")
+        raise Interrupted(130)
+
+
+def test_run_finishes_as_interrupted_when_a_block_is_stopped_by_ctrl_c(tmp_path):
+    """The stopped block's output and exit code are sent, nothing after it runs, and the run ends as interrupted."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Before
+
+        ```sh run
+        true
+        ```
+
+        ## Slow
+
+        ```stopped run
+        anything
+        ```
+
+        ## After
+
+        ```sh run
+        touch ran
+        ```
+        """,
+    )
+    events: list[runner.Event] = []
+
+    result = runner.run(
+        parse(path), {**load_backends(), "stopped": InterruptedBackend()}, events.append, FakePrompter()
+    )
+
+    assert result.status == "interrupted"
+    assert result.step is not None
+    assert result.step.name == "Slow"
+    assert output(events)[-1] == "cleaning up"
+    finished = [event for event in events if isinstance(event, runner.BlockFinished)]
+    assert [event.exit_code for event in finished] == [0, 130]
+    assert events[-1] is result
+    assert not (tmp_path / "ran").exists()
+
+
+def test_run_finishes_as_interrupted_on_ctrl_c_at_a_confirm(tmp_path):
+    """Ctrl-C while waiting at a confirm ends the run at that step, with no answer sent."""
+    path = write_runbook(tmp_path, "## Manual\n\n```confirm\nDo it.\n```\n\n```sh run\ntouch ran\n```\n")
+
+    class CtrlCAtConfirm(FakePrompter):
+        def confirm(self, question: str) -> str:
+            if question.startswith("Continue?"):
+                raise KeyboardInterrupt
+            return super().confirm(question)
+
+    events, result = run(path, CtrlCAtConfirm())
+
+    assert result.status == "interrupted"
+    assert result.step is not None
+    assert result.step.name == "Manual"
+    assert not [event for event in events if isinstance(event, runner.ConfirmAnswered)]
+    assert not (tmp_path / "ran").exists()
+
+
+def test_run_finishes_as_interrupted_before_starting_on_ctrl_c_at_the_start_prompt(tmp_path):
+    """Ctrl-C at the start prompt ends the run with no step, before anything runs."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntouch ran\n```\n")
+
+    class CtrlCAtStart(FakePrompter):
+        def confirm(self, question: str) -> str:
+            raise KeyboardInterrupt
+
+    events, result = run(path, CtrlCAtStart())
+
+    assert result.status == "interrupted"
+    assert result.step is None
+    assert [type(event) for event in events] == [runner.Overview, runner.RunFinished]
+    assert not (tmp_path / "ran").exists()
+
+
+def test_run_lets_ctrl_c_while_collecting_inputs_end_the_run_unhandled(tmp_path, monkeypatch):
+    """Ctrl-C while typing inputs happens before the overview, so there's no run to finish; it's left to the CLI."""
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("TOKEN", raising=False)
+    path = write_runbook(tmp_path, INPUTS_FRONTMATTER + "\n## Only\n\n```sh run\ntrue\n```\n")
+
+    class CtrlCAtInput(FakePrompter):
+        def ask(self, input: Input, problem: str | None) -> str:
+            raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        run(path, CtrlCAtInput())

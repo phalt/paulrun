@@ -1,15 +1,17 @@
 import sys
 from contextlib import nullcontext
 from dataclasses import dataclass
+from importlib.metadata import EntryPoint
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
 
 from paulrun import runner, settings
-from paulrun.backends import Backend, BackendError, load_backends
+from paulrun.backends import Backend, BackendError, load_backend_sources, load_backends
 from paulrun.inputs import Input, InputError
-from paulrun.runbook import Runbook, RunbookError, parse
+from paulrun.runbook import Runbook, RunbookError, parse, parse_inputs, read_frontmatter
 from paulrun.transcript import Transcript, TranscriptError
 from paulrun.validate import Report, validate
 
@@ -61,6 +63,52 @@ def check(runbook: Path) -> None:
         sys.exit(1)
 
 
+@cli.command()
+@click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def inputs(runbook: Path) -> None:
+    """List the inputs a runbook needs. Only reads its frontmatter, so it works even if the rest is broken."""
+    console = Console(highlight=False)
+    try:
+        declared = parse_inputs(read_frontmatter(runbook).get("inputs"))
+    except RunbookError as e:
+        raise click.ClickException(str(e)) from e
+    if not declared:
+        console.out("no inputs")
+        return
+    width = max(len(input.name) for input in declared)
+    for input in declared:
+        console.out(f"{input.name:<{width}}  {input.description}")
+        details = [f"pattern: {input.pattern}"] if input.pattern is not None else []
+        details += ["secret"] if input.secret else []
+        for detail in details:
+            console.out(f"{'':<{width}}  {detail}")
+
+
+@cli.command("backends")
+def list_backends() -> None:
+    """List the installed backends, the languages each runs, and the package that registered it."""
+    console = Console(highlight=False)
+    try:
+        sources = sorted(load_backend_sources(), key=lambda source: source.backend.name)
+    except BackendError as e:
+        raise click.ClickException(str(e)) from e
+    rows = [
+        (source.backend.name, ", ".join(source.backend.languages), _registered_by(source.entry_point))
+        for source in sources
+    ]
+    name_width = max((len(name) for name, _, _ in rows), default=0)
+    languages_width = max((len(languages) for _, languages, _ in rows), default=0)
+    for name, languages, registered_by in rows:
+        console.out(f"{name:<{name_width}}  {languages:<{languages_width}}  {registered_by}")
+
+
+def _registered_by(entry_point: EntryPoint) -> str:
+    """The entry point's target, with the package and version that registered it when that's known."""
+    if entry_point.dist is None:
+        return entry_point.value
+    return f"{entry_point.value} ({entry_point.dist.name} {entry_point.dist.version})"
+
+
 def _validated(path: Path) -> tuple[Runbook, dict[str, Backend], Report]:
     """Parse and validate a runbook, turning anything that stops it being read into a clean error."""
     try:
@@ -99,11 +147,24 @@ class ClickPrompter:
         if problem is not None:
             # console.out, because a pattern such as [a-z] would be read as markup.
             self.console.out(problem, style="red")
-        return click.prompt(f"{input.name} ({input.description})", hide_input=input.secret)
+        return _prompt(f"{input.name} ({input.description})", hide_input=input.secret)
 
     def confirm(self, question: str) -> str:
         # An empty default lets enter through as "", which the runner reads as no.
-        return click.prompt(question, default="", show_default=False, prompt_suffix=" ")
+        return _prompt(question, default="", show_default=False, prompt_suffix=" ")
+
+
+def _prompt(text: str, **options: Any) -> str:
+    """click.prompt, but Ctrl-C raises KeyboardInterrupt so the runner can finish the run as interrupted.
+
+    Click turns both Ctrl-C and running out of input into Abort; only Ctrl-C is turned back.
+    """
+    try:
+        return click.prompt(text, **options)
+    except click.Abort as e:
+        if isinstance(e.__context__, KeyboardInterrupt):
+            raise KeyboardInterrupt from None
+        raise
 
 
 def _print_event(console: Console, event: runner.Event, *, dry: bool = False) -> None:
@@ -128,8 +189,8 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
             for line in text.splitlines():
                 console.out(line, style="yellow")
         case runner.BlockStarted(code=code):
-            for index, line in enumerate(code.splitlines()):
-                console.out(f"{'$' if index == 0 else ' '} {line}", style="cyan")
+            for line in runner.code_lines(code):
+                console.out(line, style="cyan")
         case runner.BlockSkipped():
             console.out("skipped (--step)", style="yellow")
         case runner.OutputLine(text=text):
@@ -144,10 +205,10 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
         case runner.RunFinished(status="dry"):
             console.out()
             console.out("finished: dry run, nothing was run", style="yellow")
-        case runner.RunFinished(status="aborted", step=step):
+        case runner.RunFinished(status="aborted" | "interrupted" as status, step=step):
             console.out()
             where = "before starting" if step is None else f'at "{step.name}"'
-            console.out(f"finished: aborted {where}", style="red")
+            console.out(f"finished: {status} {where}", style="red")
         case runner.RunFinished(step=step, exit_code=exit_code):
             assert step is not None  # always set when a run fails
             console.out()

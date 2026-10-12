@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from paulrun.backends import Problem
+from paulrun.backends import Problem, stream
 from paulrun.inputs import PLACEHOLDER
 
 # How bash -n reports each problem, e.g. "bash: line 3: syntax error near unexpected token `fi'".
@@ -36,13 +36,7 @@ class ShellBackend:
     ) -> int:
         # The flags match `set -eo pipefail` without adding a line, so the script bash runs is exactly the
         # block. The last argument is $0, which bash puts at the start of its error messages.
-        command = ["bash", "-e", "-o", "pipefail", "-c", code, "paulrun"]
-        with subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
-            assert process.stdout is not None  # set because stdout is a pipe
-            # Read bytes so only newlines split lines; text mode would also split on carriage returns.
-            for raw in process.stdout:
-                output(raw.decode("utf-8", errors="replace").removesuffix("\n"))
-        return process.returncode
+        return stream(["bash", "-e", "-o", "pipefail", "-c", code, "paulrun"], env=env, cwd=cwd, output=output)
 
 
 def _bash_errors(script: str) -> list[Problem]:

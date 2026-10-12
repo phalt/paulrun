@@ -2,8 +2,11 @@
 
 import json
 import os
+import pty
+import select
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import textwrap
@@ -289,3 +292,45 @@ def test_validate_reports_a_bash_failure_that_prints_nothing(monkeypatch, tmp_pa
     monkeypatch.setenv("PATH", str(tmp_path))
 
     assert ShellBackend().validate("echo ok\n") == [Problem("bash -n failed with exit code 2")]
+
+
+def test_run_can_prompt_on_the_terminal_directly(tmp_path):
+    """A block can open /dev/tty and read what's typed there, as git, ssh and gpg do to ask for a password.
+
+    This runs inside a real pseudo-terminal. A block cut off from the terminal can't open /dev/tty, and
+    one moved into a background job is stopped when it reads from it, so either mistake fails this test.
+    """
+    script = textwrap.dedent(
+        """\
+        import os
+        from pathlib import Path
+
+        from paulrun.backends.shell import ShellBackend
+
+        lines = []
+        code = 'read -r answer < /dev/tty && echo "got $answer"\\n'
+        exit_code = ShellBackend().run(code, frontmatter={}, env=os.environ, cwd=Path.cwd(), output=lines.append)
+        print("RESULT", lines, exit_code, flush=True)
+        """
+    )
+    pid, terminal = pty.fork()
+    if pid == 0:
+        os.chdir(tmp_path)
+        os.execv(sys.executable, [sys.executable, "-c", script])
+    os.write(terminal, b"typed\r")  # the terminal holds it until the block reads /dev/tty
+    output = b""
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and select.select([terminal], [], [], deadline - time.monotonic())[0]:
+        try:
+            chunk = os.read(terminal, 1024)
+        except OSError:  # Linux reports the other end closing as an error
+            break
+        if not chunk:
+            break
+        output += chunk
+    if os.waitpid(pid, os.WNOHANG) == (0, 0):  # still running, so it's stuck
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+    os.close(terminal)
+
+    assert "RESULT ['got typed'] 0" in output.decode(errors="replace")
