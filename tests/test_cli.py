@@ -72,6 +72,18 @@ def transcript_runbook(tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def input_block_runbook(tmp_path, monkeypatch):
+    """A copy of the input block example in tmp_path, so its transcript is written there.
+
+    VERSION is set in the environment; PR and OTP aren't, so they're asked for at their blocks.
+    """
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.delenv("PR", raising=False)
+    monkeypatch.delenv("OTP", raising=False)
+    return Path(shutil.copy(RUNBOOKS / "input-block-example.md", tmp_path))
+
+
+@pytest.fixture
 def dry_runbook(tmp_path, monkeypatch):
     """A copy of the dry run example runbook in tmp_path, so a broken --dry can only write files there.
 
@@ -1083,3 +1095,79 @@ def test_click_prompter_leaves_end_of_input_as_abort(monkeypatch):
 
     with pytest.raises(click.Abort):
         cli.ClickPrompter(cli.Console()).confirm("Start? [y/N]")
+
+
+def test_go_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_runbook):
+    """Each input block's prompt comes where the block is, after the steps before it have run."""
+    result = runner.invoke(cli.cli, ["go", str(input_block_runbook)], input="y\ny\n42\n123456\n")
+
+    assert result.exit_code == 0
+    lines = re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output).splitlines()
+    start = lines.index("=== Open the pull request ===")
+    assert lines[start : start + 13] == [
+        "=== Open the pull request ===",
+        "Open a pull request for 1.2.0 on GitHub.",
+        "Continue? [y/N] y",
+        "PR (The number GitHub gave the pull request): 42",
+        '    echo "Merging pull request 42 for 1.2.0"',
+        "Merging pull request 42 for 1.2.0",
+        "exit 0 (Xs)",
+        "",
+        "=== Publish ===",
+        "OTP (The code from your authenticator app): ",  # a secret isn't echoed as it's typed
+        '    echo "Publishing 1.2.0 with code $OTP"',
+        "Publishing 1.2.0 with code ****",
+        "exit 0 (Xs)",
+    ]
+    assert "123456" not in result.output
+
+
+def test_go_records_input_blocks_in_the_transcript(runner, input_block_runbook):
+    """The transcript shows where each input block was answered, with the secret as ****."""
+    runner.invoke(cli.cli, ["go", str(input_block_runbook)], input="y\ny\n42\n123456\n")
+
+    text = (input_block_runbook.parent / "logs" / "pr-release.md").read_text()
+    assert "confirm: Open a pull request for 1.2.0 on GitHub. -> yes\ninput: PR=42\n" in text
+    assert "=== Publish ===\ninput: OTP=****\n" in text
+    assert "123456" not in text
+
+
+def test_go_dry_shows_input_blocks_without_asking(runner, input_block_runbook):
+    """--dry says where the run would stop to ask, and leaves those placeholders as written."""
+    result = runner.invoke(cli.cli, ["go", "--dry", str(input_block_runbook)])
+
+    assert result.exit_code == 0
+    lines = result.output.splitlines()
+    assert "input: PR (The number GitHub gave the pull request), asked here" in lines
+    assert "input: OTP (The code from your authenticator app), asked here" in lines
+    assert '    echo "Merging pull request <PR> for 1.2.0"' in lines
+    assert not (input_block_runbook.parent / "logs").exists()
+
+
+def test_inputs_lists_input_blocks_with_the_step_that_asks_for_them(runner):
+    """Block inputs come after the frontmatter ones, each with its pattern, secret flag and step."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "input-block-example.md")])
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        """\
+        VERSION  The version being released, e.g. 1.2.0
+                 pattern: ^\\d+\\.\\d+\\.\\d+$
+        PR       The number GitHub gave the pull request
+                 pattern: ^\\d+$
+                 asked in "Open the pull request"
+        OTP      The code from your authenticator app
+                 pattern: ^\\d{6}$
+                 secret
+                 asked in "Publish"
+        """
+    )
+
+
+def test_inputs_still_lists_frontmatter_inputs_when_the_body_cannot_be_read(runner):
+    """Block inputs need the body, but a body that can't be read doesn't stop the frontmatter ones being listed."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "broken-body.md")])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines()[0].startswith("VERSION ")
+    assert "asked in" not in result.output

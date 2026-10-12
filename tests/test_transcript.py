@@ -412,3 +412,48 @@ def test_transcript_records_an_interrupted_run(tmp_path):
     assert output.read_text().endswith(
         '=== Slow ===\n    sleep 60\nstopping\nexit 130 (2.1s)\n\n--- finished: interrupted at "Slow"\n'
     )
+
+
+def test_transcript_records_each_input_block_where_it_was_asked(tmp_path, monkeypatch):
+    """An input block's value is recorded where it was given, with a secret as ****."""
+    monkeypatch.delenv("PR", raising=False)
+    monkeypatch.delenv("OTP", raising=False)
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Open the pull request
+
+        ```input
+        name: PR
+        description: The pull request number
+        ```
+
+        ```input
+        name: OTP
+        description: The one-time code
+        secret: true
+        ```
+
+        ```sh run
+        echo "PR <PR> with $OTP"
+        ```
+        """,
+    )
+    output = tmp_path / "transcript.md"
+
+    class Answers(FakePrompter):
+        def __init__(self):
+            super().__init__()
+            self.answers = ["42", "123456"]
+
+        def ask(self, input: Input, problem: str | None) -> str:
+            return self.answers.pop(0)
+
+    transcript = Transcript(output, path.name, clock=lambda: STARTED)
+    with transcript:
+        runner.run(parse(path), load_backends(), transcript, Answers())
+
+    text = without_durations(output.read_text())
+    assert "=== Open the pull request ===\ninput: PR=42\ninput: OTP=****\n" in text
+    assert "PR 42 with ****\n" in text
+    assert "123456" not in text

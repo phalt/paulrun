@@ -42,7 +42,7 @@ runner + `paulrun go` walking skeleton (5)
           ├── transcript (12)
           └── `inputs` + `backends` commands, external backend test (13)
                  │
-       docs site (14) ── README + project docs (15) ── examples + own PUBLISHING.md (16)
+       docs site (14) ── `input` blocks (14b) ── README + project docs (15) ── examples + own PUBLISHING.md (16)
 ```
 
 ## Task list
@@ -84,10 +84,11 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 
 ### Checkpoint 4: Feature complete
 - [x] Every code-level success criterion in the spec has a passing test
-- [ ] Review with Paul
+- [x] Review with Paul (approved 2026-10-12)
 
 ### Phase 5: Docs and dogfooding
-- [ ] Task 14: mkdocs site
+- [x] Task 14: mkdocs site
+- [x] Task 14b: `input` blocks, for inputs asked for part way through a run (added 2026-10-12)
 - [ ] Task 15: README, CONTRIBUTING, CHANGELOG and project docs
 - [ ] Task 16: Examples and paulrun's own PUBLISHING.md
 
@@ -100,7 +101,7 @@ Agents never publish to PyPI or deploy docs (spec Boundaries).
 
 ## Parallelisation
 
-Mostly sequential: almost everything hangs off the parser, runner and inputs. After Checkpoint 3, Tasks 11, 12 and 13 are independent and could run in parallel. Task 14 (docs site) can start any time after Task 10, since the runbook format is fixed by then.
+Mostly sequential: almost everything hangs off the parser, runner and inputs. After Checkpoint 3, Tasks 11, 12 and 13 are independent and could run in parallel. Task 14 (docs site) can start any time after Task 10, since the runbook format is fixed by then. Task 14b changes the format after that, so it updates the docs Task 14 wrote, and Task 15 waits for it.
 
 ## Risks and mitigations
 

@@ -10,7 +10,7 @@ from markdown_it.token import Token
 
 from paulrun.inputs import Input
 
-BlockKind = Literal["docstring", "confirm", "run"]
+BlockKind = Literal["docstring", "confirm", "input", "run"]
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,7 @@ class Block:
     language: str | None  # set for run blocks only
     content: str
     line: int  # line of the opening fence, counted from the top of the file
+    input: Input | None = None  # for input blocks, what its YAML declares; None if it isn't a valid input
 
 
 @dataclass(frozen=True)
@@ -170,9 +171,26 @@ def _block(token: Token, offset: int) -> Block | None:
             return Block(kind="docstring", language=None, content=token.content, line=_line(token, offset))
         case ["confirm", *_]:
             return Block(kind="confirm", language=None, content=token.content, line=_line(token, offset))
+        case ["input", *_]:
+            declared = parse_inputs([_block_yaml(token.content)])
+            return Block(
+                kind="input",
+                language=None,
+                content=token.content,
+                line=_line(token, offset),
+                input=declared[0] if declared else None,
+            )
         case [language, "run", *_]:
             return Block(kind="run", language=language, content=token.content, line=_line(token, offset))
     return None
+
+
+def _block_yaml(content: str) -> Any:
+    """The YAML in an input block, or None if it isn't valid YAML. Validation says what's wrong with it."""
+    try:
+        return yaml.safe_load(content)
+    except yaml.YAMLError:
+        return None
 
 
 def _line(token: Token, offset: int) -> int:

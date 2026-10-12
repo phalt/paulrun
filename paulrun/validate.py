@@ -3,6 +3,9 @@ import shlex
 import shutil
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from typing import Any
+
+import yaml
 
 from paulrun.backends import Backend
 from paulrun.inputs import PLACEHOLDER
@@ -21,9 +24,21 @@ class Finding:
 
 
 @dataclass(frozen=True)
-class _Declared:
-    secret: bool
-    line: int  # file line of the input's entry
+class _Entry:
+    """One input declaration as written: a frontmatter inputs item, or an input block's YAML."""
+
+    value: Any  # the YAML as written, which may not be a valid input
+    line: int  # file line of the entry, where its problems are reported
+    label: str  # how to name it before its name is known, e.g. "input 2" or "input block"
+    block: Block | None  # the input block it's from, or None if it's in the frontmatter
+
+    @property
+    def name(self) -> str | None:
+        return self.value["name"] if isinstance(self.value, dict) and isinstance(self.value.get("name"), str) else None
+
+    @property
+    def secret(self) -> bool:
+        return isinstance(self.value, dict) and bool(self.value.get("secret", False))
 
 
 @dataclass(frozen=True)
@@ -85,41 +100,69 @@ def _uses_python(runbook: Runbook) -> bool:
 
 
 def _inputs(runbook: Runbook) -> Iterator[Finding]:
-    """Check each input entry as written in the frontmatter, including the ones the parser couldn't read."""
-    entries = runbook.frontmatter.get("inputs")
-    if not isinstance(entries, list):
-        return
+    """Check each input declaration as written, in the frontmatter or an input block, even ones the parser skipped."""
     first_seen: dict[str, int] = {}
-    for index, entry in enumerate(entries):
-        line = runbook.lines.get(f"inputs.{index}", 1)
-        if not isinstance(entry, dict):
-            yield Finding(line, f"input {index + 1} must be a mapping with a name and description")
+    for entry in _entries(runbook):
+        if isinstance(entry.value, _YamlError):
+            yield Finding(entry.value.line, f"input block isn't valid YAML: {entry.value.problem}")
             continue
-        name = entry.get("name")
-        if not isinstance(name, str):
-            yield Finding(line, f"input {index + 1} needs a name")
+        if not isinstance(entry.value, dict):
+            yield Finding(entry.line, f"{entry.label} must be a mapping with a name and description")
+            continue
+        name = entry.name
+        if name is None:
+            yield Finding(entry.line, f"{entry.label} needs a name")
         elif name in first_seen:
             # Only one value can be collected for a name, so a second declaration could never be used.
-            yield Finding(line, f"input {name} is declared twice (first on line {first_seen[name]})")
+            yield Finding(entry.line, f"input {name} is declared twice (first on line {first_seen[name]})")
         elif not _UPPER_SNAKE_CASE.fullmatch(name):
-            yield Finding(line, f"input name {name!r} must be UPPER_SNAKE_CASE, e.g. {_upper_snake(name)}")
-        if isinstance(name, str):
-            first_seen.setdefault(name, line)
-        label = name if isinstance(name, str) else str(index + 1)
-        if not isinstance(entry.get("description"), str):
-            yield Finding(line, f"input {label} needs a description")
-        pattern = entry.get("pattern")
+            yield Finding(entry.line, f"input name {name!r} must be UPPER_SNAKE_CASE, e.g. {_upper_snake(name)}")
+        if name is not None:
+            first_seen.setdefault(name, entry.line)
+        label = f"input {name}" if name is not None else entry.label
+        if not isinstance(entry.value.get("description"), str):
+            yield Finding(entry.line, f"{label} needs a description")
+        pattern = entry.value.get("pattern")
         if pattern is not None:
             if not isinstance(pattern, str):
-                yield Finding(line, f"input {label}'s pattern must be a string")
+                yield Finding(entry.line, f"{label}'s pattern must be a string")
             else:
                 try:
                     re.compile(pattern)
                 except re.error as e:
-                    yield Finding(line, f"input {label}'s pattern isn't a valid regex: {e}")
-        for key in entry:
+                    yield Finding(entry.line, f"{label}'s pattern isn't a valid regex: {e}")
+        for key in entry.value:
             if key not in INPUT_KEYS:
-                yield Finding(line, f"unknown key {key!r} on input {label}", warning=True)
+                yield Finding(entry.line, f"unknown key {key!r} on {label}", warning=True)
+
+
+@dataclass(frozen=True)
+class _YamlError:
+    """An input block whose YAML can't be read."""
+
+    line: int  # file line the YAML problem is on
+    problem: str
+
+
+def _entries(runbook: Runbook) -> Iterator[_Entry]:
+    """Every input declaration in file order: the frontmatter's inputs, then each input block."""
+    items = runbook.frontmatter.get("inputs")
+    if isinstance(items, list):
+        for index, item in enumerate(items):
+            yield _Entry(item, runbook.lines.get(f"inputs.{index}", 1), f"input {index + 1}", None)
+    for block in _all_blocks(runbook):
+        if block.kind == "input":
+            yield _Entry(_input_block_yaml(block), block.line, "input block", block)
+
+
+def _input_block_yaml(block: Block) -> Any:
+    """The YAML in an input block, or a _YamlError saying where it can't be read."""
+    try:
+        return yaml.safe_load(block.content)
+    except yaml.MarkedYAMLError as e:
+        # Marks count from the block's first line, which is the line after its fence.
+        line = block.line if e.problem_mark is None else block.line + 1 + e.problem_mark.line
+        return _YamlError(line, str(e.problem))
 
 
 def _upper_snake(name: str) -> str:
@@ -130,7 +173,7 @@ def _upper_snake(name: str) -> str:
 
 
 def _placeholders(runbook: Runbook) -> Iterator[Finding]:
-    """Every <NAME> must be a declared, non-secret input, and every input should be used somewhere."""
+    """Every <NAME> must be a declared, non-secret input that's known by then, and every input should be used."""
     declared = _declared(runbook)
     used: set[str] = set()
     for line, text, prefix in _placeholder_texts(runbook):
@@ -138,37 +181,46 @@ def _placeholders(runbook: Runbook) -> Iterator[Finding]:
             name = match.group(1)
             used.add(name)
             at = line + text.count("\n", 0, match.start())
-            if name not in declared:
+            entry = declared.get(name)
+            if entry is None:
                 yield Finding(at, f"{prefix}<{name}> isn't a declared input")
-            elif declared[name].secret:
+            elif entry.secret:
                 yield Finding(
                     at,
                     f"{prefix}<{name}> is a secret, so it's never substituted; "
                     f"use ${name} to read it from the environment",
                 )
+            elif entry.block is not None and prefix:
+                yield Finding(at, f"{prefix}<{name}> comes from an input block, so it isn't known when the run starts")
+            elif entry.block is not None and at < entry.block.line:
+                yield Finding(at, f"<{name}> is used before its input block on line {entry.block.line}")
     # A run block can also read an input from its environment, e.g. $TOKEN, so any mention of the name counts.
     for block in _all_blocks(runbook):
-        if block.kind == "run":
-            used.update(name for name in declared if re.search(rf"\b{re.escape(name)}\b", block.content))
+        if block.kind != "run":
+            continue
+        for name, entry in declared.items():
+            if mention := re.search(rf"\b{re.escape(name)}\b", block.content):
+                used.add(name)
+                at = block.line + 1 + block.content.count("\n", 0, mention.start())
+                if entry.block is not None and at < entry.block.line and f"<{name}>" not in block.content:
+                    yield Finding(at, f"${name} is used before its input block on line {entry.block.line}")
     for name, entry in declared.items():
         if name not in used:
             yield Finding(entry.line, f"input {name} is never used", warning=True)
 
 
-def _declared(runbook: Runbook) -> dict[str, _Declared]:
-    """Each input entry with a string name, even if it has other errors.
+def _declared(runbook: Runbook) -> dict[str, _Entry]:
+    """Each declared input name, from the frontmatter or an input block, even if it has other errors.
 
     Using every named entry, not just the inputs the parser could read, means an input missing its
-    description is reported once, rather than again for each placeholder that uses it.
+    description is reported once, rather than again for each placeholder that uses it. A repeated name
+    is judged by its first declaration, since the repeat is already an error of its own.
     """
-    entries = runbook.frontmatter.get("inputs")
-    if not isinstance(entries, list):
-        return {}
-    return {
-        entry["name"]: _Declared(bool(entry.get("secret", False)), runbook.lines.get(f"inputs.{index}", 1))
-        for index, entry in enumerate(entries)
-        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
-    }
+    declared: dict[str, _Entry] = {}
+    for entry in _entries(runbook):
+        if entry.name is not None and entry.name not in declared:
+            declared[entry.name] = entry
+    return declared
 
 
 def _placeholder_texts(runbook: Runbook) -> Iterator[tuple[int, str, str]]:
@@ -176,8 +228,9 @@ def _placeholder_texts(runbook: Runbook) -> Iterator[tuple[int, str, str]]:
     if runbook.output_path is not None:
         yield runbook.lines.get("output_path", 1), runbook.output_path, "output_path: "
     for block in _all_blocks(runbook):
-        # A block's first line is the one after its opening fence.
-        yield block.line + 1, block.content, ""
+        if block.kind != "input":  # an input block declares an input; nothing is substituted into it
+            # A block's first line is the one after its opening fence.
+            yield block.line + 1, block.content, ""
 
 
 def _blocks(runbook: Runbook, backends: Mapping[str, Backend]) -> Iterator[Finding]:

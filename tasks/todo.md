@@ -328,7 +328,7 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 
 ### Checkpoint 4: Feature complete
 - [x] Every code-level success criterion in the spec has a passing test
-- [ ] Review with Paul
+- [x] Review with Paul (approved 2026-10-12)
 
 ---
 
@@ -339,13 +339,13 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `mkdocs.yml` mirroring clientele's material theme setup (light/dark palette toggle, code copy, search, nav tabs), `repo_url` to phalt/paulrun, default GitHub Pages URL. Pages: `index.md`, `install.md`, `runbook-format.md` (the full contract, written for humans, including the non-interactive and secret-masking caveats), `cli.md` (every command, flag and exit code).
 
 **Acceptance criteria:**
-- [ ] `make docs-serve` renders every page with working nav
-- [ ] `runbook-format.md` covers every frontmatter key, fence type, placeholder rule and the transcript format
-- [ ] `uv run mkdocs build --strict` passes
+- [x] `make docs-serve` renders every page with working nav
+- [x] `runbook-format.md` covers every frontmatter key, fence type, placeholder rule and the transcript format
+- [x] `uv run mkdocs build --strict` passes
 
 **Verification:**
-- [ ] Build succeeds: `uv run mkdocs build --strict`
-- [ ] Manual check: Paul skims the rendered site
+- [x] Build succeeds: `uv run mkdocs build --strict`
+- [x] Manual check: Paul skims the rendered site (approved 2026-10-12)
 
 **Dependencies:** Task 10
 
@@ -358,9 +358,74 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 
 **Estimated scope:** Medium
 
+## Task 14b: `input` blocks (inputs asked for part way through a run)
+
+Added 2026-10-12, after Checkpoint 4, as part of 0.1.0. A format change, approved by Paul.
+
+**Description:** A ```` ```input ```` fence declares an input inside a step, using the same keys as a frontmatter input (`name`, `description`, optional `pattern` and `secret`) written as YAML. paulrun asks for it when the run reaches the block, rather than before the first step, for values that only exist part way through: a one-time 2FA code that expires in seconds, or something a manual step produces, like a PR number or release URL. It pairs with `confirm`: do this by hand, then tell me what you got.
+
+````markdown
+## Publish to npm
+
+```input
+name: OTP
+description: The code from your authenticator app
+pattern: '^\d{6}$'
+secret: true
+```
+
+```sh run
+npm publish --otp "$OTP"
+```
+````
+
+Behaviour:
+- **Collected like any input:** the environment first (an empty variable counts as unset), otherwise a prompt, hidden for secrets, with `pattern` re-asking for a typed value and failing for one from the environment.
+- **From then on it's a normal input:** set in the environment of every later `run` block, substituted as `<NAME>` in later `run`, `docstring` and `confirm` blocks if it isn't secret, and masked as `****` everywhere if it is.
+- **`--dry`:** not asked for, since the value may not exist yet. Later blocks show `<NAME>` as written. Frontmatter inputs are still collected under `--dry`, as now.
+- **`--step`:** an `input` block is always asked; `--step` only applies to `run` blocks.
+- **Transcript:** `input: NAME=value` where it was asked, or `input: NAME=****` for a secret.
+- **Ctrl-C** at its prompt finishes the run as interrupted at that step, like a `confirm`.
+
+`check` rules:
+- The block must be valid YAML and a mapping, with the same rules and warnings as a frontmatter input.
+- Its name can't be declared anywhere else, in the frontmatter or another `input` block.
+- Using its placeholder before the block, or in `output_path`, is an error, since it hasn't been asked for yet. Using it as `$NAME` in a block before it is an error too.
+- An `input` block before the first `##` is an error, like the other blocks.
+
+`paulrun inputs` lists block inputs after the frontmatter ones, marked with the step that asks for them (e.g. `asked in "Publish to npm"`). It still works on a runbook whose body can't be read, listing only the frontmatter inputs; block inputs need the body.
+
+**Acceptance criteria:**
+- [x] An `input` block is asked for when the run reaches it, not before the first step, and its value reaches every later block, substituted or as `$NAME`
+- [x] A secret `input` block's value never appears on screen or in the transcript
+- [x] `check` errors on each new rule above, each with a broken fixture and its line number
+- [x] `--dry` doesn't ask for `input` blocks; the transcript records each one
+- [x] `paulrun inputs` lists block inputs with their step, and still works on `tests/runbooks/broken-body.md`
+- [x] The spec's runbook format, `docs/runbook-format.md`, `docs/cli.md` and the 0.1.0 entry in `CHANGELOG.md` (and `docs/CHANGELOG.md`) describe `input` blocks
+
+**Verification:**
+- [x] Tests pass: `uv run pytest tests/test_runbook.py tests/test_validate.py tests/test_runner.py tests/test_transcript.py tests/test_cli.py`
+- [x] Build succeeds: `uv run mkdocs build --strict`
+- [x] Manual check: run `tests/runbooks/input-block-example.md` in a terminal, typing a secret at an `input` block part way through
+
+**Dependencies:** Tasks 12, 13, 14
+
+**Files likely touched:**
+- `specs/SPEC.md`
+- `paulrun/runbook.py` (the new block kind, its YAML and line numbers)
+- `paulrun/validate.py`
+- `paulrun/runner.py`
+- `paulrun/transcript.py`
+- `paulrun/cli.py`
+- `tests/test_runbook.py`, `tests/test_validate.py`, `tests/test_runner.py`, `tests/test_transcript.py`, `tests/test_cli.py`
+- `tests/runbooks/input-block-example.md`, `tests/runbooks/broken/*.md`
+- `docs/runbook-format.md`, `docs/cli.md`, `CHANGELOG.md`, `docs/CHANGELOG.md`
+
+**Estimated scope:** Medium
+
 ## Task 15: README, CONTRIBUTING, CHANGELOG and project docs
 
-**Description:** README (what it is, install with `uv tool install paulrun`, a 30-second example, link to docs, macOS/Linux note). `docs/backends.md` (protocol, built-ins, adding a backend to paulrun step by step, shipping an external one). `CONTRIBUTING.md` in clientele's shape, including the AI disclosure and the backend checklist. `CHANGELOG.md` with the 0.1.0 entry, mirrored into `docs/CHANGELOG.md`. `SECURITY.md` and `CODE_OF_CONDUCT.md` copied from clientele with names swapped.
+**Description:** README (what it is, install with `uv tool install paulrun`, a 30-second example, link to docs, macOS/Linux note). `CHANGELOG.md` and `docs/CHANGELOG.md` were written in Task 14 (0.1.0 entry, kept identical by `tests/test_docs.py`). `docs/backends.md` (protocol, built-ins, adding a backend to paulrun step by step, shipping an external one). `CONTRIBUTING.md` in clientele's shape, including the AI disclosure and the backend checklist. `SECURITY.md` and `CODE_OF_CONDUCT.md` copied from clientele with names swapped.
 
 **Acceptance criteria:**
 - [ ] README example runs as written
@@ -371,7 +436,7 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 - [ ] Build succeeds: `uv run mkdocs build --strict`
 - [ ] Manual check: Paul reads the README
 
-**Dependencies:** Tasks 13, 14
+**Dependencies:** Tasks 13, 14, 14b
 
 **Files likely touched:**
 - `README.md`

@@ -66,12 +66,23 @@ Core keys are `title`, `description`, `output_path`, `python` and `inputs`. Any 
 - Non-secret inputs are also substituted wherever `<NAME>` appears inside `run`, `docstring` and `confirm` blocks, and in `output_path`. Prose is never touched.
 - Secrets are never substituted. Using `<SECRET_NAME>` anywhere is a `check` error.
 - Placeholder syntax: `<` + `[A-Z][A-Z0-9_]*` + `>`.
+- Each name can be declared only once, across the frontmatter and every `input` block.
+
+#### Input blocks
+
+An ```` ```input ```` block declares an input part way through a run, for a value that only exists by then (a one-time code, a pull request number). Its content is YAML with the same keys as a frontmatter input. It's collected when the run reaches the block, the same way as any input, and from then on it's set in every later block's environment and, if it isn't secret, substituted in later blocks.
+
+- Using its placeholder, or reading it as `$NAME`, before the block is a `check` error, and so is using it in `output_path`.
+- Under `--dry` it isn't asked for, since the value may not exist yet; later blocks show `<NAME>` as written.
+- The text inside an `input` block is never substituted.
+
+Added 2026-10-12 (plan Task 14b).
 
 ### Steps
 
 - Each `##` heading starts a step. The heading text is the step name.
 - `###` and deeper are just prose inside the current step.
-- A `run`, `docstring` or `confirm` block before the first `##` is a `check` error.
+- A `run`, `docstring`, `confirm` or `input` block before the first `##` is a `check` error.
 
 ### Blocks
 
@@ -81,6 +92,7 @@ The fence info string decides what happens: first word is the language, a second
 |---|---|
 | ```` ```docstring ```` | Printed during `go` |
 | ```` ```confirm ```` | Printed, then waits for `y`. Anything else aborts the run |
+| ```` ```input ```` | Declares an input that's asked for when the run reaches it. See Input blocks |
 | ```` ```<lang> run ```` | Executed by the backend registered for `<lang>` |
 | anything else | Ignored. Documentation only |
 
@@ -142,6 +154,7 @@ Two backends claiming the same language is an error at load time, naming both.
 4. For each step, in order: print the step name, then each block in order.
    - `docstring`: print it.
    - `confirm`: print it, wait for `y`.
+   - `input`: collect the input it declares.
    - `run`: print the substituted code, stream its output live, record exit code and duration.
 5. A non-zero exit stops the run immediately. paulrun exits 1 and names the failed step.
 
@@ -168,6 +181,7 @@ exit 0 (4.2s)
     git tag 2.3.2
 exit 0 (0.1s)
 confirm: Create a release from tag 2.3.2 ... -> yes
+input: OTP=****
 
 === Publish documentation ===
     make deploy-docs
@@ -176,7 +190,7 @@ skipped (--step)
 --- finished: ok (3m12s)
 ```
 
-Each block's code is indented by four spaces, with no prompt character, so it reads the same in any language. A failed run ends with `--- finished: failed at "<step>" (exit N)`. A `confirm` answered with anything but `y`, or `q` under `--step`, ends with `--- finished: aborted at "<step>"`. Ctrl-C ends it with `--- finished: interrupted at "<step>"`; a block that was running when it was pressed still gets its `exit N` line first.
+Each block's code is indented by four spaces, with no prompt character, so it reads the same in any language. An `input` block records `input: NAME=value` where it was answered, with `****` for a secret. A failed run ends with `--- finished: failed at "<step>" (exit N)`. A `confirm` answered with anything but `y`, or `q` under `--step`, ends with `--- finished: aborted at "<step>"`. Ctrl-C ends it with `--- finished: interrupted at "<step>"`; a block that was running when it was pressed still gets its `exit N` line first.
 
 ## Commands (CLI)
 

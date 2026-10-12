@@ -86,6 +86,8 @@ class Transcript:
                 self._write("skipped (--step)")
             case runner.ConfirmAnswered(text=text, yes=yes):
                 self._write(f"confirm: {_first_line(text)} -> {'yes' if yes else 'no'}")
+            case runner.InputCollected(name=name, value=value):
+                self._write(f"input: {name}={value}")
             case runner.RunFinished() if self._file is not None:
                 self._write("", f"--- finished: {_finished(event)}")
 

@@ -16,6 +16,18 @@ BROKEN = RUNBOOKS / "broken"
 BROKEN_CASES = [
     ("missing-title.md", 1, "title is required"),
     ("duplicate-input-name.md", 6, "input VERSION is declared twice (first on line 4)"),
+    ("input-block-invalid-yaml.md", 9, "input block isn't valid YAML: expected ',' or ']', but got ':'"),
+    ("input-block-not-a-mapping.md", 7, "input block must be a mapping with a name and description"),
+    ("input-block-missing-description.md", 7, "input OTP needs a description"),
+    ("input-block-name-already-declared.md", 10, "input OTP is declared twice (first on line 4)"),
+    ("input-block-placeholder-used-before.md", 8, "<PR> is used before its input block on line 13"),
+    ("input-block-env-used-before.md", 8, "$PR is used before its input block on line 13"),
+    (
+        "input-block-in-output-path.md",
+        3,
+        "output_path: <PR> comes from an input block, so it isn't known when the run starts",
+    ),
+    ("input-block-before-first-step.md", 5, "input blocks must be inside a step (a ## heading)"),
     ("title-not-a-string.md", 2, "title must be a string"),
     ("input-missing-name.md", 4, "input 1 needs a name"),
     ("input-missing-description.md", 4, "input VERSION needs a description"),
@@ -51,6 +63,7 @@ VALID_FIXTURES = [
     "python-example.md",
     "step-example.md",
     "transcript-example.md",
+    "input-block-example.md",
 ]
 
 
@@ -397,3 +410,210 @@ def test_validate_reports_every_repeat_of_an_input_name(tmp_path):
         Finding(6, "input TOKEN is declared twice (first on line 4)"),
         Finding(9, "input TOKEN is declared twice (first on line 4)"),
     ]
+
+
+def test_validate_judges_a_repeated_input_by_its_first_declaration(tmp_path):
+    """Other checks treat the first declaration as the input, so the repeat only gets its own error."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        inputs:
+          - name: TOKEN
+            description: The first one, which isn't secret
+          - name: TOKEN
+            description: A repeat that says it is
+            secret: true
+          - name: UNUSED
+            description: Never used
+          - name: UNUSED
+            description: Repeated
+        ---
+
+        ## S
+
+        ```sh run
+        echo <TOKEN>
+        ```
+        """,
+    )
+
+    assert check(path).findings == [
+        Finding(6, "input TOKEN is declared twice (first on line 4)"),
+        Finding(9, "input UNUSED is never used", warning=True),
+        Finding(11, "input UNUSED is declared twice (first on line 9)"),
+    ]
+
+
+def test_validate_accepts_an_input_block_used_after_it(tmp_path):
+    """Using an input block's value after the block, as a placeholder or from the environment, is fine."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## Open the pull request
+
+        ```confirm
+        Open a pull request.
+        ```
+
+        ```input
+        name: PR
+        description: The <PR> number GitHub gave the pull request
+        ```
+
+        ```sh run
+        echo "merging <PR>"
+        gh pr merge "$PR"
+        ```
+
+        ## Announce
+
+        ```docstring
+        Announcing PR <PR>.
+        ```
+        """,
+    )
+
+    assert check(path).findings == []
+
+
+def test_validate_warns_about_an_input_block_that_is_never_used(tmp_path):
+    """An input block nothing uses gets the same warning as an unused frontmatter input."""
+    path = write_runbook(tmp_path, "---\ntitle: T\n---\n\n## S\n\n```input\nname: PR\ndescription: x\n```\n")
+
+    assert check(path).findings == [Finding(7, "input PR is never used", warning=True)]
+
+
+def test_validate_rejects_a_secret_input_block_used_as_a_placeholder(tmp_path):
+    """A secret from an input block is never substituted, the same as a secret from the frontmatter."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## S
+
+        ```input
+        name: OTP
+        description: x
+        secret: true
+        ```
+
+        ```sh run
+        npm publish --otp <OTP>
+        ```
+        """,
+    )
+
+    assert check(path).errors == [
+        Finding(14, "<OTP> is a secret, so it's never substituted; use $OTP to read it from the environment")
+    ]
+
+
+def test_validate_reports_two_input_blocks_with_one_name(tmp_path):
+    """Two input blocks can't declare the same name either."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## S
+
+        ```input
+        name: PR
+        description: x
+        ```
+
+        ```input
+        name: PR
+        description: y
+        ```
+
+        ```sh run
+        echo <PR>
+        ```
+        """,
+    )
+
+    assert check(path).errors == [Finding(12, "input PR is declared twice (first on line 7)")]
+
+
+def test_validate_applies_frontmatter_input_rules_to_input_blocks(tmp_path):
+    """Bad names, bad patterns and unknown keys are reported on an input block's fence line."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## S
+
+        ```input
+        name: pr
+        description: x
+        pattern: '['
+        default: 1
+        ```
+
+        ```sh run
+        echo $pr
+        ```
+        """,
+    )
+
+    assert [finding.message for finding in check(path).findings] == [
+        "input name 'pr' must be UPPER_SNAKE_CASE, e.g. PR",
+        "input pr's pattern isn't a valid regex: unterminated character set at position 0",
+        "unknown key 'default' on input pr",
+    ]
+    assert {finding.line for finding in check(path).findings} == {7}
+
+
+def test_validate_reports_an_input_block_with_no_name(tmp_path):
+    """An input block without a name is named by what it is."""
+    path = write_runbook(tmp_path, "---\ntitle: T\n---\n\n## S\n\n```input\ndescription: x\n```\n")
+
+    assert check(path).errors == [Finding(7, "input block needs a name")]
+
+
+def test_validate_reports_an_empty_input_block(tmp_path):
+    """An empty input block declares nothing, which is an error."""
+    path = write_runbook(tmp_path, "---\ntitle: T\n---\n\n## S\n\n```input\n```\n")
+
+    assert check(path).errors == [Finding(7, "input block must be a mapping with a name and description")]
+
+
+def test_validate_does_not_read_an_input_blocks_own_text_as_placeholders(tmp_path):
+    """An input block's YAML declares an input; it isn't text paulrun fills in, so <NAME> in it is just text."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## S
+
+        ```input
+        name: OTP
+        description: Your <OTP> code, or <ANY> other text
+        secret: true
+        ```
+
+        ```sh run
+        npm publish --otp "$OTP"
+        ```
+        """,
+    )
+
+    assert check(path).findings == []

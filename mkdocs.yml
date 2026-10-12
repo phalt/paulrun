@@ -1,0 +1,46 @@
+site_name: paulrun
+site_url: https://phalt.github.io/paulrun/
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - navigation.footer
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: pink
+      accent: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: pink
+      accent: pink
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+repo_name: phalt/paulrun
+repo_url: https://github.com/phalt/paulrun
+nav:
+  - 🏃‍♂️‍➡️📕 Home: index.md
+  - 🚀 Install: install.md
+  - 📝 Documentation:
+    - 📜 Runbook format: runbook-format.md
+    - 📟 Command line: cli.md
+  - 🗒️ Change Log: CHANGELOG.md
+
+markdown_extensions:
+  - pymdownx.inlinehilite
+  - pymdownx.highlight
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - codehilite

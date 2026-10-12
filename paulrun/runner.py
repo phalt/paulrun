@@ -5,7 +5,7 @@ from dataclasses import dataclass, replace
 from typing import Literal
 
 from paulrun.backends import Backend, Interrupted
-from paulrun.inputs import MASK, Prompter, collect, mask, substitute
+from paulrun.inputs import MASK, Input, Prompter, collect, mask, substitute
 from paulrun.runbook import Block, Runbook, Step
 
 # Blocks print to a pipe rather than a terminal. Python would hold its output back until it exits,
@@ -46,6 +46,19 @@ class ConfirmAnswered:
 
 
 @dataclass(frozen=True)
+class InputBlock:
+    block: Block
+    input: Input  # what the block asks for; sent as the run reaches it, before asking
+
+
+@dataclass(frozen=True)
+class InputCollected:
+    block: Block
+    name: str
+    value: str  # the value given, or **** for a secret
+
+
+@dataclass(frozen=True)
 class BlockStarted:
     block: Block
     code: str  # the code with plain inputs substituted, as the backend runs it but with secret values masked
@@ -82,6 +95,8 @@ Event = (
     | Docstring
     | Confirm
     | ConfirmAnswered
+    | InputBlock
+    | InputCollected
     | BlockStarted
     | BlockSkipped
     | OutputLine
@@ -127,6 +142,10 @@ def run(
     for block in run_blocks:
         if block.language not in backends:
             raise RunnerError(f"line {block.line}: no backend runs {block.language!r} blocks")
+    for step in runbook.steps:
+        for block in step.blocks:
+            if block.kind == "input" and block.input is None:
+                raise RunnerError(f"line {block.line}: input block isn't a valid input; run paulrun check to see why")
     values = collect(runbook.inputs, os.environ, prompter, skip_secrets=dry)
     secrets = [values[input.name] for input in runbook.inputs if input.secret and not dry]
     plain = {input.name: values[input.name] for input in runbook.inputs if not input.secret}
@@ -149,13 +168,16 @@ def _steps(
     sink: Callable[[Event], None],
     prompter: Prompter,
     steps: tuple[Step, ...],
-    plain: Mapping[str, str],
+    plain: dict[str, str],
     secrets: list[str],
-    env: Mapping[str, str],
+    env: dict[str, str],
     dry: bool,
     step_by_step: bool,
 ) -> RunFinished:
-    """Go through each step's blocks in order, finishing the run as interrupted at the step Ctrl-C arrives in."""
+    """Go through each step's blocks in order, finishing the run as interrupted at the step Ctrl-C arrives in.
+
+    plain, secrets and env grow as input blocks are answered, so every later block sees their values.
+    """
     started = time.monotonic()
     for step in steps:
         try:
@@ -174,9 +196,9 @@ def _step(
     sink: Callable[[Event], None],
     prompter: Prompter,
     step: Step,
-    plain: Mapping[str, str],
+    plain: dict[str, str],
     secrets: list[str],
-    env: Mapping[str, str],
+    env: dict[str, str],
     started: float,
     dry: bool,
     step_by_step: bool,
@@ -196,6 +218,19 @@ def _step(
             sink(ConfirmAnswered(block, text, yes))
             if not yes:
                 return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
+            continue
+        if block.kind == "input":
+            assert block.input is not None  # checked before the run started
+            sink(InputBlock(block, block.input))
+            if dry:  # the value may not exist yet, so later blocks show <NAME> as written
+                continue
+            value = collect([block.input], os.environ, prompter)[block.input.name]
+            env[block.input.name] = value
+            if block.input.secret:
+                secrets.append(value)
+            else:
+                plain[block.input.name] = value
+            sink(InputCollected(block, block.input.name, MASK if block.input.secret else value))
             continue
         assert block.language is not None  # always set for run blocks
         code = substitute(block.content, plain)

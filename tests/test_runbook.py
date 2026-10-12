@@ -600,3 +600,67 @@ def test_parse_records_lines_of_inputs_that_are_not_mappings(tmp_path):
     path = write_runbook(tmp_path, "---\ninputs:\n  - VERSION\n  - name: OK\n    description: ok\n---\n")
 
     assert runbook.parse(path).lines == {"inputs": 2, "inputs.0": 3, "inputs.1": 4}
+
+
+def test_parse_input_block_into_an_input(tmp_path):
+    """An input fence is an input block, holding the input its YAML declares."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Publish
+
+        ```input
+        name: OTP
+        description: The code from your authenticator app
+        pattern: '^\\d{6}$'
+        secret: true
+        ```
+        """,
+    )
+
+    [block] = runbook.parse(path).steps[0].blocks
+
+    assert block.kind == "input"
+    assert block.line == 3
+    assert block.input == Input(
+        name="OTP", description="The code from your authenticator app", pattern=r"^\d{6}$", secret=True
+    )
+
+
+def test_parse_input_block_with_only_name_and_description(tmp_path):
+    """pattern and secret are optional, as for frontmatter inputs."""
+    path = write_runbook(tmp_path, "## Step\n\n```input\nname: PR\ndescription: The PR number\n```\n")
+
+    [block] = runbook.parse(path).steps[0].blocks
+
+    assert block.input == Input(name="PR", description="The PR number")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "name: PR\n",  # no description
+        "description: no name\n",
+        "- name: PR\n  description: a list, not a mapping\n",
+        "name: [unclosed\n",  # not valid YAML
+        "",
+    ],
+)
+def test_parse_keeps_input_blocks_that_are_not_valid_inputs_without_an_input(tmp_path, content):
+    """A malformed input block is still an input block, so check can report it, but it declares nothing."""
+    path = write_runbook(tmp_path, f"## Step\n\n```input\n{content}```\n")
+
+    [block] = runbook.parse(path).steps[0].blocks
+
+    assert block.kind == "input"
+    assert block.input is None
+    assert block.content == content
+
+
+def test_parse_other_blocks_have_no_input(tmp_path):
+    """Only input blocks carry an input."""
+    path = write_runbook(tmp_path, "## Step\n\n```sh run\necho hi\n```\n")
+
+    [block] = runbook.parse(path).steps[0].blocks
+
+    assert block.input is None

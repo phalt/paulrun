@@ -9,7 +9,7 @@ import pytest
 
 from paulrun import runner
 from paulrun.backends import Interrupted, load_backends
-from paulrun.inputs import Input
+from paulrun.inputs import Input, InputError
 from paulrun.runbook import parse
 
 # A runbook with one plain input and one secret, for the input tests.
@@ -1226,3 +1226,205 @@ def test_run_lets_ctrl_c_while_collecting_inputs_end_the_run_unhandled(tmp_path,
 
     with pytest.raises(KeyboardInterrupt):
         run(path, CtrlCAtInput())
+
+
+# A runbook that asks for a pull request number part way through, after a manual step.
+PR_RUNBOOK = """\
+## Build
+
+```sh run
+echo "build"
+```
+
+## Open the pull request
+
+```confirm
+Open a pull request on GitHub.
+```
+
+```input
+name: PR
+description: The pull request number
+pattern: '\\d+'
+```
+
+```sh run
+echo "PR <PR> is $PR"
+```
+
+## Announce
+
+```docstring
+Merged PR <PR>.
+```
+"""
+
+
+def test_run_asks_for_an_input_block_when_it_reaches_it(tmp_path, monkeypatch):
+    """An input block is asked for at its place in the run, after the blocks before it, not before the first step."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+    events: list[runner.Event] = []
+    seen_when_asked: list[list[type]] = []
+
+    class RecordingPrompter(FakePrompter):
+        def ask(self, input: Input, problem: str | None) -> str:
+            seen_when_asked.append([type(event) for event in events])
+            return "42"
+
+    runner.run(parse(path), load_backends(), events.append, RecordingPrompter())
+
+    [seen] = seen_when_asked
+    # Asked once the manual step before it has been answered, and the input block itself has been shown.
+    assert seen[-2:] == [runner.ConfirmAnswered, runner.InputBlock]
+    assert seen.count(runner.BlockFinished) == 1  # the first step's block ran first
+    assert output(events) == ["build", "PR 42 is 42"]
+
+
+def test_run_gives_an_input_blocks_value_to_every_later_block(tmp_path, monkeypatch):
+    """Once asked, the value is substituted and in the environment for the rest of the run, in later steps too."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+
+    events, result = run(path, FakePrompter(answers=["42"]))
+
+    assert result.status == "ok"
+    assert [event.code for event in events if isinstance(event, runner.BlockStarted)][-1] == 'echo "PR 42 is $PR"\n'
+    assert [event.text for event in events if isinstance(event, runner.Docstring)] == ["Merged PR 42.\n"]
+
+
+def test_run_sends_each_collected_input(tmp_path, monkeypatch):
+    """An InputCollected event records the name and value at the block, so a transcript can show it."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+
+    events, _ = run(path, FakePrompter(answers=["42"]))
+
+    [collected] = [event for event in events if isinstance(event, runner.InputCollected)]
+    assert (collected.name, collected.value) == ("PR", "42")
+    assert collected.block.line == 13
+
+
+def test_run_takes_an_input_blocks_value_from_the_environment(tmp_path, monkeypatch):
+    """An input block set in the environment isn't asked for, like any input."""
+    monkeypatch.setenv("PR", "7")
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+
+    events, _ = run(path)
+
+    assert output(events)[-1] == "PR 7 is 7"
+
+
+def test_run_asks_again_when_an_input_blocks_answer_does_not_match(tmp_path, monkeypatch):
+    """A typed answer that doesn't match the block's pattern is refused and asked for again."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+    prompter = FakePrompter(answers=["latest", "42"])
+
+    events, _ = run(path, prompter)
+
+    assert prompter.asked == ["PR", "PR"]
+    assert output(events)[-1] == "PR 42 is 42"
+
+
+def test_run_masks_a_secret_input_block_from_then_on(tmp_path, monkeypatch):
+    """A secret typed at an input block is in the environment, but shown as **** in everything sent after it."""
+    monkeypatch.delenv("OTP", raising=False)
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Publish
+
+        ```input
+        name: OTP
+        description: The one-time code
+        secret: true
+        ```
+
+        ```sh run
+        echo "code is $OTP"
+        ```
+        """,
+    )
+
+    events, _ = run(path, FakePrompter(answers=["123456"]))
+
+    assert output(events) == ["code is ****"]
+    [collected] = [event for event in events if isinstance(event, runner.InputCollected)]
+    assert collected.value == "****"
+    assert "123456" not in repr(events)
+
+
+def test_dry_run_does_not_ask_for_input_blocks(tmp_path, monkeypatch):
+    """Under dry the value may not exist yet, so it isn't asked for, and later blocks show <NAME> as written."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+    prompter = FakePrompter()
+
+    events, result = run(path, prompter, dry=True)
+
+    assert prompter.asked == []
+    assert not [event for event in events if isinstance(event, runner.InputCollected)]
+    assert [event.code for event in events if isinstance(event, runner.BlockStarted)][-1] == 'echo "PR <PR> is $PR"\n'
+    assert result.status == "dry"
+
+
+def test_dry_run_sends_input_blocks_so_they_can_be_shown(tmp_path):
+    """A dry run still shows that the run would stop to ask, by sending the input block as it reaches it."""
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+
+    events, _ = run(path, dry=True)
+
+    [shown] = [event for event in events if isinstance(event, runner.InputBlock)]
+    assert shown.input == Input(name="PR", description="The pull request number", pattern=r"\d+")
+
+
+def test_step_by_step_does_not_ask_about_input_blocks(tmp_path, monkeypatch):
+    """--step only asks about run blocks; an input block is always asked for."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+    prompter = FakePrompter(answers=["42"])
+
+    run(path, prompter, step_by_step=True)
+
+    assert prompter.asked == ["PR"]
+    assert prompter.questions.count(runner.STEP_QUESTION) == 2
+
+
+def test_run_finishes_as_interrupted_on_ctrl_c_at_an_input_block(tmp_path, monkeypatch):
+    """Ctrl-C while typing at an input block ends the run at that step, with nothing collected."""
+    monkeypatch.delenv("PR", raising=False)
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+
+    class CtrlCAtInput(FakePrompter):
+        def ask(self, input: Input, problem: str | None) -> str:
+            raise KeyboardInterrupt
+
+    events, result = run(path, CtrlCAtInput())
+
+    assert result.status == "interrupted"
+    assert result.step is not None
+    assert result.step.name == "Open the pull request"
+    assert not [event for event in events if isinstance(event, runner.InputCollected)]
+
+
+def test_run_reports_an_input_blocks_bad_environment_value(tmp_path, monkeypatch):
+    """A value from the environment that doesn't match the block's pattern stops the run there."""
+    monkeypatch.setenv("PR", "latest")
+    path = write_runbook(tmp_path, PR_RUNBOOK)
+
+    with pytest.raises(InputError, match=r"PR from the environment must match \\d\+"):
+        run(path)
+
+
+def test_run_rejects_an_input_block_that_is_not_a_valid_input_before_running_anything(tmp_path):
+    """Like a block with no backend, a malformed input block is an error up front, so nothing half-runs."""
+    path = write_runbook(tmp_path, "## First\n\n```sh run\ntouch ran\n```\n\n## Ask\n\n```input\nname: PR\n```\n")
+    events: list[runner.Event] = []
+
+    with pytest.raises(runner.RunnerError) as error:
+        runner.run(parse(path), load_backends(), events.append, FakePrompter())
+
+    assert str(error.value) == "line 9: input block isn't a valid input; run paulrun check to see why"
+    assert events == []
+    assert not (tmp_path / "ran").exists()

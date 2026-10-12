@@ -66,22 +66,38 @@ def check(runbook: Path) -> None:
 @cli.command()
 @click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 def inputs(runbook: Path) -> None:
-    """List the inputs a runbook needs. Only reads its frontmatter, so it works even if the rest is broken."""
+    """List the inputs a runbook needs, including ones its input blocks ask for part way through.
+
+    Frontmatter inputs are listed even if the rest of the runbook is broken.
+    """
     console = Console(highlight=False)
     try:
-        declared = parse_inputs(read_frontmatter(runbook).get("inputs"))
+        declared: list[tuple[Input, str | None]] = [
+            (input, None) for input in parse_inputs(read_frontmatter(runbook).get("inputs"))
+        ]
     except RunbookError as e:
         raise click.ClickException(str(e)) from e
+    declared += _input_blocks(runbook)
     if not declared:
         console.out("no inputs")
         return
-    width = max(len(input.name) for input in declared)
-    for input in declared:
+    width = max(len(input.name) for input, _ in declared)
+    for input, step in declared:
         console.out(f"{input.name:<{width}}  {input.description}")
         details = [f"pattern: {input.pattern}"] if input.pattern is not None else []
         details += ["secret"] if input.secret else []
+        details += [f'asked in "{step}"'] if step is not None else []
         for detail in details:
             console.out(f"{'':<{width}}  {detail}")
+
+
+def _input_blocks(path: Path) -> list[tuple[Input, str | None]]:
+    """The inputs a runbook's input blocks declare, with the step each is in. Nothing if the body can't be read."""
+    try:
+        parsed = parse(path)
+    except RunbookError:
+        return []
+    return [(block.input, step.name) for step in parsed.steps for block in step.blocks if block.input is not None]
 
 
 @cli.command("backends")
@@ -185,6 +201,8 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
         case runner.Docstring(text=text):
             for line in text.splitlines():
                 console.out(line)
+        case runner.InputBlock(input=input) if dry:
+            console.out(f"input: {input.name} ({input.description}), asked here", style="yellow")
         case runner.Confirm(text=text):
             for line in text.splitlines():
                 console.out(line, style="yellow")
