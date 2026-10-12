@@ -11,3 +11,6 @@ htmlcov/
 *.coverage*
 coverage.xml
 .cache/
+
+# Transcripts written by running the fixture runbooks by hand
+tests/runbooks/logs/

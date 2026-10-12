@@ -1,4 +1,5 @@
 import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from paulrun import runner, settings
 from paulrun.backends import Backend, BackendError, load_backends
 from paulrun.inputs import Input, InputError
 from paulrun.runbook import Runbook, RunbookError, parse
+from paulrun.transcript import Transcript, TranscriptError
 from paulrun.validate import Report, validate
 
 
@@ -29,17 +31,21 @@ def go(runbook: Path, dry: bool, step: bool) -> None:
     _print_report(console, runbook, report, summary_if_ok=False)
     if not report.ok:
         sys.exit(1)
+    # Nothing runs under --dry, so there's nothing to record.
+    transcript = Transcript.for_runbook(parsed) if parsed.output_path is not None and not dry else None
+
+    def sink(event: runner.Event) -> None:
+        _print_event(console, event, dry=dry)
+        if transcript is not None:
+            transcript(event)
+
     try:
-        result = runner.run(
-            parsed,
-            backends,
-            lambda event: _print_event(console, event, dry=dry),
-            ClickPrompter(console),
-            dry=dry,
-            step_by_step=step,
-        )
-    except (runner.RunnerError, InputError) as e:
+        with transcript or nullcontext():
+            result = runner.run(parsed, backends, sink, ClickPrompter(console), dry=dry, step_by_step=step)
+    except (runner.RunnerError, InputError, TranscriptError) as e:
         raise click.ClickException(str(e)) from e
+    if transcript is not None and transcript.written:
+        console.out(f"transcript: {transcript.path}")
     if result.status not in ("ok", "dry"):
         sys.exit(1)
 
@@ -129,10 +135,12 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
         case runner.OutputLine(text=text):
             console.out(text)
         case runner.BlockFinished(exit_code=exit_code, duration=duration):
-            console.out(f"exit {exit_code} ({_duration(duration)})", style="green" if exit_code == 0 else "red")
+            console.out(
+                f"exit {exit_code} ({runner.format_duration(duration)})", style="green" if exit_code == 0 else "red"
+            )
         case runner.RunFinished(status="ok", duration=duration):
             console.out()
-            console.out(f"finished: ok ({_duration(duration)})", style="green")
+            console.out(f"finished: ok ({runner.format_duration(duration)})", style="green")
         case runner.RunFinished(status="dry"):
             console.out()
             console.out("finished: dry run, nothing was run", style="yellow")
@@ -144,11 +152,3 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
             assert step is not None  # always set when a run fails
             console.out()
             console.out(f'finished: failed at "{step.name}" (exit {exit_code})', style="red")
-
-
-def _duration(seconds: float) -> str:
-    """Tenths of a second under a minute, e.g. 4.2s, then minutes and seconds, e.g. 3m12s."""
-    if round(seconds, 1) < 60:
-        return f"{seconds:.1f}s"
-    minutes, seconds = divmod(round(seconds), 60)
-    return f"{minutes}m{seconds:02d}s"

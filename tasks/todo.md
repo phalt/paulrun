@@ -288,12 +288,12 @@ Every task also clears the standing bar: `make format`, `make ty` and `make test
 **Description:** `transcript.py` subscribes to runner events and appends the plain transcript format from the spec to `output_path`: run header with timestamp and masked inputs, `=== step ===` lines, `$ code`, verbatim output, `exit N (Xs)`, confirm answers, `skipped (--step)`, and the `--- finished:` line for ok, failed and aborted. Path has placeholders substituted, is resolved relative to the runbook, and parent directories are created. All text is masked before writing. Not written under `--dry`.
 
 **Acceptance criteria:**
-- [ ] Two runs append two complete transcripts to the same file
-- [ ] A secret value echoed by a block never appears in the file
-- [ ] Failed, aborted and skipped runs produce the right finish/skip lines; `--dry` writes nothing
+- [x] Two runs append two complete transcripts to the same file
+- [x] A secret value echoed by a block never appears in the file
+- [x] Failed, aborted and skipped runs produce the right finish/skip lines; `--dry` writes nothing
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_transcript.py`
+- [x] Tests pass: `uv run pytest tests/test_transcript.py`
 
 **Dependencies:** Task 11
 

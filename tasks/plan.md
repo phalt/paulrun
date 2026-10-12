@@ -79,7 +79,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 
 ### Phase 4: Remaining features
 - [x] Task 11: `--step`
-- [ ] Task 12: Transcript (`output_path`)
+- [x] Task 12: Transcript (`output_path`)
 - [ ] Task 13: `paulrun inputs`, `paulrun backends`, external backend test
 
 ### Checkpoint 4: Feature complete

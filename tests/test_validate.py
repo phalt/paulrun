@@ -49,6 +49,7 @@ VALID_FIXTURES = [
     "dry-run-example.md",
     "python-example.md",
     "step-example.md",
+    "transcript-example.md",
 ]
 
 

@@ -59,6 +59,17 @@ def confirm_runbook(monkeypatch):
 
 
 @pytest.fixture
+def transcript_runbook(tmp_path, monkeypatch):
+    """A copy of the transcript example runbook in tmp_path, so its transcript is written there.
+
+    Both inputs are set in the environment, so only the start prompt and the confirm are asked.
+    """
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+    return Path(shutil.copy(RUNBOOKS / "transcript-example.md", tmp_path))
+
+
+@pytest.fixture
 def dry_runbook(tmp_path, monkeypatch):
     """A copy of the dry run example runbook in tmp_path, so a broken --dry can only write files there.
 
@@ -717,17 +728,96 @@ def test_go_stops_at_a_python_block_that_raises(runner, tmp_path):
     assert "unreachable" not in result.output
 
 
-@pytest.mark.parametrize(
-    "seconds, expected",
-    [
-        (0.04, "0.0s"),
-        (4.23, "4.2s"),
-        (59.94, "59.9s"),
-        (59.96, "1m00s"),
-        (192, "3m12s"),
-        (3605, "60m05s"),
-    ],
-)
-def test_duration_is_tenths_of_seconds_under_a_minute_then_minutes_and_seconds(seconds, expected):
-    """Short durations show tenths of a second; from a minute up they show minutes and whole seconds."""
-    assert cli._duration(seconds) == expected
+def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook):
+    """With output_path set, go appends the run to that file and says where it went."""
+    result = runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
+
+    transcript = transcript_runbook.parent / "logs" / "release-1.2.0.md"
+    assert result.exit_code == 0
+    assert result.output.endswith(f"transcript: {transcript}\n")
+    text = re.sub(r"\(\d+\.\ds\)", "(Xs)", transcript.read_text())
+    text = re.sub(r"@ \S+", "@ TIME", text, count=1)
+    assert text == textwrap.dedent(
+        """\
+        --- paulrun transcript-example.md @ TIME
+        --- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
+
+        === Build ===
+        $ echo "Building 1.2.0"
+        Building 1.2.0
+        exit 0 (Xs)
+
+        === Release on GitHub ===
+        confirm: Create a GitHub release for tag 1.2.0 and publish it. -> yes
+
+        === Publish ===
+        $ echo "Publishing 1.2.0 with $PUBLISH_TOKEN"
+        Publishing 1.2.0 with ****
+        exit 0 (Xs)
+
+        --- finished: ok (Xs)
+        """
+    )
+
+
+def test_go_appends_a_second_run_to_the_transcript(runner, transcript_runbook):
+    """Running twice keeps both runs, so a failed attempt and its rerun are both in the file."""
+    runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\nn\n")
+    runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
+
+    text = (transcript_runbook.parent / "logs" / "release-1.2.0.md").read_text()
+    assert text.count("--- paulrun transcript-example.md @") == 2
+    assert '--- finished: aborted at "Release on GitHub"\n\n--- paulrun' in text
+    assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
+
+
+def test_go_never_writes_a_secret_to_the_transcript(runner, transcript_runbook):
+    """The secret is set and printed by a block, but the file only ever has ****."""
+    runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
+
+    assert "s3cret" not in (transcript_runbook.parent / "logs" / "release-1.2.0.md").read_text()
+
+
+def test_go_dry_writes_no_transcript(runner, transcript_runbook):
+    """--dry runs nothing, so there's nothing to record, and no file or directory is made."""
+    result = runner.invoke(cli.cli, ["go", "--dry", str(transcript_runbook)])
+
+    assert result.exit_code == 0
+    assert not (transcript_runbook.parent / "logs").exists()
+    assert "transcript:" not in result.output
+
+
+def test_go_writes_no_transcript_when_the_run_is_not_started(runner, transcript_runbook):
+    """Declining to start writes nothing and doesn't mention a transcript."""
+    result = runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="n\n")
+
+    assert result.exit_code == 1
+    assert not (transcript_runbook.parent / "logs").exists()
+    assert "transcript:" not in result.output
+
+
+def test_go_without_output_path_writes_no_transcript(runner, tmp_path):
+    """A runbook with no output_path never mentions a transcript."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    assert "transcript:" not in result.output
+    assert sorted(entry.name for entry in tmp_path.iterdir()) == ["runbook.md"]
+
+
+def test_go_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, tmp_path):
+    """If the transcript can't be opened, go stops with an error before the first block runs."""
+    (tmp_path / "logs").write_text("a file where the transcript's directory should be")
+    path = write_runbook(
+        tmp_path, "---\ntitle: T\noutput_path: logs/run.md\n---\n\n## Only\n\n```sh run\ntouch ran\n```\n"
+    )
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 1
+    [error] = [line for line in result.output.splitlines() if line.startswith("Error:")]
+    # The reason after the colon is the operating system's, so only the start is checked.
+    assert error.startswith(f"Error: can't write the transcript to {tmp_path / 'logs' / 'run.md'}: ")
+    assert not (tmp_path / "ran").exists()

@@ -533,6 +533,7 @@ def test_run_sends_docstring_and_confirm_blocks_in_order_with_run_blocks(tmp_pat
         runner.StepStarted,
         runner.Docstring,
         runner.Confirm,
+        runner.ConfirmAnswered,
         runner.BlockStarted,
         runner.OutputLine,
         runner.BlockFinished,
@@ -988,3 +989,132 @@ def test_dry_run_ignores_step_by_step(tmp_path):
     assert prompter.questions == []
     assert stepped[:-1] == plain[:-1]
     assert stepped_result.status == "dry"
+
+
+@pytest.mark.parametrize(
+    "seconds, expected",
+    [
+        (0.04, "0.0s"),
+        (4.23, "4.2s"),
+        (59.94, "59.9s"),
+        (59.96, "1m00s"),
+        (192, "3m12s"),
+        (3605, "60m05s"),
+    ],
+)
+def test_duration_is_tenths_of_seconds_under_a_minute_then_minutes_and_seconds(seconds, expected):
+    """Short durations show tenths of a second; from a minute up they show minutes and whole seconds."""
+    assert runner.format_duration(seconds) == expected
+
+
+def test_run_sends_each_confirm_answer(tmp_path):
+    """After a confirm is answered, the answer is sent, so a transcript can record it: yes for y, no otherwise."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Manual
+
+        ```confirm
+        First check.
+        ```
+
+        ```confirm
+        Second check.
+        ```
+        """,
+    )
+
+    events, _ = run(path, FakePrompter(replies=["y", "y", "nope"]))
+
+    answers = [event for event in events if isinstance(event, runner.ConfirmAnswered)]
+    assert [(answer.text, answer.yes) for answer in answers] == [("First check.\n", True), ("Second check.\n", False)]
+    assert isinstance(events[-2], runner.ConfirmAnswered)
+    assert isinstance(events[-1], runner.RunFinished)
+
+
+def test_dry_run_sends_no_confirm_answers(tmp_path):
+    """Under dry nothing is asked, so there are no answers to send."""
+    path = write_runbook(tmp_path, "## Manual\n\n```confirm\nCheck it.\n```\n")
+
+    events, _ = run(path, dry=True)
+
+    assert not [event for event in events if isinstance(event, runner.ConfirmAnswered)]
+
+
+def test_run_masks_a_secret_value_written_into_the_runbook_itself(tmp_path, monkeypatch):
+    """If a secret's value also appears in the runbook's own text, it's masked in every text paulrun sends."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("TOKEN", "s3cret")
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release s3cret
+        inputs:
+          - name: VERSION
+            description: The version
+          - name: TOKEN
+            description: A token
+            secret: true
+        ---
+
+        ## Step s3cret
+
+        ```docstring
+        Docstring s3cret.
+        ```
+
+        ```confirm
+        Confirm s3cret.
+        ```
+
+        ```sh run
+        echo "code s3cret $TOKEN <VERSION>"
+        ```
+        """,
+    )
+
+    events, _ = run(path, FakePrompter(replies=["y", "n"]))
+
+    overview, step_started, docstring, confirm, _, finished = events
+    assert isinstance(overview, runner.Overview)
+    assert overview.title == "Release ****"
+    assert [step.name for step in overview.steps] == ["Step ****"]
+    assert isinstance(step_started, runner.StepStarted)
+    assert step_started.step.name == "Step ****"
+    assert isinstance(docstring, runner.Docstring)
+    assert docstring.text == "Docstring ****.\n"
+    assert isinstance(confirm, runner.Confirm)
+    assert confirm.text == "Confirm ****.\n"
+    assert isinstance(finished, runner.RunFinished)
+    assert finished.step is not None
+    assert finished.step.name == "Step ****"
+
+
+def test_run_masks_a_secret_value_in_code_it_shows_but_runs_the_real_code(tmp_path, monkeypatch):
+    """The code shown has a secret's value masked, but the backend still runs the code as written."""
+    monkeypatch.setenv("TOKEN", "s3cret")
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        inputs:
+          - name: TOKEN
+            description: A token
+            secret: true
+        ---
+
+        ## Step
+
+        ```sh run
+        test "$TOKEN" = s3cret && echo "matched"
+        ```
+        """,
+    )
+
+    events, _ = run(path)
+
+    [started] = [event for event in events if isinstance(event, runner.BlockStarted)]
+    assert started.code == 'test "$TOKEN" = **** && echo "matched"\n'
+    assert output(events) == ["matched"]
