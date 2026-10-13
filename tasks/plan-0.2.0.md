@@ -1,6 +1,6 @@
 # Implementation Plan: paulrun 0.2.0
 
-Status: draft (2026-10-13)
+Status: approved (2026-10-13)
 Spec: [specs/SPEC-0.2.0.md](../specs/SPEC-0.2.0.md)
 Tasks: [tasks/todo-0.2.0.md](todo-0.2.0.md)
 
