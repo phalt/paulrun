@@ -115,4 +115,6 @@ paulrun needs Python 3.12 or later and `bash`, and runs on **macOS and Linux**. 
 
 👉 Read the [full documentation](https://phalt.github.io/paulrun/) for the runbook format, every command, and writing your own backend.
 
+See [`examples/`](https://github.com/phalt/paulrun/tree/main/examples) for more runbooks, including a real release, and [`PUBLISHING.md`](https://github.com/phalt/paulrun/blob/main/PUBLISHING.md) for the runbook paulrun releases itself with.
+
 Want to help? See [CONTRIBUTING.md](https://github.com/phalt/paulrun/blob/main/CONTRIBUTING.md).

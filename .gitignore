@@ -14,3 +14,7 @@ coverage.xml
 
 # Transcripts written by running the fixture runbooks by hand
 tests/runbooks/logs/
+
+# Transcripts written by releasing paulrun with PUBLISHING.md, or running the examples by hand
+/logs/
+examples/logs/

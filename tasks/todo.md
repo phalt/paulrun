@@ -455,13 +455,20 @@ Decided with Paul (2026-10-13): the README example is a small `hello.md` that re
 
 **Description:** `examples/hello.md` (smallest useful runbook: one input, a docstring, a shell block, a Python block), `examples/clientele-publishing.md` (the reworked clientele runbook with `output_path`), and `PUBLISHING.md` at the repo root for releasing paulrun itself (bump version, `make install`, commit, tag, push, confirm GitHub release, `make deploy-docs`, `make release`). A test runs `paulrun check` against every file in `examples/` and the root `PUBLISHING.md`.
 
+Decided with Paul (2026-10-13), going with the recommendations:
+- Both release runbooks start by checking the release can go ahead. The tree must be up to date and clean, apart from the changelogs and `logs/`. The tag must not exist yet, and `CHANGELOG.md` must have the version's section.
+- They run `make test`, and print the version's changelog notes for the GitHub release.
+- They clear `dist/` before `make release`, since `uv publish` uploads everything in it.
+- They commit with `git commit -am`, not `git add .`, so a transcript in `logs/` is never committed. The commit is skipped when there's nothing to commit. That happens on paulrun's first release, since 0.1.0 and its changelog are already committed, and when rerunning a release.
+- The GitHub release stays a `confirm` step. `examples/hello.md` is kept identical to the README's runbook by a test.
+
 **Acceptance criteria:**
-- [ ] `paulrun check` passes on all examples and `PUBLISHING.md` (enforced by a test)
-- [ ] `paulrun go examples/hello.md` runs end to end
-- [ ] `paulrun go PUBLISHING.md --dry` shows a sensible release for a test version
+- [x] `paulrun check` passes on all examples and `PUBLISHING.md` (enforced by a test)
+- [x] `paulrun go examples/hello.md` runs end to end
+- [x] `paulrun go PUBLISHING.md --dry` shows a sensible release for a test version (tested on a copy, for both release runbooks)
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_examples.py`
+- [x] Tests pass: `uv run pytest tests/test_examples.py`
 - [ ] Manual check: `uv run paulrun go PUBLISHING.md --dry`
 
 **Dependencies:** Task 15
@@ -471,6 +478,7 @@ Decided with Paul (2026-10-13): the README example is a small `hello.md` that re
 - `examples/clientele-publishing.md`
 - `PUBLISHING.md`
 - `tests/test_examples.py`
+- `.gitignore` (`/logs/`, `examples/logs/`), `README.md` (link to the examples)
 
 **Estimated scope:** Small
 

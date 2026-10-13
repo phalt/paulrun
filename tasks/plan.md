@@ -90,7 +90,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo.md](tod
 - [x] Task 14: mkdocs site
 - [x] Task 14b: `input` blocks, for inputs asked for part way through a run (added 2026-10-12)
 - [x] Task 15: README, CONTRIBUTING, CHANGELOG and project docs
-- [ ] Task 16: Examples and paulrun's own PUBLISHING.md
+- [x] Task 16: Examples and paulrun's own PUBLISHING.md
 
 ### Checkpoint 5: Ready to release (Paul only)
 - [ ] Paul releases clientele with `paulrun go PUBLISHING.md`
