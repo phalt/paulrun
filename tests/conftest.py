@@ -17,6 +17,18 @@ def started_in(tmp_path_factory, monkeypatch) -> Path:
     return directory
 
 
+@pytest.fixture(autouse=True)
+def empty_library(tmp_path_factory, monkeypatch) -> Path:
+    """Point PAULRUN_LIBRARY at an empty directory for every test, and return it.
+
+    So a real library at ~/runbooks never changes what a test sees. A test that needs books sets PAULRUN_LIBRARY
+    itself, usually to tests/library.
+    """
+    directory = tmp_path_factory.mktemp("library")
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(directory))
+    return directory
+
+
 @pytest.fixture
 def without_shellcheck(monkeypatch):
     """Make the shell backend act as if shellcheck isn't installed, without changing PATH.

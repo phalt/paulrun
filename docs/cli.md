@@ -8,9 +8,36 @@ paulrun backends                      # list the languages paulrun can run
 paulrun --version
 ```
 
+## Naming a runbook
+
+`RUNBOOK` is a path to a runbook file, or the name of a book in your runbook library.
+
+```sh
+paulrun go RELEASING.md        # the file RELEASING.md, here
+paulrun go rebuild-frontend    # the book rebuild-frontend.md, in your library
+```
+
+Your runbook library is a folder of runbooks you keep for yourself, rather than in a project. It's `~/runbooks`, unless you set `PAULRUN_LIBRARY` to somewhere else:
+
+```sh
+export PAULRUN_LIBRARY=~/work-runbooks
+```
+
+paulrun works out which runbook you mean like this:
+
+1. If `RUNBOOK` is a file that exists, that's the runbook. A runbook in your project is never hidden by a book with the same name.
+2. Otherwise, if it has no `/` in it, it's a book's name, and paulrun uses `<name>.md` from your library. `rebuild-frontend` and `rebuild-frontend.md` are the same book.
+3. Otherwise there's no such runbook, which is a usage error. paulrun names the places it looked:
+
+```
+Error: Invalid value for 'RUNBOOK': no runbook 'rebuild-frontend': no such file here, and no rebuild-frontend.md in the library at /home/you/runbooks
+```
+
+Wherever the runbook comes from, its blocks run in the folder you run paulrun from. See [Where blocks run](runbook-format.md#where-blocks-run).
+
 ## paulrun go
 
-Runs a runbook, step by step.
+Runs a runbook, step by step. `RUNBOOK` is a file or a book in your library; see [Naming a runbook](#naming-a-runbook).
 
 ```sh
 paulrun go RELEASING.md
@@ -140,7 +167,7 @@ Ctrl-C stops the run, cleanly:
 
 ## paulrun check
 
-Finds problems in a runbook without running anything.
+Finds problems in a runbook without running anything. Like `go`, it takes a file or a book's name.
 
 ```sh
 paulrun check RELEASING.md
@@ -184,7 +211,7 @@ broken.md:21: error: syntax error near unexpected token `fi'
 
 ## paulrun inputs
 
-Lists the inputs a runbook needs, so you know what to have ready, or what to set in the environment.
+Lists the inputs a runbook needs, so you know what to have ready, or what to set in the environment. Like `go`, it takes a file or a book's name.
 
 ```sh
 paulrun inputs PUBLISHING.md
@@ -227,4 +254,4 @@ Backends installed from other packages are listed here too.
 |---|---|
 | `0` | The run finished, or `check` found no errors. A `--dry` run, and a run where every block was skipped, exit 0 too. |
 | `1` | A block failed, the run was aborted or interrupted, `check` found errors, or the runbook couldn't be read. |
-| `2` | The command was used wrongly, e.g. a runbook that doesn't exist. |
+| `2` | The command was used wrongly, e.g. a runbook that isn't a file or a book in your library. |

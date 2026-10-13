@@ -18,6 +18,7 @@ from paulrun import backends, cli
 from paulrun.backends import BackendError, Problem
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
+LIBRARY = Path(__file__).parent / "library"
 
 
 @pytest.fixture
@@ -114,7 +115,7 @@ def test_help_lists_go_command(runner):
     assert result.exit_code == 0
     assert "Usage: paulrun" in result.output
     assert "\n  go " in result.output
- 
+
 
 def test_go_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path, started_in):
     """go names the directory it was started in straight after the title, so you see where blocks will run."""
@@ -265,6 +266,85 @@ def test_go_rejects_missing_runbook_as_usage_error(runner, tmp_path):
     result = runner.invoke(cli.cli, ["go", str(tmp_path / "missing.md")])
 
     assert result.exit_code == 2
+
+
+@pytest.mark.parametrize("name", ["say-where", "say-where.md"])
+def test_go_runs_a_book_from_the_library_by_name_where_it_was_started(name, runner, monkeypatch, started_in):
+    """A name that isn't a file here is the book of that name in PAULRUN_LIBRARY, and runs here, not in the library."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["go", name], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    lines = result.output.splitlines()
+    assert lines[0] == "Say where"
+    assert str(started_in.resolve()) in lines
+    assert f"kept in: {LIBRARY.resolve()}" in lines
+
+
+@pytest.mark.parametrize("command", ["check", "inputs"])
+@pytest.mark.parametrize("name", ["update-project-deps", "update-project-deps.md"])
+def test_check_and_inputs_find_a_book_in_the_library_by_name(command, name, runner, monkeypatch):
+    """check and inputs look up a name the same way go does."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, [command, name])
+
+    assert result.exit_code == 0, result.output
+    assert ("BRANCH" if command == "inputs" else "ok") in result.output
+
+
+def test_check_names_a_book_by_its_path_in_the_library(runner, monkeypatch):
+    """check's report says which file it checked, so a book is shown by where it's kept."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["check", "say-where"])
+
+    assert result.output == f"{LIBRARY / 'say-where.md'}: ok\n"
+
+
+def test_go_uses_the_default_library_in_the_home_directory(runner, tmp_path, monkeypatch):
+    """With no PAULRUN_LIBRARY, a name is looked up in ~/runbooks."""
+    monkeypatch.delenv("PAULRUN_LIBRARY")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    shutil.copytree(LIBRARY, tmp_path / "runbooks")
+
+    result = runner.invoke(cli.cli, ["check", "say-where"])
+
+    assert result.output == f"{tmp_path / 'runbooks' / 'say-where.md'}: ok\n"
+
+
+def test_go_runs_a_file_here_before_a_book_with_the_same_name(runner, monkeypatch, started_in):
+    """Paths win over names: a runbook where paulrun is started is used, not the library's book."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    write_runbook(started_in, "## Here\n\n```sh run\necho the local one\n```\n").rename(started_in / "say-where.md")
+
+    result = runner.invoke(cli.cli, ["go", "say-where.md"], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    assert "the local one" in result.output.splitlines()
+
+
+def test_go_never_looks_in_the_library_for_a_path(runner, monkeypatch):
+    """An argument with a / is only a path, so a mistyped path is an error, not a different runbook."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["go", "docs/say-where.md"])
+
+    assert result.exit_code == 2
+    assert "Error: Invalid value for 'RUNBOOK': no such file: docs/say-where.md\n" in result.output
+
+
+@pytest.mark.parametrize("command", ["go", "check", "inputs"])
+def test_a_name_that_is_not_here_or_in_the_library_is_a_usage_error(command, runner, empty_library):
+    """The error names both places paulrun looked, so it's clear which one to fix."""
+    result = runner.invoke(cli.cli, [command, "rebuild-frontend"])
+
+    assert result.exit_code == 2
+    assert (
+        "Error: Invalid value for 'RUNBOOK': no runbook 'rebuild-frontend': no such file here, "
+        f"and no rebuild-frontend.md in the library at {empty_library}\n"
+    ) in result.output
 
 
 def test_go_reports_runbook_it_cannot_read(runner, tmp_path):

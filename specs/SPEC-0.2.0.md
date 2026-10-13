@@ -136,7 +136,7 @@ Every feature is documented in the same change that builds it (SPEC.md Boundarie
   - a `paulrun library` section
   - `PAULRUN_LIBRARY`
 - **`README.md` and `docs/index.md`:** a short "Your runbook library" section, with the library in the feature list.
-- **`CHANGELOG.md` and `docs/CHANGELOG.md`:** a `## 0.2.0` section that leads with the breaking change from Decisions 1 and 2.
+- **`CHANGELOG.md` and `docs/CHANGELOG.md`:** a `## 0.2.0` section that leads with the runbook library, the key feature, then the breaking change from Decisions 1 and 2.
 
 ## Project structure
 

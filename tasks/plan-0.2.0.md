@@ -67,7 +67,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 - [x] Review with Paul before building on it (approved 2026-10-13)
 
 ### Phase 2: The runbook library
-- [ ] Task 4: Find books in the library by name for `go`, `check` and `inputs`
+- [x] Task 4: Find books in the library by name for `go`, `check` and `inputs`
 - [ ] Task 5: `paulrun library`
 - [ ] Task 6: Pick a book from the library for `paulrun go` with no runbook
 
@@ -87,7 +87,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 - [ ] Task 9: "Your runbook library" docs page, README and home page
 
 ### Checkpoint 4: Ready to release (Paul only)
-- [ ] `CHANGELOG.md`'s `## 0.2.0` section leads with the breaking change and covers every feature
+- [ ] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
 - [ ] `uv run mkdocs build --strict` passes
 - [ ] Paul releases paulrun 0.2.0 with an unchanged `paulrun go PUBLISHING.md`
 - [ ] Docs deployed to `phalt.github.io/paulrun`

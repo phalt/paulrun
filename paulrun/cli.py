@@ -1,3 +1,4 @@
+import os
 import sys
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -8,7 +9,7 @@ from typing import Any
 import click
 from rich.console import Console
 
-from paulrun import runner, settings
+from paulrun import library, runner, settings
 from paulrun.backends import Backend, BackendError, load_backend_sources, load_backends
 from paulrun.inputs import Input, InputError
 from paulrun.runbook import Runbook, RunbookError, parse, parse_inputs, read_frontmatter
@@ -22,12 +23,33 @@ def cli() -> None:
     """Run hand-written markdown runbooks."""
 
 
+class RunbookArgument(click.ParamType):
+    """A runbook given as a path to a file, or by the name of a book in the runbook library."""
+
+    name = "runbook"
+
+    def convert(self, value: Any, param: click.Parameter | None, ctx: click.Context | None) -> Path:
+        if isinstance(value, Path):
+            return value
+        where = library.location(os.environ)
+        found = library.find(value, Path.cwd(), where)
+        if found is not None:
+            return found
+        if "/" in value:
+            self.fail(f"no such file: {value}", param, ctx)
+        book = value if value.endswith(".md") else f"{value}.md"
+        self.fail(f"no runbook {value!r}: no such file here, and no {book} in the library at {where}", param, ctx)
+
+
 @cli.command()
-@click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("runbook", type=RunbookArgument())
 @click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
 @click.option("--step", is_flag=True, help="Ask before each run block whether to run it, skip it or quit.")
 def go(runbook: Path, dry: bool, step: bool) -> None:
-    """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory."""
+    """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
+
+    RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
+    """
     console = Console(highlight=False)
     parsed, backends, report = _validated(runbook)
     _print_report(console, runbook, report, summary_if_ok=False)
@@ -61,9 +83,12 @@ def _shown_from(path: Path, cwd: Path) -> Path:
 
 
 @cli.command()
-@click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("runbook", type=RunbookArgument())
 def check(runbook: Path) -> None:
-    """Check a runbook for problems without running anything. Exits 1 if there are any errors."""
+    """Check a runbook for problems without running anything. Exits 1 if there are any errors.
+
+    RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
+    """
     console = Console(highlight=False)
     _, _, report = _validated(runbook)
     _print_report(console, runbook, report, summary_if_ok=True)
@@ -72,11 +97,12 @@ def check(runbook: Path) -> None:
 
 
 @cli.command()
-@click.argument("runbook", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("runbook", type=RunbookArgument())
 def inputs(runbook: Path) -> None:
     """List the inputs a runbook needs, including ones its input blocks ask for part way through.
 
-    Frontmatter inputs are listed even if the rest of the runbook is broken.
+    Frontmatter inputs are listed even if the rest of the runbook is broken. RUNBOOK is a file, or the name
+    of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
     """
     console = Console(highlight=False)
     try:
