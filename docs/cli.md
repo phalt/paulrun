@@ -18,12 +18,13 @@ paulrun go RELEASING.md
 
 1. **Checks the runbook** first, exactly as [`paulrun check`](#paulrun-check) does. Any error stops it here, before anything runs. Warnings are shown, then it carries on.
 2. **Collects the inputs**, from the environment or by asking. See [How inputs are collected](runbook-format.md#how-inputs-are-collected).
-3. **Shows the plan** (the title, the inputs, each step, and how many blocks will run) and asks `Start? [y/N]`.
+3. **Shows the plan** (the title, the folder blocks will run in, the inputs, each step, and how many blocks will run) and asks `Start? [y/N]`.
 4. **Goes through each step in order**, showing its name, then each block: notes are shown, `confirm` blocks wait for `y`, [`input` blocks](runbook-format.md#input-blocks) ask for their value, and `run` blocks run with their output streamed as it's printed.
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
 Release my-package
+directory: /home/you/Projects/my-package
 inputs: VERSION=1.2.0
   1. Run the tests
   2. Tag the release
@@ -73,11 +74,12 @@ Shows what the runbook would do, without doing any of it.
 paulrun go --dry RELEASING.md
 ```
 
-Every block is shown with its inputs filled in, but nothing runs. There's no `Start?` question, `confirm` blocks don't wait, and no transcript is written. Frontmatter inputs are still collected, so the blocks can be filled in, but secrets aren't needed, so they aren't asked for and show as `****`. [`input` blocks](runbook-format.md#input-blocks) aren't asked for either, since their values may not exist yet: each shows where the run would stop to ask, and later blocks show its placeholder as written.
+Every block is shown with its inputs filled in, but nothing runs. The plan still shows the folder blocks would run in, so you can check it before a real run. There's no `Start?` question, `confirm` blocks don't wait, and no transcript is written. Frontmatter inputs are still collected, so the blocks can be filled in, but secrets aren't needed, so they aren't asked for and show as `****`. [`input` blocks](runbook-format.md#input-blocks) aren't asked for either, since their values may not exist yet: each shows where the run would stop to ask, and later blocks show its placeholder as written.
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
 Release my-package
+directory: /home/you/Projects/my-package
 inputs: VERSION=1.2.0
   1. Run the tests
   2. Tag the release

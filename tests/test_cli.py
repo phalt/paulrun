@@ -45,6 +45,11 @@ def write_runbook(tmp_path: Path, text: str) -> Path:
     return path
 
 
+def with_directory(output: str, directory: Path) -> str:
+    """go's output with the directory line's path as DIR, since it's a different temporary directory each time."""
+    return output.replace(f"\ndirectory: {directory}\n", "\ndirectory: DIR\n", 1)
+
+
 @pytest.fixture
 def inputs_runbook(monkeypatch):
     """The inputs example runbook, with neither of its inputs set in the environment."""
@@ -109,9 +114,20 @@ def test_help_lists_go_command(runner):
     assert result.exit_code == 0
     assert "Usage: paulrun" in result.output
     assert "\n  go " in result.output
+ 
+
+def test_go_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path, started_in):
+    """go names the directory it was started in straight after the title, so you see where blocks will run."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+
+    for arguments in (["go", str(path)], ["go", "--dry", str(path)]):
+        result = runner.invoke(cli.cli, arguments, input="y\n")
+
+        assert result.exit_code == 0
+        assert result.output.splitlines()[:2] == ["Test", f"directory: {started_in}"]
 
 
-def test_go_prints_each_step_block_and_result(runner, tmp_path):
+def test_go_prints_each_step_block_and_result(runner, tmp_path, started_in):
     """go prints each step's name, each block's code, its output and exit code, then how the run finished."""
     path = write_runbook(
         tmp_path,
@@ -134,9 +150,10 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path):
     result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
 
     assert result.exit_code == 0
-    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
+    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
         """\
         Test
+        directory: DIR
           1. Greet
           2. Again
         2 run blocks
@@ -490,14 +507,15 @@ def test_go_reports_an_environment_value_that_does_not_match_the_pattern(runner,
     assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
 
 
-def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook):
+def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, started_in):
     """Docstring and confirm text is printed with inputs substituted, and y at a confirm carries on."""
     result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input="y\ny\n")
 
     assert result.exit_code == 0
-    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
+    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
         """\
         Docstring and confirm example
+        directory: DIR
         inputs: VERSION=1.2.0
           1. Build
           2. Release on GitHub
@@ -543,13 +561,13 @@ def test_go_runs_nothing_when_the_start_prompt_is_not_answered_y(runner, confirm
     assert result.output.endswith(f"Start? [y/N] {answer}\n\nfinished: aborted before starting\n")
 
 
-def test_go_overview_counts_one_run_block_in_the_singular(runner, tmp_path):
+def test_go_overview_counts_one_run_block_in_the_singular(runner, tmp_path, started_in):
     """The overview says "1 run block", not "1 run blocks"."""
     path = write_runbook(tmp_path, "---\ntitle: One\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
 
     result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
 
-    assert result.output.startswith("One\n  1. Only\n1 run block\nStart? [y/N] y\n")
+    assert result.output.startswith(f"One\ndirectory: {started_in}\n  1. Only\n1 run block\nStart? [y/N] y\n")
 
 
 def test_go_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
@@ -576,15 +594,16 @@ def test_go_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
     assert "Check [red]this[/red] :+1:" in lines
 
 
-def test_go_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbook):
+def test_go_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbook, started_in):
     """--dry asks only for plain inputs, shows every block with them filled in, and creates none of its files."""
     result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)], input="1.2.0\n")
 
     assert result.exit_code == 0
-    assert result.output == textwrap.dedent(
+    assert with_directory(result.output, started_in) == textwrap.dedent(
         """\
         VERSION (The version being released, e.g. 1.2.0): 1.2.0
         Dry run example
+        directory: DIR
         inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
           1. Build
           2. Publish
@@ -626,14 +645,15 @@ def test_go_dry_still_rejects_a_bad_plain_input_from_the_environment(runner, dry
     assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
 
 
-def test_go_step_runs_skips_and_quits_block_by_block(runner):
+def test_go_step_runs_skips_and_quits_block_by_block(runner, started_in):
     """--step asks after each run block's code: y runs it, s skips it, and q ends the run there with exit 1."""
     result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\ny\ns\nq\n")
 
     assert result.exit_code == 1
-    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output) == textwrap.dedent(
+    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
         """\
         Step example
+        directory: DIR
           1. Build
           2. Publish
           3. Announce

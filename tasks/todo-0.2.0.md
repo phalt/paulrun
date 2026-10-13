@@ -18,7 +18,7 @@ Every task also clears the standing bar:
 - `runner.run` gets a `cwd` argument and passes it to every backend. `go` passes `Path.cwd()`.
 - Every block's environment gets `PAULRUN_RUNBOOK_DIR`, the runbook's resolved parent folder.
 - Add an autouse fixture to `tests/conftest.py` that starts every test in its own empty temporary folder, so nothing a test runs can write into the repo.
-- Rewrite the existing tests for the old rule, `test_run_runs_blocks_in_the_runbook_directory` and `test_go_runs_blocks_in_the_runbook_directory`, for the new rule.
+  - Rewrite the existing tests for the old rule, `test_run_runs_blocks_in_the_runbook_directory` and `test_go_runs_blocks_ in_the_runbook_directory`, for the new rule.
 - Add a "Where blocks run" section to `docs/runbook-format.md`.
 - Start the CHANGELOG's `## 0.2.0` section with the breaking change.
 

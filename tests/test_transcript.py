@@ -410,7 +410,7 @@ def test_transcript_records_an_interrupted_run(tmp_path):
 
     with transcript:
         for event in [
-            runner.Overview("T", (step,), 1, ()),
+            runner.Overview("T", (step,), 1, (), tmp_path),
             runner.StepStarted(step),
             runner.BlockStarted(block, "sleep 60\n"),
             runner.OutputLine("stopping"),

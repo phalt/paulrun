@@ -194,8 +194,9 @@ def _prompt(text: str, **options: Any) -> str:
 def _print_event(console: Console, event: runner.Event, *, dry: bool = False) -> None:
     # console.out never reads markup or emoji codes and never wraps, so code and output appear as written.
     match event:
-        case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs):
+        case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs, directory=directory):
             console.out(title, style="bold")
+            console.out(f"directory: {directory}")
             if inputs:
                 console.out("inputs: " + " ".join(f"{name}={value}" for name, value in inputs))
             for number, step in enumerate(steps, start=1):

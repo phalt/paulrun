@@ -62,6 +62,7 @@ paulrun asks for the version, shows you the plan, and runs each step in order, s
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
 Release my-package
+directory: /home/you/Projects/my-package
 inputs: VERSION=1.2.0
   1. Run the tests
   2. Tag the release

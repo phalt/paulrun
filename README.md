@@ -58,6 +58,7 @@ paulrun go hello.md
 hello.md: ok
 NAME (Who to say hello to): Paul
 Say hello
+directory: /home/you/hello
 inputs: NAME=Paul
   1. Greet
   2. Count the letters

@@ -41,6 +41,11 @@ def without_durations(output: str) -> str:
     return re.sub(r"\((\d+m)?\d+(\.\d)?s\)", "(Xs)", output)
 
 
+def without_directories(output: str) -> str:
+    """go's output with the directory it ran in as DIR, since the docs can only show an example of one."""
+    return re.sub(r"^directory: .*$", "directory: DIR", output, flags=re.MULTILINE)
+
+
 def check_example(text: str, tmp_path: Path) -> list[str]:
     """Write a runbook from the docs to a file and return everything check finds in it."""
     path = tmp_path / "RELEASING.md"
@@ -95,7 +100,10 @@ def test_the_readme_example_runs_as_written(runner, tmp_path, monkeypatch, witho
         results = [runner.invoke(cli.cli, line.split()[1:], input="Paul\ny\n") for line in commands.splitlines()]
 
         assert [result.exit_code for result in results] == [0] * len(results), commands
-        assert without_durations("".join(result.output for result in results)) == without_durations(shown)
+        output = "".join(result.output for result in results)
+        assert without_directories(without_durations(output)) == without_directories(without_durations(shown))
+        # The directory line is only swapped for DIR above, so check it's really where paulrun ran.
+        assert all(f"directory: {tmp_path}" in result.output for result in results if "directory:" in result.output)
 
 
 def test_the_backends_page_shows_the_real_backend_protocol():

@@ -521,7 +521,22 @@ def test_run_overview_uses_the_file_name_when_there_is_no_title(tmp_path):
 
     events, _ = run(path)
 
-    assert events[0] == runner.Overview(title="runbook.md", steps=parse(path).steps, run_blocks=1, inputs=())
+    assert events[0] == runner.Overview(
+        title="runbook.md", steps=parse(path).steps, run_blocks=1, inputs=(), directory=tmp_path
+    )
+
+
+@pytest.mark.parametrize("dry", [False, True])
+def test_run_overview_says_where_blocks_will_run(tmp_path, dry):
+    """The overview names the directory blocks run in, under --dry too, so it's seen before anything starts."""
+    path = write_runbook(tmp_path / "book", "## Only\n\n```sh run\ntrue\n```\n")
+    project = tmp_path / "project"
+    project.mkdir()
+
+    events, _ = run(path, cwd=project, dry=dry)
+
+    [overview] = [event for event in events if isinstance(event, runner.Overview)]
+    assert overview.directory == project
 
 
 @pytest.mark.parametrize("reply", ["", "n", "no", "yes", "Y"])

@@ -20,6 +20,7 @@ class Overview:
     steps: tuple[Step, ...]
     run_blocks: int
     inputs: tuple[tuple[str, str], ...]  # (name, value) in declared order, with **** for each secret
+    directory: Path  # where blocks run, so it's seen before anything starts
 
 
 @dataclass(frozen=True)
@@ -157,7 +158,7 @@ def run(
     shown = tuple((input.name, MASK if input.secret else values[input.name]) for input in runbook.inputs)
     # Steps keep their blocks as written, so blocks still run as written; only the names sent are masked.
     steps = tuple(replace(step, name=mask(step.name, secrets)) for step in runbook.steps)
-    sink(Overview(mask(runbook.title or runbook.path.name, secrets), steps, len(run_blocks), shown))
+    sink(Overview(mask(runbook.title or runbook.path.name, secrets), steps, len(run_blocks), shown, cwd))
     try:
         if not dry and not _yes(prompter.confirm("Start? [y/N]")):
             return _finish(sink, RunFinished("aborted", 0.0))
