@@ -255,7 +255,7 @@ Set `output_path`, and paulrun records each run in a plain text file:
 output_path: logs/release-<VERSION>.md
 ```
 
-The path is relative to the runbook, can use placeholders, and missing folders are created. Each run is added to the end of the file, so a failed attempt and the rerun that fixed it are both kept. A run that's never started, or a `--dry` run, isn't recorded.
+A relative path is relative to the folder you run paulrun from, like the blocks (see [Where blocks run](#where-blocks-run)), so the transcript is kept with the project the run worked on. An absolute path is used as it is. The path can use placeholders, and missing folders are created. Each run is added to the end of the file, so a failed attempt and the rerun that fixed it are both kept. A run that's never started, or a `--dry` run, isn't recorded.
 
 ```
 --- paulrun RELEASING.md @ 2026-10-12T15:11:27+01:00

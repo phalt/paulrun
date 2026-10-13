@@ -33,8 +33,10 @@ def go(runbook: Path, dry: bool, step: bool) -> None:
     _print_report(console, runbook, report, summary_if_ok=False)
     if not report.ok:
         sys.exit(1)
+    # Blocks and the transcript both go where paulrun was started.
+    cwd = Path.cwd()
     # Nothing runs under --dry, so there's nothing to record.
-    transcript = Transcript.for_runbook(parsed) if parsed.output_path is not None and not dry else None
+    transcript = Transcript.for_runbook(parsed, cwd) if parsed.output_path is not None and not dry else None
 
     def sink(event: runner.Event) -> None:
         _print_event(console, event, dry=dry)
@@ -43,15 +45,19 @@ def go(runbook: Path, dry: bool, step: bool) -> None:
 
     try:
         with transcript or nullcontext():
-            result = runner.run(
-                parsed, backends, sink, ClickPrompter(console), cwd=Path.cwd(), dry=dry, step_by_step=step
-            )
+            result = runner.run(parsed, backends, sink, ClickPrompter(console), cwd=cwd, dry=dry, step_by_step=step)
     except (runner.RunnerError, InputError, TranscriptError) as e:
         raise click.ClickException(str(e)) from e
     if transcript is not None and transcript.written:
-        console.out(f"transcript: {transcript.path}")
+        assert transcript.path is not None  # set once the run started, which it has if anything was written
+        console.out(f"transcript: {_shown_from(transcript.path, cwd)}")
     if result.status not in ("ok", "dry"):
         sys.exit(1)
+
+
+def _shown_from(path: Path, cwd: Path) -> Path:
+    """path relative to cwd if it's inside it, so it's short and works from there, otherwise as it is."""
+    return path.relative_to(cwd) if path.is_relative_to(cwd) else path
 
 
 @cli.command()

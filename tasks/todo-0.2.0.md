@@ -50,13 +50,13 @@ Every task also clears the standing bar:
 - Update the Transcript section of `docs/runbook-format.md`, and add the change to the CHANGELOG's breaking-change line.
 
 **Acceptance criteria:**
-- [ ] Started in folder A with the runbook in folder B, `output_path: logs/release-<VERSION>.md` writes `A/logs/release-1.2.0.md`, and nothing appears in B
-- [ ] An absolute `output_path` is written where it says, wherever paulrun is started
-- [ ] The `transcript:` line `go` prints at the end shows the new path
+- [x] Started in folder A with the runbook in folder B, `output_path: logs/release-<VERSION>.md` writes `A/logs/release-1.2.0.md`, and nothing appears in B
+- [x] An absolute `output_path` is written where it says, wherever paulrun is started
+- [x] The `transcript:` line `go` prints at the end shows the new path
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_transcript.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun go PUBLISHING.md --dry` from the repo root still names `logs/release-<version>.md` in the header prose and writes nothing
+- [x] Tests pass: `uv run pytest tests/test_transcript.py tests/test_cli.py`
+- [x] Manual check: `uv run paulrun go PUBLISHING.md --dry` from the repo root still names `logs/release-<version>.md` in the header prose and writes nothing
 
 **Dependencies:** Task 1
 

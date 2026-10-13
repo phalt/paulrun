@@ -9,11 +9,11 @@ from paulrun.inputs import substitute
 from paulrun.runbook import Runbook
 
 
-def transcript_path(runbook: Runbook, values: Mapping[str, str]) -> Path | None:
-    """Where a run's transcript goes: output_path with plain inputs filled in, from the runbook's directory."""
+def transcript_path(runbook: Runbook, values: Mapping[str, str], cwd: Path) -> Path | None:
+    """Where a run's transcript goes: output_path with plain inputs filled in, from cwd, where paulrun runs."""
     if runbook.output_path is None:
         return None
-    return runbook.path.parent / substitute(runbook.output_path, values)
+    return cwd / substitute(runbook.output_path, values)
 
 
 class TranscriptError(Exception):
@@ -34,21 +34,23 @@ class Transcript:
         runbook_name: str,
         clock: Callable[[], datetime] = lambda: datetime.now().astimezone(),
         runbook: Runbook | None = None,
+        cwd: Path | None = None,
     ):
         self.path = path
         self._runbook_name = runbook_name
         self._clock = clock
         self._runbook = runbook
+        self._cwd = cwd
         self._file: TextIO | None = None
         self._written = False
         self._inputs: tuple[tuple[str, str], ...] = ()
 
     @classmethod
     def for_runbook(
-        cls, runbook: Runbook, clock: Callable[[], datetime] = lambda: datetime.now().astimezone()
+        cls, runbook: Runbook, cwd: Path, clock: Callable[[], datetime] = lambda: datetime.now().astimezone()
     ) -> "Transcript":
-        """A transcript at the runbook's output_path, worked out once the run's inputs are known."""
-        return cls(None, runbook.path.name, clock, runbook=runbook)
+        """A transcript at the runbook's output_path from cwd, worked out once the run's inputs are known."""
+        return cls(None, runbook.path.name, clock, runbook=runbook, cwd=cwd)
 
     @property
     def written(self) -> bool:
@@ -70,8 +72,9 @@ class Transcript:
             case runner.Overview(inputs=inputs):
                 self._inputs = inputs
                 if self._runbook is not None:
+                    assert self._cwd is not None  # given with the runbook, by for_runbook
                     # Secrets are **** here, but they're never placeholders in output_path, which check enforces.
-                    self.path = transcript_path(self._runbook, dict(inputs))
+                    self.path = transcript_path(self._runbook, dict(inputs), self._cwd)
             case runner.StepStarted(step=step):
                 if self._file is None:
                     self._open()

@@ -2,7 +2,7 @@
 
 ## 0.2.0
 
-- **Breaking:** blocks now run in the folder you run paulrun from, not the folder the runbook is in. A runbook kept at the root of its project, run from there, works as before. One run as `paulrun go path/to/RUNBOOK.md` from another folder now works on that other folder. This includes blocks run by external backends, whose `cwd` is now the folder paulrun was started from.
+- **Breaking:** blocks now run in the folder you run paulrun from, not the folder the runbook is in. A relative `output_path` is now relative to that folder too. A runbook kept at the root of its project, run from there, works as before. One run as `paulrun go path/to/RUNBOOK.md` from another folder now works on that other folder and writes its transcript there. This includes blocks run by external backends, whose `cwd` is now the folder paulrun was started from.
 - Blocks get `PAULRUN_RUNBOOK_DIR`, the folder the runbook is in, so a runbook can still use files kept next to it.
 
 ## 0.1.0

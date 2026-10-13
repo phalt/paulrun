@@ -20,10 +20,12 @@ file: every command, what it printed, its exit code, and how the run finished.
 VERSION=1.2.0 uv run paulrun go tests/runbooks/transcript-example.md
 ```
 
-The path is relative to this runbook, can use plain inputs, and its directory
-is created if it doesn't exist. Each run is added to the end, so a failed
-attempt and its rerun are both kept. Secrets are written as `****`, even if a
-block prints one. `--dry` writes nothing.
+The path is relative to the directory you run paulrun from, not this runbook,
+so the command above writes `logs/release-1.2.0.md` at the top of the
+repository. It can use plain inputs, and its directory is created if it
+doesn't exist. Each run is added to the end, so a failed attempt and its rerun
+are both kept. Secrets are written as `****`, even if a block prints one.
+`--dry` writes nothing.
 
 ## Build
 

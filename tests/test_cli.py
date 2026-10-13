@@ -62,7 +62,7 @@ def confirm_runbook(monkeypatch):
 
 @pytest.fixture
 def transcript_runbook(tmp_path, monkeypatch):
-    """A copy of the transcript example runbook in tmp_path, so its transcript is written there.
+    """A copy of the transcript example runbook in tmp_path, away from started_in, where its transcript goes.
 
     Both inputs are set in the environment, so only the start prompt and the confirm are asked.
     """
@@ -73,7 +73,7 @@ def transcript_runbook(tmp_path, monkeypatch):
 
 @pytest.fixture
 def input_block_runbook(tmp_path, monkeypatch):
-    """A copy of the input block example in tmp_path, so its transcript is written there.
+    """A copy of the input block example in tmp_path, away from started_in, where its transcript goes.
 
     VERSION is set in the environment; PR and OTP aren't, so they're asked for at their blocks.
     """
@@ -741,13 +741,17 @@ def test_go_stops_at_a_python_block_that_raises(runner, tmp_path):
     assert "unreachable" not in result.output
 
 
-def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook):
-    """With output_path set, go appends the run to that file and says where it went."""
+def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook, started_in):
+    """With output_path set, go appends the run to that file and says where it went.
+
+    The path is relative to where paulrun was started, so nothing is written next to the runbook.
+    """
     result = runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
 
-    transcript = transcript_runbook.parent / "logs" / "release-1.2.0.md"
+    transcript = started_in / "logs" / "release-1.2.0.md"
     assert result.exit_code == 0
-    assert result.output.endswith(f"transcript: {transcript}\n")
+    assert result.output.endswith("transcript: logs/release-1.2.0.md\n")
+    assert sorted(path.name for path in transcript_runbook.parent.iterdir()) == ["transcript-example.md"]
     text = re.sub(r"\(\d+\.\ds\)", "(Xs)", transcript.read_text())
     text = re.sub(r"@ \S+", "@ TIME", text, count=1)
     assert text == textwrap.dedent(
@@ -773,39 +777,61 @@ def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook):
     )
 
 
-def test_go_appends_a_second_run_to_the_transcript(runner, transcript_runbook):
+def test_go_shows_a_transcript_under_where_it_was_started_relative_to_there(runner, tmp_path, started_in):
+    """A transcript under the directory paulrun was started in is shown as a relative path, as the docs show it."""
+    path = write_runbook(tmp_path, "---\ntitle: T\noutput_path: logs/run.md\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    assert result.output.endswith(f"transcript: {Path('logs') / 'run.md'}\n")
+    assert (started_in / "logs" / "run.md").exists()
+
+
+def test_go_shows_a_transcript_outside_where_it_was_started_in_full(runner, tmp_path):
+    """A transcript anywhere else, such as an absolute output_path, is shown as its absolute path."""
+    target = tmp_path / "records" / "run.md"
+    path = write_runbook(tmp_path, f"---\ntitle: T\noutput_path: {target}\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    assert result.output.endswith(f"transcript: {target}\n")
+
+
+def test_go_appends_a_second_run_to_the_transcript(runner, transcript_runbook, started_in):
     """Running twice keeps both runs, so a failed attempt and its rerun are both in the file."""
     runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\nn\n")
     runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
 
-    text = (transcript_runbook.parent / "logs" / "release-1.2.0.md").read_text()
+    text = (started_in / "logs" / "release-1.2.0.md").read_text()
     assert text.count("--- paulrun transcript-example.md @") == 2
     assert '--- finished: aborted at "Release on GitHub"\n\n--- paulrun' in text
     assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
 
 
-def test_go_never_writes_a_secret_to_the_transcript(runner, transcript_runbook):
+def test_go_never_writes_a_secret_to_the_transcript(runner, transcript_runbook, started_in):
     """The secret is set and printed by a block, but the file only ever has ****."""
     runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
 
-    assert "s3cret" not in (transcript_runbook.parent / "logs" / "release-1.2.0.md").read_text()
+    assert "s3cret" not in (started_in / "logs" / "release-1.2.0.md").read_text()
 
 
-def test_go_dry_writes_no_transcript(runner, transcript_runbook):
+def test_go_dry_writes_no_transcript(runner, transcript_runbook, started_in):
     """--dry runs nothing, so there's nothing to record, and no file or directory is made."""
     result = runner.invoke(cli.cli, ["go", "--dry", str(transcript_runbook)])
 
     assert result.exit_code == 0
-    assert not (transcript_runbook.parent / "logs").exists()
+    assert not (started_in / "logs").exists()
     assert "transcript:" not in result.output
 
 
-def test_go_writes_no_transcript_when_the_run_is_not_started(runner, transcript_runbook):
+def test_go_writes_no_transcript_when_the_run_is_not_started(runner, transcript_runbook, started_in):
     """Declining to start writes nothing and doesn't mention a transcript."""
     result = runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="n\n")
 
     assert result.exit_code == 1
-    assert not (transcript_runbook.parent / "logs").exists()
+    assert not (started_in / "logs").exists()
     assert "transcript:" not in result.output
 
 
@@ -820,9 +846,9 @@ def test_go_without_output_path_writes_no_transcript(runner, tmp_path):
     assert sorted(entry.name for entry in tmp_path.iterdir()) == ["runbook.md"]
 
 
-def test_go_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, tmp_path):
+def test_go_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, tmp_path, started_in):
     """If the transcript can't be opened, go stops with an error before the first block runs."""
-    (tmp_path / "logs").write_text("a file where the transcript's directory should be")
+    (started_in / "logs").write_text("a file where the transcript's directory should be")
     path = write_runbook(
         tmp_path, "---\ntitle: T\noutput_path: logs/run.md\n---\n\n## Only\n\n```sh run\ntouch ran\n```\n"
     )
@@ -832,8 +858,8 @@ def test_go_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, t
     assert result.exit_code == 1
     [error] = [line for line in result.output.splitlines() if line.startswith("Error:")]
     # The reason after the colon is the operating system's, so only the start is checked.
-    assert error.startswith(f"Error: can't write the transcript to {tmp_path / 'logs' / 'run.md'}: ")
-    assert not (tmp_path / "ran").exists()
+    assert error.startswith(f"Error: can't write the transcript to {started_in / 'logs' / 'run.md'}: ")
+    assert not (started_in / "ran").exists()
 
 
 def test_inputs_lists_each_input_with_its_description_pattern_and_secret_flag(runner):
@@ -1048,12 +1074,12 @@ def test_help_lists_backends_command(runner):
     assert "\n  backends " in result.output
 
 
-def test_go_step_records_skipped_blocks_in_the_transcript(runner, transcript_runbook):
+def test_go_step_records_skipped_blocks_in_the_transcript(runner, transcript_runbook, started_in):
     """A block skipped under --step is in the transcript as skipped, and the run still finishes ok."""
     result = runner.invoke(cli.cli, ["go", "--step", str(transcript_runbook)], input="y\ny\ny\ns\n")
 
     assert result.exit_code == 0
-    text = (transcript_runbook.parent / "logs" / "release-1.2.0.md").read_text()
+    text = (started_in / "logs" / "release-1.2.0.md").read_text()
     assert '=== Publish ===\n    echo "Publishing 1.2.0 with $PUBLISH_TOKEN"\nskipped (--step)\n' in text
     assert "Building 1.2.0\n" in text
     assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
@@ -1121,17 +1147,17 @@ def test_go_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_ru
     assert "123456" not in result.output
 
 
-def test_go_records_input_blocks_in_the_transcript(runner, input_block_runbook):
+def test_go_records_input_blocks_in_the_transcript(runner, input_block_runbook, started_in):
     """The transcript shows where each input block was answered, with the secret as ****."""
     runner.invoke(cli.cli, ["go", str(input_block_runbook)], input="y\ny\n42\n123456\n")
 
-    text = (input_block_runbook.parent / "logs" / "pr-release.md").read_text()
+    text = (started_in / "logs" / "pr-release.md").read_text()
     assert "confirm: Open a pull request for 1.2.0 on GitHub. -> yes\ninput: PR=42\n" in text
     assert "=== Publish ===\ninput: OTP=****\n" in text
     assert "123456" not in text
 
 
-def test_go_dry_shows_input_blocks_without_asking(runner, input_block_runbook):
+def test_go_dry_shows_input_blocks_without_asking(runner, input_block_runbook, started_in):
     """--dry says where the run would stop to ask, and leaves those placeholders as written."""
     result = runner.invoke(cli.cli, ["go", "--dry", str(input_block_runbook)])
 
@@ -1140,7 +1166,7 @@ def test_go_dry_shows_input_blocks_without_asking(runner, input_block_runbook):
     assert "input: PR (The number GitHub gave the pull request), asked here" in lines
     assert "input: OTP (The code from your authenticator app), asked here" in lines
     assert '    echo "Merging pull request <PR> for 1.2.0"' in lines
-    assert not (input_block_runbook.parent / "logs").exists()
+    assert not (started_in / "logs").exists()
 
 
 def test_inputs_lists_input_blocks_with_the_step_that_asks_for_them(runner):

@@ -58,7 +58,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 
 ### Phase 1: Where things run (the breaking change)
 - [x] Task 1: Blocks run in the starting folder, with `PAULRUN_RUNBOOK_DIR`
-- [ ] Task 2: Transcripts relative to the starting folder
+- [x] Task 2: Transcripts relative to the starting folder
 - [ ] Task 3: `directory:` line in the run overview
 
 ### Checkpoint 1: Breaking change in

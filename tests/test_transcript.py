@@ -31,7 +31,8 @@ class FakePrompter:
 
 
 def write_runbook(directory: Path, text: str, name: str = "PUBLISHING.md") -> Path:
-    """Write a dedented runbook into directory and return its path."""
+    """Write a dedented runbook into directory, creating it if needed, and return its path."""
+    directory.mkdir(parents=True, exist_ok=True)
     path = directory / name
     path.write_text(textwrap.dedent(text))
     return path
@@ -282,33 +283,39 @@ def test_transcript_is_written_as_the_run_goes(tmp_path):
     assert without_durations(before_finishing).endswith("=== Only ===\n    echo hi\nhi\nexit 0 (Xs)\n")
 
 
-def test_transcript_path_fills_in_plain_inputs_relative_to_the_runbook(tmp_path):
-    """output_path has placeholders filled in and is resolved from the runbook's directory, wherever paulrun runs."""
-    path = write_runbook(tmp_path, "---\ntitle: T\noutput_path: logs/release-<VERSION>.md\n---\n")
+def test_transcript_path_fills_in_plain_inputs_relative_to_where_paulrun_runs(tmp_path):
+    """output_path has placeholders filled in and is resolved from cwd, where paulrun runs, not the runbook's."""
+    path = write_runbook(tmp_path / "book", "---\ntitle: T\noutput_path: logs/release-<VERSION>.md\n---\n")
+    project = tmp_path / "project"
 
-    assert transcript_path(parse(path), {"VERSION": "1.2.0"}) == tmp_path / "logs" / "release-1.2.0.md"
+    assert transcript_path(parse(path), {"VERSION": "1.2.0"}, project) == project / "logs" / "release-1.2.0.md"
 
 
 def test_transcript_path_keeps_an_absolute_output_path(tmp_path):
-    """An absolute output_path is used as it is."""
+    """An absolute output_path is used as it is, wherever paulrun runs."""
     target = tmp_path / "elsewhere" / "log.md"
-    path = write_runbook(tmp_path, f"---\ntitle: T\noutput_path: {target}\n---\n")
+    path = write_runbook(tmp_path / "book", f"---\ntitle: T\noutput_path: {target}\n---\n")
 
-    assert transcript_path(parse(path), {}) == target
+    assert transcript_path(parse(path), {}, tmp_path / "project") == target
 
 
 def test_transcript_path_is_none_without_output_path(tmp_path):
     """No output_path means no transcript."""
     path = write_runbook(tmp_path, "---\ntitle: T\n---\n")
 
-    assert transcript_path(parse(path), {}) is None
+    assert transcript_path(parse(path), {}, tmp_path) is None
 
 
 def test_transcript_for_a_runbook_goes_to_its_output_path_with_inputs_filled_in(tmp_path, monkeypatch):
-    """Made from a runbook, a transcript works out its file from output_path once the inputs are known."""
+    """Made from a runbook, a transcript works out its file from output_path once the inputs are known.
+
+    The file is in the directory paulrun runs in, and nothing is written next to the runbook.
+    """
     monkeypatch.setenv("VERSION", "1.2.0")
+    project = tmp_path / "project"
+    project.mkdir()
     path = write_runbook(
-        tmp_path,
+        tmp_path / "book",
         """\
         ---
         title: T
@@ -326,13 +333,14 @@ def test_transcript_for_a_runbook_goes_to_its_output_path_with_inputs_filled_in(
         """,
     )
     parsed = parse(path)
-    transcript = Transcript.for_runbook(parsed, clock=lambda: STARTED)
+    transcript = Transcript.for_runbook(parsed, project, clock=lambda: STARTED)
 
     with transcript:
-        runner.run(parsed, load_backends(), transcript, FakePrompter(), cwd=parsed.path.parent)
+        runner.run(parsed, load_backends(), transcript, FakePrompter(), cwd=project)
 
-    assert transcript.path == tmp_path / "logs" / "release-1.2.0.md"
+    assert transcript.path == project / "logs" / "release-1.2.0.md"
     assert transcript.path is not None
+    assert sorted(item.name for item in (tmp_path / "book").iterdir()) == ["PUBLISHING.md"]
     assert transcript.path.read_text().startswith("--- paulrun PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n")
 
 
