@@ -159,16 +159,15 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path):
     )
 
 
-def test_go_runs_blocks_in_the_runbook_directory(runner, tmp_path, monkeypatch):
-    """Blocks run in the runbook's directory, not the one paulrun is started from."""
-    monkeypatch.chdir(tmp_path)
-
+def test_go_runs_blocks_in_the_directory_it_is_started_from(runner, started_in):
+    """Blocks run where paulrun is started, not in the runbook's directory, and can still find the runbook's."""
     result = runner.invoke(cli.cli, ["go", str(RUNBOOKS / "two_steps.md")], input="y\n")
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
     assert ["1", "2", "3"] == [line for line in lines if line in {"1", "2", "3"}]
-    assert str(RUNBOOKS.resolve()) in lines
+    assert str(started_in.resolve()) in lines
+    assert f"runbook: {RUNBOOKS.resolve()}" in lines
 
 
 def test_go_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):

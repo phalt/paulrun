@@ -57,7 +57,7 @@ blocks run in the starting folder + PAULRUN_RUNBOOK_DIR (1)
 Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.md](todo-0.2.0.md).
 
 ### Phase 1: Where things run (the breaking change)
-- [ ] Task 1: Blocks run in the starting folder, with `PAULRUN_RUNBOOK_DIR`
+- [x] Task 1: Blocks run in the starting folder, with `PAULRUN_RUNBOOK_DIR`
 - [ ] Task 2: Transcripts relative to the starting folder
 - [ ] Task 3: `directory:` line in the run overview
 
@@ -110,7 +110,7 @@ Tasks 7 and 8 touch `inputs.py`, `runbook.py` and `validate.py`, which Tasks 1-6
 | Once blocks and transcripts go in the starting folder, a test run from the repo root writes into the repo, e.g. a `logs/` folder or files a test block creates | High | Task 1 adds an autouse fixture that starts every test in its own empty temporary folder. Checkpoint 1 checks `git status` after `make test` |
 | Existing tests and fixtures rely on blocks running in the runbook's folder: `test_run_runs_blocks_in_the_runbook_directory`, `test_go_runs_blocks_in_the_runbook_directory`, and the `transcript_runbook` and `input_block_runbook` fixtures, which read `<runbook>.parent / "logs"` | Medium | Tasks 1 and 2 rewrite them for the new rule rather than deleting them (spec Testing strategy). Keep the test names honest, e.g. `..._in_the_starting_directory` |
 | The `directory:` line is machine-specific, but `test_the_readme_example_runs_as_written` compares output exactly | Medium | Task 3 normalises the directory in that test, the way `without_durations` normalises times. The README shows a representative path |
-| Fixtures with `python: uv run python` (`python-example.md`, the docs frontmatter example) run from a temporary folder once tests start there, so `uv` finds no project and may pick a different interpreter or be slow | Medium | Task 1 checks those tests still pass and stay fast. If they don't, those tests start in the repo root, or set `UV_PROJECT`, and the reason is written in the test |
+| Fixtures with `python: uv run python` (`python-example.md`, the docs frontmatter example) run from a temporary folder once tests start there, so `uv` finds no project and may pick a different interpreter or be slow | Medium | Task 1 checks those tests still pass and stay fast. If they don't, those tests start in the repo root, or set `UV_PROJECT`, and the reason is written in the test. Checked in Task 1: only `examples/clientele-publishing.md` sets it, and its tests only `check` it and run it under `--dry`, so nothing runs `uv run python` from a temporary folder |
 | Paul's real `~/runbooks` changes test results once it exists | Medium | Task 4's autouse fixture points `PAULRUN_RUNBOOKS` at an empty temporary folder for every test |
 | A bare name matches a file in the starting folder (e.g. a `deploy` script) and shadows `~/runbooks/deploy.md` | Low | The spec decides this: paths win. Documented in `docs/cli.md`, and the run overview's title shows which runbook was picked |
 | YAML types `default: 1.10` as a float and `default: yes` as a bool | Low | `check` errors on a non-string default and says to quote it (Task 7) |

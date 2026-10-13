@@ -225,6 +225,27 @@ def test_validate_reports_each_undeclared_placeholder_on_its_own_line(tmp_path):
     ]
 
 
+def test_validate_treats_paulrun_runbook_dir_as_an_environment_variable_not_an_input(tmp_path):
+    """PAULRUN_RUNBOOK_DIR is set for every block but isn't an input, so it's read as $PAULRUN_RUNBOOK_DIR only."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## Only
+
+        ```sh run
+        cat "$PAULRUN_RUNBOOK_DIR/notes.md"
+        echo <PAULRUN_RUNBOOK_DIR>
+        ```
+        """,
+    )
+
+    assert check(path).errors == [Finding(9, "<PAULRUN_RUNBOOK_DIR> isn't a declared input")]
+
+
 def test_validate_reports_docstring_and_confirm_blocks_before_the_first_step(tmp_path):
     """Any kind of block before the first ## is an error, named by its kind."""
     path = write_runbook(tmp_path, "---\ntitle: T\n---\n\n```docstring\nhi\n```\n\n```confirm\nok?\n```\n\n## S\n")

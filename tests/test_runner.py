@@ -57,15 +57,27 @@ def write_runbook(directory: Path, text: str) -> Path:
 
 
 def run(
-    path: Path, prompter: FakePrompter | None = None, *, dry: bool = False, step_by_step: bool = False
+    path: Path,
+    prompter: FakePrompter | None = None,
+    *,
+    cwd: Path | None = None,
+    dry: bool = False,
+    step_by_step: bool = False,
 ) -> tuple[list[runner.Event], runner.RunFinished]:
     """Run the runbook at path with the installed backends, returning every event sent and the result.
 
-    Without a prompter, asking for an input fails the test and every question is answered y.
+    Without a prompter, asking for an input fails the test and every question is answered y. Blocks run in
+    cwd, or the runbook's directory if it isn't given.
     """
     events: list[runner.Event] = []
     result = runner.run(
-        parse(path), load_backends(), events.append, prompter or FakePrompter(), dry=dry, step_by_step=step_by_step
+        parse(path),
+        load_backends(),
+        events.append,
+        prompter or FakePrompter(),
+        cwd=cwd or path.parent,
+        dry=dry,
+        step_by_step=step_by_step,
     )
     return events, result
 
@@ -143,19 +155,49 @@ def test_run_streams_output_lines_as_they_are_printed(tmp_path):
         if isinstance(event, runner.OutputLine):
             arrivals.append(time.monotonic())
 
-    runner.run(parse(path), load_backends(), sink, FakePrompter())
+    runner.run(parse(path), load_backends(), sink, FakePrompter(), cwd=path.parent)
 
     assert len(arrivals) == 3
     assert arrivals[2] - arrivals[0] >= 0.3
 
 
-def test_run_runs_blocks_in_the_runbook_directory(tmp_path, monkeypatch):
-    """Blocks run where the runbook is, even when paulrun is started somewhere else with a relative path."""
-    write_runbook(tmp_path / "book", "## Where\n\n```sh run\npwd -P\n```\n")
-    (tmp_path / "elsewhere").mkdir()
-    monkeypatch.chdir(tmp_path / "elsewhere")
+def test_run_runs_blocks_in_the_directory_it_is_given(tmp_path):
+    """Blocks run in the cwd they're given, not where the runbook is."""
+    path = write_runbook(tmp_path / "book", "## Where\n\n```sh run\npwd -P\n```\n")
+    (tmp_path / "project").mkdir()
 
-    events, _ = run(Path("../book/runbook.md"))
+    events, _ = run(path, cwd=tmp_path / "project")
+
+    assert output(events) == [str((tmp_path / "project").resolve())]
+
+
+def test_run_runs_python_blocks_in_the_directory_it_is_given(tmp_path):
+    """Python blocks run in the given cwd too, though each is written to a temporary file somewhere else."""
+    path = write_runbook(tmp_path / "book", "## Where\n\n```python run\nimport os\nprint(os.getcwd())\n```\n")
+    (tmp_path / "project").mkdir()
+
+    events, _ = run(path, cwd=tmp_path / "project")
+
+    assert output(events) == [str((tmp_path / "project").resolve())]
+
+
+def test_run_tells_blocks_where_the_runbook_is(tmp_path, monkeypatch):
+    """PAULRUN_RUNBOOK_DIR is the runbook's directory as an absolute path, even if paulrun was given a relative one."""
+    write_runbook(tmp_path / "book", '## Where\n\n```sh run\necho "$PAULRUN_RUNBOOK_DIR"\n```\n')
+    (tmp_path / "project").mkdir()
+    monkeypatch.chdir(tmp_path / "project")
+
+    events, _ = run(Path("../book/runbook.md"), cwd=tmp_path / "project")
+
+    assert output(events) == [str((tmp_path / "book").resolve())]
+
+
+def test_run_sets_paulrun_runbook_dir_over_one_already_in_the_environment(tmp_path, monkeypatch):
+    """A PAULRUN_RUNBOOK_DIR left over from an outer run is replaced, so a block never sees the wrong runbook's."""
+    monkeypatch.setenv("PAULRUN_RUNBOOK_DIR", "/somewhere/else")
+    path = write_runbook(tmp_path / "book", '## Where\n\n```sh run\necho "$PAULRUN_RUNBOOK_DIR"\n```\n')
+
+    events, _ = run(path, cwd=tmp_path)
 
     assert output(events) == [str((tmp_path / "book").resolve())]
 
@@ -320,7 +362,7 @@ def test_run_rejects_block_with_no_backend_before_running_anything(tmp_path):
     events: list[runner.Event] = []
 
     with pytest.raises(runner.RunnerError) as error:
-        runner.run(parse(path), load_backends(), events.append, FakePrompter())
+        runner.run(parse(path), load_backends(), events.append, FakePrompter(), cwd=path.parent)
 
     assert str(error.value) == "line 9: no backend runs 'cobol' blocks"
     assert events == []
@@ -401,7 +443,7 @@ def test_run_collects_inputs_before_the_first_step_starts(tmp_path, monkeypatch)
         def confirm(self, question: str) -> str:
             return "y"
 
-    runner.run(parse(path), load_backends(), events.append, CountingPrompter())
+    runner.run(parse(path), load_backends(), events.append, CountingPrompter(), cwd=path.parent)
 
     assert events_when_asked == [0, 0]
 
@@ -463,7 +505,7 @@ def test_run_shows_an_overview_after_collecting_inputs_then_asks_to_start(tmp_pa
             prompted.append((question, len(events)))
             return "y"
 
-    runner.run(parse(path), load_backends(), events.append, RecordingPrompter())
+    runner.run(parse(path), load_backends(), events.append, RecordingPrompter(), cwd=path.parent)
 
     overview = events[0]
     assert isinstance(overview, runner.Overview)
@@ -929,7 +971,7 @@ def test_step_by_step_asks_once_the_block_code_has_been_sent(tmp_path):
             last_event_when_asked[question] = type(events[-1])
             return "y"
 
-    runner.run(parse(path), load_backends(), events.append, RecordingPrompter(), step_by_step=True)
+    runner.run(parse(path), load_backends(), events.append, RecordingPrompter(), step_by_step=True, cwd=path.parent)
 
     assert last_event_when_asked["Run this block? [y]es / [s]kip / [q]uit"] is runner.BlockStarted
 
@@ -1166,7 +1208,11 @@ def test_run_finishes_as_interrupted_when_a_block_is_stopped_by_ctrl_c(tmp_path)
     events: list[runner.Event] = []
 
     result = runner.run(
-        parse(path), {**load_backends(), "stopped": InterruptedBackend()}, events.append, FakePrompter()
+        parse(path),
+        {**load_backends(), "stopped": InterruptedBackend()},
+        events.append,
+        FakePrompter(),
+        cwd=path.parent,
     )
 
     assert result.status == "interrupted"
@@ -1272,7 +1318,7 @@ def test_run_asks_for_an_input_block_when_it_reaches_it(tmp_path, monkeypatch):
             seen_when_asked.append([type(event) for event in events])
             return "42"
 
-    runner.run(parse(path), load_backends(), events.append, RecordingPrompter())
+    runner.run(parse(path), load_backends(), events.append, RecordingPrompter(), cwd=path.parent)
 
     [seen] = seen_when_asked
     # Asked once the manual step before it has been answered, and the input block itself has been shown.
@@ -1423,7 +1469,7 @@ def test_run_rejects_an_input_block_that_is_not_a_valid_input_before_running_any
     events: list[runner.Event] = []
 
     with pytest.raises(runner.RunnerError) as error:
-        runner.run(parse(path), load_backends(), events.append, FakePrompter())
+        runner.run(parse(path), load_backends(), events.append, FakePrompter(), cwd=path.parent)
 
     assert str(error.value) == "line 9: input block isn't a valid input; run paulrun check to see why"
     assert events == []

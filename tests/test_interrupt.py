@@ -114,6 +114,7 @@ def runbook(tmp_path):
 def run_paulrun(path: Path, *, answers: str, at: str | Path) -> tuple[int, str]:
     """Run paulrun go, typing answers, and press Ctrl-C once it gets to `at`. Returns its exit code and output.
 
+    paulrun is started in the runbook's directory, so the files its blocks make are next to the runbook.
     `at` is either text paulrun prints, such as a prompt, or a file a block creates once it's running.
     Waiting for one of those, not for a length of time, makes sure Ctrl-C lands where the test means.
     """
@@ -123,6 +124,7 @@ def run_paulrun(path: Path, *, answers: str, at: str | Path) -> tuple[int, str]:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env={**os.environ, "NO_COLOR": "1"},
+        cwd=path.parent,
     )
     assert paulrun.stdin is not None and paulrun.stdout is not None  # set because both are pipes
     paulrun.stdin.write(answers.encode())

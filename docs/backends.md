@@ -103,7 +103,7 @@ class Problem:
 - `code`: the block with every placeholder replaced by its value. Secrets are never replaced; they're only in `env`.
 - `frontmatter`: the runbook's frontmatter, read-only, for a backend with settings of its own, like the Python backend's `python` key.
 - `env`: the block's complete environment, including every input. Pass it on as it is.
-- `cwd`: the folder the runbook is in, where the block runs.
+- `cwd`: the folder paulrun was started from, where the block runs. See [Where blocks run](runbook-format.md#where-blocks-run).
 - `output`: call it with each line the block prints, as soon as it's printed.
 
 It returns the block's exit code, where `0` means it succeeded and anything else stops the run.

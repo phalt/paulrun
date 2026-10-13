@@ -27,7 +27,7 @@ def cli() -> None:
 @click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
 @click.option("--step", is_flag=True, help="Ask before each run block whether to run it, skip it or quit.")
 def go(runbook: Path, dry: bool, step: bool) -> None:
-    """Run a runbook's steps in order, stopping at the first that fails."""
+    """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory."""
     console = Console(highlight=False)
     parsed, backends, report = _validated(runbook)
     _print_report(console, runbook, report, summary_if_ok=False)
@@ -43,7 +43,9 @@ def go(runbook: Path, dry: bool, step: bool) -> None:
 
     try:
         with transcript or nullcontext():
-            result = runner.run(parsed, backends, sink, ClickPrompter(console), dry=dry, step_by_step=step)
+            result = runner.run(
+                parsed, backends, sink, ClickPrompter(console), cwd=Path.cwd(), dry=dry, step_by_step=step
+            )
     except (runner.RunnerError, InputError, TranscriptError) as e:
         raise click.ClickException(str(e)) from e
     if transcript is not None and transcript.written:

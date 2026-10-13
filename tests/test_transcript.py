@@ -43,7 +43,9 @@ def run_with_transcript(
     """Run a runbook with every event going to a transcript at output, as go does."""
     transcript = Transcript(output, path.name, clock=lambda: STARTED)
     with transcript:
-        return runner.run(parse(path), load_backends(), transcript, FakePrompter(replies), step_by_step=step_by_step)
+        return runner.run(
+            parse(path), load_backends(), transcript, FakePrompter(replies), step_by_step=step_by_step, cwd=path.parent
+        )
 
 
 def without_durations(text: str) -> str:
@@ -274,7 +276,7 @@ def test_transcript_is_written_as_the_run_goes(tmp_path):
         transcript(event)
 
     with transcript:
-        runner.run(parse(path), load_backends(), sink, FakePrompter())
+        runner.run(parse(path), load_backends(), sink, FakePrompter(), cwd=path.parent)
 
     [before_finishing] = seen_when_finishing
     assert without_durations(before_finishing).endswith("=== Only ===\n    echo hi\nhi\nexit 0 (Xs)\n")
@@ -327,7 +329,7 @@ def test_transcript_for_a_runbook_goes_to_its_output_path_with_inputs_filled_in(
     transcript = Transcript.for_runbook(parsed, clock=lambda: STARTED)
 
     with transcript:
-        runner.run(parsed, load_backends(), transcript, FakePrompter())
+        runner.run(parsed, load_backends(), transcript, FakePrompter(), cwd=parsed.path.parent)
 
     assert transcript.path == tmp_path / "logs" / "release-1.2.0.md"
     assert transcript.path is not None
@@ -383,9 +385,9 @@ def test_transcript_is_written_only_once_a_step_starts(tmp_path):
     started = Transcript(tmp_path / "started.md", path.name, clock=lambda: STARTED)
 
     with declined:
-        runner.run(parse(path), load_backends(), declined, FakePrompter(["n"]))
+        runner.run(parse(path), load_backends(), declined, FakePrompter(["n"]), cwd=path.parent)
     with started:
-        runner.run(parse(path), load_backends(), started, FakePrompter())
+        runner.run(parse(path), load_backends(), started, FakePrompter(), cwd=path.parent)
 
     assert not declined.written
     assert started.written
@@ -451,7 +453,7 @@ def test_transcript_records_each_input_block_where_it_was_asked(tmp_path, monkey
 
     transcript = Transcript(output, path.name, clock=lambda: STARTED)
     with transcript:
-        runner.run(parse(path), load_backends(), transcript, Answers())
+        runner.run(parse(path), load_backends(), transcript, Answers(), cwd=path.parent)
 
     text = without_durations(output.read_text())
     assert "=== Open the pull request ===\ninput: PR=42\ninput: OTP=****\n" in text

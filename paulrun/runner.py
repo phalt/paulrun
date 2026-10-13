@@ -2,6 +2,7 @@ import os
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Literal
 
 from paulrun.backends import Backend, Interrupted
@@ -117,6 +118,7 @@ def run(
     sink: Callable[[Event], None],
     prompter: Prompter,
     *,
+    cwd: Path,
     dry: bool = False,
     step_by_step: bool = False,
 ) -> RunFinished:
@@ -124,10 +126,11 @@ def run(
 
     docstring blocks are sent to sink, confirm blocks wait for a y, and run blocks are run, stopping at
     the first that fails. Any answer but y aborts the run. Every event goes to sink as it happens, ending
-    with the RunFinished event that's also returned. Blocks run in the runbook's directory with paulrun's
-    environment plus every input. Plain inputs are substituted into each block's text first. Secret
-    values are masked in every text sent to sink: block output, but also the title, step names and block
-    text, in case a secret's value is written in the runbook itself.
+    with the RunFinished event that's also returned. Blocks run in cwd, the directory paulrun was started
+    from, with paulrun's environment plus every input, and PAULRUN_RUNBOOK_DIR set to the runbook's
+    directory. Plain inputs are substituted into each block's text first. Secret values are masked in
+    every text sent to sink: block output, but also the title, step names and block text, in case a
+    secret's value is written in the runbook itself.
 
     With dry, every block is still sent with inputs substituted, but nothing runs, nothing is asked
     except plain inputs, and secrets are never collected.
@@ -149,7 +152,8 @@ def run(
     values = collect(runbook.inputs, os.environ, prompter, skip_secrets=dry)
     secrets = [values[input.name] for input in runbook.inputs if input.secret and not dry]
     plain = {input.name: values[input.name] for input in runbook.inputs if not input.secret}
-    env = {**os.environ, **_BLOCK_ENV, **values}
+    # A runbook keeps files next to itself by reading them from $PAULRUN_RUNBOOK_DIR, since blocks run elsewhere.
+    env = {**os.environ, **_BLOCK_ENV, "PAULRUN_RUNBOOK_DIR": str(runbook.path.parent.resolve()), **values}
     shown = tuple((input.name, MASK if input.secret else values[input.name]) for input in runbook.inputs)
     # Steps keep their blocks as written, so blocks still run as written; only the names sent are masked.
     steps = tuple(replace(step, name=mask(step.name, secrets)) for step in runbook.steps)
@@ -159,7 +163,7 @@ def run(
             return _finish(sink, RunFinished("aborted", 0.0))
     except KeyboardInterrupt:
         return _finish(sink, RunFinished("interrupted", 0.0))
-    return _steps(runbook, backends, sink, prompter, steps, plain, secrets, env, dry, step_by_step)
+    return _steps(runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step)
 
 
 def _steps(
@@ -171,6 +175,7 @@ def _steps(
     plain: dict[str, str],
     secrets: list[str],
     env: dict[str, str],
+    cwd: Path,
     dry: bool,
     step_by_step: bool,
 ) -> RunFinished:
@@ -181,7 +186,9 @@ def _steps(
     started = time.monotonic()
     for step in steps:
         try:
-            finished = _step(runbook, backends, sink, prompter, step, plain, secrets, env, started, dry, step_by_step)
+            finished = _step(
+                runbook, backends, sink, prompter, step, plain, secrets, env, cwd, started, dry, step_by_step
+            )
         except KeyboardInterrupt:
             # A block that was running has already stopped and had its output and exit code sent.
             return _finish(sink, RunFinished("interrupted", time.monotonic() - started, step))
@@ -199,6 +206,7 @@ def _step(
     plain: dict[str, str],
     secrets: list[str],
     env: dict[str, str],
+    cwd: Path,
     started: float,
     dry: bool,
     step_by_step: bool,
@@ -250,7 +258,7 @@ def _step(
                 code,
                 frontmatter=runbook.frontmatter,
                 env=env,
-                cwd=runbook.path.parent,
+                cwd=cwd,
                 output=lambda line: sink(OutputLine(mask(line, secrets))),
             )
         except Interrupted as interrupted:

@@ -1,6 +1,20 @@
+from pathlib import Path
+
 import pytest
 
 from paulrun.backends import shell
+
+
+@pytest.fixture(autouse=True)
+def started_in(tmp_path_factory, monkeypatch) -> Path:
+    """Start every test in its own empty directory, and return it.
+
+    Blocks run in the directory paulrun is started from, so a test started in the repository could change it.
+    This is a different directory from tmp_path, so a test can keep its runbook apart from where it runs.
+    """
+    directory = tmp_path_factory.mktemp("started-in")
+    monkeypatch.chdir(directory)
+    return directory
 
 
 @pytest.fixture

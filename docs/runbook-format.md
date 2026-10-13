@@ -186,11 +186,38 @@ A block marked `run` is run by the backend for its language. Each block's output
 
 Every block runs:
 
-- in the folder the runbook is in, wherever you run paulrun from
+- in the folder you run paulrun from (see [Where blocks run](#where-blocks-run))
 - with paulrun's environment, plus every input
+- with `PAULRUN_RUNBOOK_DIR` set to the folder the runbook is in
 - with `PYTHONUNBUFFERED=1`, so Python output isn't held back, and `PAGER=cat` and `GIT_PAGER=cat`, so nothing waits in a pager
 
 Run `paulrun backends` to see which languages you can use. Other languages can be added with [backends](backends.md).
+
+#### Where blocks run
+
+Blocks run in the folder you run paulrun from, not the folder the runbook is in. So one runbook can work on whichever project you're in:
+
+```sh
+cd ~/Projects/website
+paulrun go ~/runbooks/update-deps.md    # updates the website's dependencies
+
+cd ~/Projects/api
+paulrun go ~/runbooks/update-deps.md    # updates the api's
+```
+
+A runbook that lives in its project, like a `RELEASING.md` at the root, works the same as long as you run it from there.
+
+A runbook that needs files kept next to it can find them through `PAULRUN_RUNBOOK_DIR`, the folder the runbook is in, as an absolute path:
+
+````markdown
+```sh run
+cp "$PAULRUN_RUNBOOK_DIR/templates/pull-request.md" .github/
+```
+````
+
+`PAULRUN_RUNBOOK_DIR` is an environment variable, not an input, so use it as `$PAULRUN_RUNBOOK_DIR`. `<PAULRUN_RUNBOOK_DIR>` is a `check` error, like any undeclared placeholder.
+
+Each block is its own process, so a `cd` or `export` in one block is gone by the next. Put commands that need them in the same block.
 
 #### Shell blocks
 

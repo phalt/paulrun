@@ -23,13 +23,13 @@ Every task also clears the standing bar:
 - Start the CHANGELOG's `## 0.2.0` section with the breaking change.
 
 **Acceptance criteria:**
-- [ ] With the runbook in one folder and paulrun started in another, shell and Python blocks both run in the starting folder
-- [ ] `$PAULRUN_RUNBOOK_DIR` in a block is the runbook file's absolute folder, even when the runbook was given as a relative path; `<PAULRUN_RUNBOOK_DIR>` is still an undeclared-placeholder error
-- [ ] `git status` shows nothing new after `make test`
+- [x] With the runbook in one folder and paulrun started in another, shell and Python blocks both run in the starting folder
+- [x] `$PAULRUN_RUNBOOK_DIR` in a block is the runbook file's absolute folder, even when the runbook was given as a relative path; `<PAULRUN_RUNBOOK_DIR>` is still an undeclared-placeholder error
+- [x] `git status` shows nothing new after `make test`
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py tests/test_validate.py`
-- [ ] Manual check: from `/tmp`, `uv run --project ~/Projects/paulrun paulrun go ~/Projects/paulrun/tests/runbooks/two_steps.md` runs its blocks in `/tmp`
+- [x] Tests pass: `uv run pytest tests/test_runner.py tests/test_cli.py tests/test_validate.py`
+- [x] Manual check: from `/tmp`, `uv run --project ~/Projects/paulrun paulrun go ~/Projects/paulrun/tests/runbooks/two_steps.md` runs its blocks in `/tmp`
 
 **Dependencies:** None
 
