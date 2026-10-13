@@ -190,7 +190,7 @@ Every block runs:
 - with paulrun's environment, plus every input
 - with `PYTHONUNBUFFERED=1`, so Python output isn't held back, and `PAGER=cat` and `GIT_PAGER=cat`, so nothing waits in a pager
 
-Run `paulrun backends` to see which languages you can use.
+Run `paulrun backends` to see which languages you can use. Other languages can be added with [backends](backends.md).
 
 #### Shell blocks
 

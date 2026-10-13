@@ -427,14 +427,16 @@ Behaviour:
 
 **Description:** README (what it is, install with `uv tool install paulrun`, a 30-second example, link to docs, macOS/Linux note). `CHANGELOG.md` and `docs/CHANGELOG.md` were written in Task 14 (0.1.0 entry, kept identical by `tests/test_docs.py`). `docs/backends.md` (protocol, built-ins, adding a backend to paulrun step by step, shipping an external one). `CONTRIBUTING.md` in clientele's shape, including the AI disclosure and the backend checklist. `SECURITY.md` and `CODE_OF_CONDUCT.md` copied from clientele with names swapped.
 
+Decided with Paul (2026-10-13): the README example is a small `hello.md` that really runs, not the release example from `docs/index.md`. `Backend`, `Problem`, `stream`, `Interrupted` (`paulrun.backends`) and `PLACEHOLDER` (`paulrun.inputs`) are public API for external backends. Bugs in clientele's copies (clone command, `git branch -B`, unfinished sentences in the code of conduct) are fixed in paulrun's. `CONTRIBUTORS.md` added, as CONTRIBUTING asks for it. `readme = "README.md"` added to `pyproject.toml` so PyPI shows it.
+
 **Acceptance criteria:**
-- [ ] README example runs as written
-- [ ] `CONTRIBUTING.md` and `docs/backends.md` walk through adding a backend to paulrun and shipping an external one
-- [ ] `mkdocs build --strict` still passes with the new pages in nav
+- [x] README example runs as written (`tests/test_docs.py` runs each command and compares the output)
+- [x] `CONTRIBUTING.md` and `docs/backends.md` walk through adding a backend to paulrun and shipping an external one (the example Node backend is tested end to end)
+- [x] `mkdocs build --strict` still passes with the new pages in nav
 
 **Verification:**
-- [ ] Build succeeds: `uv run mkdocs build --strict`
-- [ ] Manual check: Paul reads the README
+- [x] Build succeeds: `uv run mkdocs build --strict`
+- [x] Manual check: Paul reads the README (approved 2026-10-13)
 
 **Dependencies:** Tasks 13, 14, 14b
 
@@ -444,7 +446,8 @@ Behaviour:
 - `CHANGELOG.md`
 - `docs/backends.md`
 - `docs/CHANGELOG.md`
-- `SECURITY.md`, `CODE_OF_CONDUCT.md` (copied)
+- `SECURITY.md`, `CODE_OF_CONDUCT.md` (copied), `CONTRIBUTORS.md`
+- `mkdocs.yml`, `pyproject.toml`, `tests/test_docs.py`
 
 **Estimated scope:** Medium (mostly prose)
 

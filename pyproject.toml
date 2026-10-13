@@ -2,6 +2,7 @@
 name = "paulrun"
 version = "0.1.0"
 description = "Run hand-written markdown runbooks"
+readme = "README.md"
 authors = [{ name = "Paul Hallett", email = "paulandrewhallett@gmail.com" }]
 license = "MIT"
 requires-python = ">=3.12"
