@@ -87,11 +87,11 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 - [x] Review with Paul (approved 2026-10-14)
 
 ### Phase 4: Docs
-- [ ] Task 9: "Your runbook library" docs page, README and home page
+- [x] Task 9: "Your runbook library" docs page, README and home page
 
 ### Checkpoint 4: Ready to release (Paul only)
-- [ ] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
-- [ ] `uv run mkdocs build --strict` passes
+- [x] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
+- [x] `uv run mkdocs build --strict` passes
 - [ ] Paul releases paulrun 0.2.0 with an unchanged `PUBLISHING.md`, run as `paulrun PUBLISHING.md`
 - [ ] Docs deployed to `phalt.github.io/paulrun`
 

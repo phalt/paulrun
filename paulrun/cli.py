@@ -8,6 +8,7 @@ from typing import Any
 
 import click
 from rich.console import Console
+from rich.text import Text
 
 from paulrun import library, runner, settings
 from paulrun.backends import Backend, BackendError, load_backend_sources, load_backends
@@ -114,11 +115,11 @@ def _pick(console: Console) -> Path:
     width = max(len(book.name) for book in books)
     numbers = len(str(len(books)))
     for number, book in enumerate(books, start=1):
-        # console.out, because a title such as [bold]Deploy[/bold] would be read as markup.
-        console.out(f"  {number:>{numbers}}. {_book_line(book, width)}")
+        _line(console, Text.assemble((f"  {number:>{numbers}}.", "dim"), " ", _book_line(book, width)))
+    question = _styled(console, Text("Run which?", style="bold"))
     while True:
         try:
-            answer = _prompt("Run which?", default="", show_default=False, prompt_suffix=" ").strip()
+            answer = _prompt(question, default="", show_default=False, prompt_suffix=" ").strip()
         except KeyboardInterrupt:
             sys.exit(1)
         if not answer:
@@ -168,14 +169,16 @@ def inputs(runbook: Path) -> None:
         return
     width = max(len(input.name) for input, _ in declared)
     for input, step in declared:
-        console.out(f"{input.name:<{width}}  {input.description}")
+        padding = " " * (width - len(input.name) + 2)
+        _line(console, Text.assemble((input.name, "bold cyan"), padding, input.description))
         details = [f"default: {input.default}"] if input.default is not None else []
         details += [f"choices: {', '.join(input.choices)}"] if input.choices else []
         details += [f"pattern: {input.pattern}"] if input.pattern is not None else []
         details += ["secret"] if input.secret else []
         details += [f'asked in "{step}"'] if step is not None else []
         for detail in details:
-            console.out(f"{'':<{width}}  {detail}")
+            # Details are dim, apart from secret, which is worth noticing.
+            _line(console, Text.assemble(" " * (width + 2), (detail, "yellow" if detail == "secret" else "dim")))
 
 
 @cli.command("library")
@@ -191,22 +194,42 @@ def list_library() -> None:
         console.out(f"no books in the library at {where}")
         console.out(f"Add runbooks there, or set {library.LIBRARY_VARIABLE} to where yours are.")
         return
-    console.out(f"library: {where}")
+    console.out(f"library: {where}", style="dim")
     width = max(len(book.name) for book in books)
     for book in books:
-        # console.out, because a title such as [bold]Deploy[/bold] would be read as markup.
-        console.out(_book_line(book, width))
+        _line(console, _book_line(book, width))
         if book.description is not None:
-            console.out(f"{'':<{width}}  {book.description}")
+            _line(console, Text.assemble(" " * (width + 2), (book.description, "dim")))
         # Command names win, so paulrun <name> wouldn't run this book.
         if book.name in cli.commands:
-            console.out(f"{'':<{width}}  run it with paulrun run {book.name}, since paulrun {book.name} is a command")
+            note = f"run it with paulrun run {book.name}, since paulrun {book.name} is a command"
+            _line(console, Text.assemble(" " * (width + 2), (note, "yellow")))
 
 
-def _book_line(book: library.Book, width: int) -> str:
-    """A book's name, padded to width, then its title, or why it can't be read. Just the name if it has neither."""
-    heading = f"can't read it: {book.problem}" if book.problem is not None else book.title
-    return f"{book.name:<{width}}  {heading}" if heading else book.name
+def _book_line(book: library.Book, width: int) -> Text:
+    """A book's name, padded to width, then its title, or why it can't be read. Just the name if it has neither.
+
+    The name is bold cyan, since it's what you type to run the book.
+    """
+    if book.problem is not None:
+        heading: str | tuple[str, str] | None = (f"can't read it: {book.problem}", "red")
+    else:
+        heading = book.title or None
+    if heading is None:
+        return Text(book.name, style="bold cyan")
+    return Text.assemble((book.name, "bold cyan"), " " * (width - len(book.name) + 2), heading)
+
+
+def _line(console: Console, line: Text) -> None:
+    """Print a line made of styled parts. Text in it is never read as markup or emoji, and never wrapped."""
+    console.print(line, soft_wrap=True, emoji=False, markup=False, highlight=False)
+
+
+def _styled(console: Console, text: Text) -> str:
+    """text as the console would print it, for a Click prompt: in colour in a terminal, plain otherwise."""
+    with console.capture() as capture:
+        console.print(text, end="", soft_wrap=True, emoji=False, markup=False, highlight=False)
+    return capture.get()
 
 
 def _input_blocks(path: Path) -> list[tuple[Input, str | None]]:
@@ -281,9 +304,12 @@ class ClickPrompter:
         if problem is not None:
             # console.out, because a pattern such as [a-z] would be read as markup.
             self.console.out(problem, style="red")
-        text = f"{input.name} ({input.description})"
-        text += f" [{input.default}]" if input.default is not None else ""
-        text += f" ({', '.join(input.choices)})" if input.choices else ""
+        prompt = Text(f"{input.name} ({input.description})")
+        if input.default is not None:
+            prompt.append(" ").append(f"[{input.default}]", style="dim")
+        if input.choices:
+            prompt.append(" ").append(f"({', '.join(input.choices)})", style="dim")
+        text = _styled(self.console, prompt)
         if input.default is None:
             return _prompt(text, hide_input=input.secret)
         # Enter gives "" rather than the default, so collect applies the default and checks it like any answer.

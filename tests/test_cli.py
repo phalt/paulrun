@@ -1354,6 +1354,91 @@ def test_library_marks_a_book_whose_name_is_a_command(runner, tmp_path, monkeypa
     )
 
 
+# The ANSI codes rich uses, so a colour test can say what it expects by name.
+STYLES = {"bold cyan": "1;36", "bold": "1", "dim": "2", "red": "31", "yellow": "33"}
+
+
+def styled(output: str, style: str) -> list[str]:
+    """Every piece of output written in style, in order. Colour tests use this rather than raw escape codes."""
+    return re.findall(rf"\x1b\[{STYLES[style]}m(.*?)\x1b\[0m", output)
+
+
+@pytest.fixture
+def in_colour(monkeypatch):
+    """Make rich colour its output, as it would in a terminal. The runner fixture turns colour off by default."""
+    monkeypatch.setenv("FORCE_COLOR", "1")
+
+
+def test_library_colours_names_so_they_stand_out(runner, in_colour, tmp_path, monkeypatch):
+    """Each book's name, the thing you type, is bold cyan; descriptions and the library path are dim."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\ndescription: Ship it.\n---\n")
+    (tmp_path / "unclosed.md").write_text("---\ntitle: Unclosed\n\n## Step\n")
+    (tmp_path / "check.md").write_text("---\ntitle: Check the deploy\n---\n")
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert styled(result.output, "bold cyan") == ["check", "deploy", "unclosed"]
+    assert styled(result.output, "dim") == [f"library: {tmp_path}", "Ship it."]
+    assert styled(result.output, "red") == ["can't read it: frontmatter has no closing ---"]
+    assert styled(result.output, "yellow") == ["run it with paulrun run check, since paulrun check is a command"]
+
+
+def test_library_never_reads_a_title_as_markup_in_colour(runner, in_colour, tmp_path, monkeypatch):
+    """Colouring a line mustn't make rich read a title like [bold]Odd[/bold] as markup."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "odd.md").write_text("---\ntitle: '[bold]Odd[/bold] :rocket:'\n---\n")
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert "[bold]Odd[/bold] :rocket:" in result.output
+
+
+def test_the_picker_colours_numbers_names_and_the_question(runner, in_colour, monkeypatch):
+    """The numbers are dim, the names bold cyan, and the question bold, like paulrun's other questions.
+
+    color=True, since Click takes the colour out of a prompt that isn't going to a terminal.
+    """
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["run"], input="\n", color=True)
+
+    assert styled(result.output, "bold cyan") == ["say-where", "update-project-deps"]
+    assert styled(result.output, "dim") == ["  1.", "  2."]
+    assert "\x1b[1mRun which?\x1b[0m" in result.output
+
+
+def test_inputs_colours_names_and_dims_their_details(runner, in_colour):
+    """Each input's name is bold cyan, its details dim, and secret yellow, so a secret stands out."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "transcript-example.md")])
+
+    assert styled(result.output, "bold cyan") == ["VERSION", "PUBLISH_TOKEN"]
+    assert styled(result.output, "dim") == ["pattern: ^\\d+\\.\\d+\\.\\d+$"]
+    assert styled(result.output, "yellow") == ["secret"]
+
+
+def test_an_inputs_prompt_dims_its_default_and_choices(runner, in_colour, monkeypatch):
+    """The default and choices in a prompt are dim, so the question itself is easy to read.
+
+    color=True, since Click takes the colour out of a prompt that isn't going to a terminal.
+    """
+    monkeypatch.delenv("FE_SET", raising=False)
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "choices-example.md")], input="\ny\n", color=True)
+
+    assert result.exit_code == 0, result.output
+    assert styled(result.output, "dim")[:2] == ["[comms]", "(comms, billing, all)"]
+
+
+def test_menus_have_no_colour_outside_a_terminal(runner, monkeypatch):
+    """With no terminal, as when piped, nothing is coloured, so output stays easy to read and to grep."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    for arguments in (["library"], ["inputs", str(RUNBOOKS / "transcript-example.md")]):
+        assert "\x1b[" not in runner.invoke(cli.cli, arguments).output
+    assert "\x1b[" not in runner.invoke(cli.cli, ["run"], input="\n").output
+
+
 def test_help_lists_library_command(runner):
     """--help lists the library command."""
     result = runner.invoke(cli.cli, ["--help"])

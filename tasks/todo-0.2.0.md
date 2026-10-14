@@ -323,13 +323,13 @@ It includes a worked example: a runbook that clean-installs a frontend's depende
 The README and `docs/index.md` get a short "Your runbook library" section, and the library goes in the feature list. `tests/test_docs.py` checks that the worked example passes `paulrun check`.
 
 **Acceptance criteria:**
-- [ ] `docs/library.md` covers everything listed above and is in the nav
-- [ ] The worked example passes `check` (tested), using `choices` and `source "$NVM_DIR/nvm.sh"`
-- [ ] The README and home page mention the runbook library and `paulrun library`, and the README example test still passes
+- [x] `docs/library.md` covers everything listed above and is in the nav
+- [x] The worked example passes `check` (tested), using `choices` and `source "$NVM_DIR/nvm.sh"`
+- [x] The README and home page mention the runbook library and `paulrun library`, and the README example test still passes
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_docs.py`
-- [ ] Build succeeds: `uv run mkdocs build --strict`
+- [x] Tests pass: `uv run pytest tests/test_docs.py`
+- [x] Build succeeds: `uv run mkdocs build --strict`
 - [ ] Manual check: Paul reads the new page in `make docs-serve`
 
 **Dependencies:** Tasks 3, 6, 8
@@ -343,7 +343,7 @@ The README and `docs/index.md` get a short "Your runbook library" section, and t
 **Estimated scope:** Medium (mostly prose)
 
 ### Checkpoint 4: Ready to release (Paul only)
-- [ ] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
-- [ ] `uv run mkdocs build --strict` passes
+- [x] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
+- [x] `uv run mkdocs build --strict` passes
 - [ ] Paul releases paulrun 0.2.0 with an unchanged `PUBLISHING.md`, run as `paulrun PUBLISHING.md`
 - [ ] Docs deployed to `phalt.github.io/paulrun`

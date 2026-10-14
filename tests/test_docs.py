@@ -60,6 +60,22 @@ def test_the_home_page_example_runbook_is_valid(tmp_path, without_shellcheck):
     assert check_example(example, tmp_path) == []
 
 
+def test_the_library_pages_worked_example_is_a_valid_book(tmp_path, without_shellcheck):
+    """The library page's frontend rebuild passes check, and shows what the page says it does."""
+    [example] = re.findall(r"^````markdown\n(.*?)^````$", (DOCS / "library.md").read_text(), re.MULTILINE | re.DOTALL)
+
+    assert check_example(example, tmp_path) == []
+    assert 'source "$NVM_DIR/nvm.sh"' in example
+    assert "choices:" in example
+
+
+def test_the_library_page_is_in_the_docs_nav():
+    """The library page is listed in the site's navigation, under Documentation."""
+    nav = (ROOT / "mkdocs.yml").read_text()
+
+    assert "    - 📚 Your runbook library: library.md\n" in nav
+
+
 def test_the_runbook_format_frontmatter_example_is_valid(tmp_path, without_shellcheck):
     """The frontmatter example uses every key, all valid, and its inputs only need using to make a clean runbook."""
     [frontmatter] = re.findall(

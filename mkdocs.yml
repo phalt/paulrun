@@ -34,6 +34,7 @@ nav:
   - 📝 Documentation:
     - 📜 Runbook format: runbook-format.md
     - 📟 Command line: cli.md
+    - 📚 Your runbook library: library.md
     - 🔌 Backends: backends.md
   - 🗒️ Change Log: CHANGELOG.md
 
