@@ -12,7 +12,7 @@ inputs:
 A fence marked `python run` (or `py run`) is run as a Python script:
 
 ```sh
-VERSION=1.2.0 uv run paulrun go tests/runbooks/python-example.md
+VERSION=1.2.0 uv run paulrun tests/runbooks/python-example.md
 ```
 
 With no `python` key in the frontmatter, blocks run with the interpreter that's

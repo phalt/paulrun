@@ -72,7 +72,7 @@ Everything a backend needs is in `paulrun.backends` (`Problem`, `stream` and `In
 
 ### validate()
 
-`paulrun check` calls `validate()` on every block in the backend's languages, and so does `paulrun go`, before anything runs. It returns a list of `Problem`s:
+`paulrun check` calls `validate()` on every block in the backend's languages, and so does `paulrun run`, before anything runs. It returns a list of `Problem`s:
 
 ```python
 @dataclass(frozen=True)
@@ -85,7 +85,7 @@ class Problem:
 ```
 
 - **Lines count from the block's first line**, as 1. paulrun turns them into lines in the runbook, so `check` points at the right place.
-- **An error stops `go`** before anything runs. A warning is shown, and the run carries on.
+- **An error stops a run** before anything runs. A warning is shown, and the run carries on.
 - **The code is as written**, with `<NAME>` placeholders still in it. Before checking it, swap each one for something your language accepts. The built-in backends use the placeholder's bare name, which is a plain word in shell and a plain name in Python:
 
     ```python
@@ -94,7 +94,7 @@ class Problem:
     script = PLACEHOLDER.sub(lambda match: match.group(1), code)
     ```
 
-- **Check that what `run()` needs is installed.** `go` always validates first, so an error here is far friendlier than `run()` failing to start.
+- **Check that what `run()` needs is installed.** `paulrun run` always validates first, so an error here is far friendlier than `run()` failing to start.
 
 ### run()
 

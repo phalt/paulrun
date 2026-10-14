@@ -13,11 +13,11 @@ inputs:
 
 # Transcript example
 
-With `output_path` set, `paulrun go` adds a plain record of each run to that
+With `output_path` set, `paulrun` adds a plain record of each run to that
 file: every command, what it printed, its exit code, and how the run finished.
 
 ```sh
-VERSION=1.2.0 uv run paulrun go tests/runbooks/transcript-example.md
+VERSION=1.2.0 uv run paulrun tests/runbooks/transcript-example.md
 ```
 
 The path is relative to the directory you run paulrun from, not this runbook,

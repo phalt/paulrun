@@ -16,7 +16,7 @@ one-time code that expires in seconds. An `input` block asks for one when the
 run reaches it:
 
 ```sh
-VERSION=1.2.0 uv run paulrun go tests/runbooks/input-block-example.md
+VERSION=1.2.0 uv run paulrun tests/runbooks/input-block-example.md
 ```
 
 An `input` block takes the same keys as a frontmatter input. From then on, the

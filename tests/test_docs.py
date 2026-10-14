@@ -37,12 +37,12 @@ def fences(path: Path) -> list[tuple[str, str]]:
 
 
 def without_durations(output: str) -> str:
-    """go's output with every duration as (Xs), since they change from run to run."""
+    """run's output with every duration as (Xs), since they change from run to run."""
     return re.sub(r"\((\d+m)?\d+(\.\d)?s\)", "(Xs)", output)
 
 
 def without_directories(output: str) -> str:
-    """go's output with the directory it ran in as DIR, since the docs can only show an example of one."""
+    """run's output with the directory it ran in as DIR, since the docs can only show an example of one."""
     return re.sub(r"^directory: .*$", "directory: DIR", output, flags=re.MULTILINE)
 
 
@@ -140,7 +140,7 @@ def test_the_example_backend_runs_the_example_runbook(runner, node_backend, tmp_
     path = tmp_path / "hello-node.md"
     path.write_text(runbook)
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0, result.output
     assert any(line.startswith("Hello from Node v") for line in result.output.splitlines()), result.output

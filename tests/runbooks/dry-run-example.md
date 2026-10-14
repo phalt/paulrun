@@ -16,7 +16,7 @@ inputs:
 inputs filled in, but runs nothing:
 
 ```sh
-VERSION=1.2.0 uv run paulrun go --dry tests/runbooks/dry-run-example.md
+VERSION=1.2.0 uv run paulrun --dry tests/runbooks/dry-run-example.md
 ```
 
 There's no start prompt and `confirm` blocks don't wait. Plain inputs are still

@@ -17,8 +17,8 @@ paulrun releases itself with this runbook:
 
 ```sh
 paulrun check PUBLISHING.md
-paulrun go PUBLISHING.md --dry
-paulrun go PUBLISHING.md
+paulrun PUBLISHING.md --dry
+paulrun PUBLISHING.md
 ```
 
 You can also follow it by hand: each step's commands are in the order they run.

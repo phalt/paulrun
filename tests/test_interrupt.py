@@ -112,14 +112,14 @@ def runbook(tmp_path):
 
 
 def run_paulrun(path: Path, *, answers: str, at: str | Path) -> tuple[int, str]:
-    """Run paulrun go, typing answers, and press Ctrl-C once it gets to `at`. Returns its exit code and output.
+    """Run paulrun run, typing answers, and press Ctrl-C once it gets to `at`. Returns its exit code and output.
 
     paulrun is started in the runbook's directory, so the files its blocks make are next to the runbook.
     `at` is either text paulrun prints, such as a prompt, or a file a block creates once it's running.
     Waiting for one of those, not for a length of time, makes sure Ctrl-C lands where the test means.
     """
     paulrun = start_in_own_group(
-        [sys.executable, "-c", "from paulrun.cli import cli; cli()", "go", str(path)],
+        [sys.executable, "-c", "from paulrun.cli import cli; cli()", "run", str(path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -143,7 +143,7 @@ def run_paulrun(path: Path, *, answers: str, at: str | Path) -> tuple[int, str]:
     return paulrun.returncode, (output + rest).decode()
 
 
-def test_go_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runbook, tmp_path):
+def test_run_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runbook, tmp_path):
     """The block's output and exit code are kept, later steps don't run, and the run ends as interrupted."""
     path = runbook(
         """\
@@ -176,7 +176,7 @@ def test_go_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runbook
     assert transcript.endswith('\n--- finished: interrupted at "Slow"\n')
 
 
-def test_go_ctrl_c_at_a_confirm_finishes_as_interrupted(runbook, tmp_path):
+def test_run_ctrl_c_at_a_confirm_finishes_as_interrupted(runbook, tmp_path):
     """Ctrl-C while paulrun waits at a confirm ends the run there, with no answer recorded."""
     path = runbook(
         """\
@@ -204,7 +204,7 @@ def test_go_ctrl_c_at_a_confirm_finishes_as_interrupted(runbook, tmp_path):
     assert transcript.endswith('=== Manual ===\n\n--- finished: interrupted at "Manual"\n')
 
 
-def test_go_ctrl_c_before_starting_writes_no_transcript(runbook, tmp_path):
+def test_run_ctrl_c_before_starting_writes_no_transcript(runbook, tmp_path):
     """Ctrl-C at the start prompt ends the run before any step, so there's nothing to record."""
     path = runbook("## Only\n\n```sh run\ntouch ran\n```\n")
 

@@ -14,7 +14,7 @@ paulrun prints `docstring` blocks as it reaches them, and stops at each
 nothing after it runs.
 
 ```sh
-VERSION=1.2.0 uv run paulrun go tests/runbooks/docstring-and-confirm-example.md
+VERSION=1.2.0 uv run paulrun tests/runbooks/docstring-and-confirm-example.md
 ```
 
 Both kinds of block have plain inputs substituted, like `run` blocks.

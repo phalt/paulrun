@@ -47,10 +47,10 @@ def test_hello_is_the_readme_example():
 
 
 def test_hello_runs_end_to_end(runner, monkeypatch):
-    """go runs hello.md's shell and Python blocks with the name it asks for."""
+    """run runs hello.md's shell and Python blocks with the name it asks for."""
     monkeypatch.delenv("NAME", raising=False)
 
-    result = runner.invoke(cli.cli, ["go", str(EXAMPLES / "hello.md")], input="Paul\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(EXAMPLES / "hello.md")], input="Paul\ny\n")
 
     assert result.exit_code == 0, result.output
     lines = result.output.splitlines()
@@ -69,7 +69,7 @@ def test_a_dry_release_shows_every_step_for_the_version(path, runner, tmp_path, 
     monkeypatch.setenv("VERSION", "9.9.9")
     monkeypatch.delenv("UV_PUBLISH_TOKEN", raising=False)
 
-    result = runner.invoke(cli.cli, ["go", "--dry", str(copy)])
+    result = runner.invoke(cli.cli, ["run", "--dry", str(copy)])
 
     assert result.exit_code == 0, result.output
     lines = result.output.splitlines()

@@ -51,7 +51,7 @@ Each name can only be declared once, in the frontmatter or an [input block](#inp
 
 Frontmatter inputs are all collected before the first step runs, in the order they're declared. [Input blocks](#input-blocks) are collected the same way, but later, when the run reaches them.
 
-1. If an environment variable with the input's name is set, paulrun uses it without asking. `VERSION=1.2.0 paulrun go RELEASING.md` releases 1.2.0 with no prompt. An empty variable counts as not set.
+1. If an environment variable with the input's name is set, paulrun uses it without asking. `VERSION=1.2.0 paulrun RELEASING.md` releases 1.2.0 with no prompt. An empty variable counts as not set.
 2. Otherwise paulrun asks for it, showing its name and description.
 
 If the input has a `pattern`, the value must match all of it. A typed answer that doesn't match is refused and asked for again. A value from the environment that doesn't match stops paulrun with an error, before anything runs.
@@ -80,7 +80,7 @@ An input with `secret: true` is for something that mustn't be shown or saved, li
 - Its prompt hides what's typed.
 - It's never replaced as a placeholder. Read it from the environment instead, as `$PUBLISH_TOKEN`. Writing `<PUBLISH_TOKEN>` is a `check` error.
 - Its value is replaced with `****` everywhere paulrun shows or records it: block output, the transcript, and anywhere it appears in the runbook itself.
-- `paulrun go --dry` doesn't ask for it at all.
+- `paulrun --dry` doesn't ask for it at all.
 
 ```sh
 uv publish --token "$PUBLISH_TOKEN"
@@ -118,7 +118,7 @@ It pairs well with `confirm`: do this by hand, then tell paulrun what you got.
 Since its value doesn't exist until the run reaches it:
 
 - Using it before the block, as `<PR>` or `$PR`, is a `check` error, and so is using it in `output_path`.
-- `paulrun go --dry` doesn't ask for it. It shows where the run would stop to ask, and later blocks show `<PR>` as written.
+- `paulrun --dry` doesn't ask for it. It shows where the run would stop to ask, and later blocks show `<PR>` as written.
 - [`paulrun inputs`](cli.md#paulrun-inputs) lists it with the step that asks for it.
 
 The text inside an `input` block is only read as YAML, so a placeholder in its description is just text.
@@ -199,10 +199,10 @@ Blocks run in the folder you run paulrun from, not the folder the runbook is in.
 
 ```sh
 cd ~/Projects/website
-paulrun go ~/runbooks/update-deps.md    # updates the website's dependencies
+paulrun ~/runbooks/update-deps.md    # updates the website's dependencies
 
 cd ~/Projects/api
-paulrun go ~/runbooks/update-deps.md    # updates the api's
+paulrun ~/runbooks/update-deps.md    # updates the api's
 ```
 
 A runbook that lives in its project, like a `RELEASING.md` at the root, works the same as long as you run it from there.

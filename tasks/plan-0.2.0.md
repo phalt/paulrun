@@ -71,7 +71,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 ### Phase 2: The runbook library
 - [x] Task 4: Find books in the library by name for `go`, `check` and `inputs`
 - [x] Task 5: `paulrun library`
-- [ ] Task 5b: `run` replaces `go`, and runbooks run with no command (added 2026-10-14)
+- [x] Task 5b: `run` replaces `go`, and runbooks run with no command (added 2026-10-14)
 - [ ] Task 6: Pick a book from the library for `paulrun run` with no runbook
 
 ### Checkpoint 2: Runbook library works

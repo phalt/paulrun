@@ -54,7 +54,7 @@ Check it, then run it:
 
 ```sh
 paulrun check RELEASING.md
-paulrun go RELEASING.md
+paulrun RELEASING.md
 ```
 
 paulrun asks for the version, shows you the plan, and runs each step in order, streaming every command's output as it goes. It stops at the first command that fails, and waits for you at the GitHub step, since that one is done by hand:
@@ -97,7 +97,7 @@ Release steps get forgotten. Writing them down helps; making the written-down ve
 
 - **It's just markdown** - A runbook reads like documentation, renders on GitHub, and works fine without paulrun.
 - **Check before you run** - `paulrun check` catches undeclared placeholders, broken frontmatter and shell or Python syntax errors before anything runs.
-- **See what would happen** - `paulrun go --dry` shows every command with its inputs filled in, and runs nothing.
+- **See what would happen** - `paulrun --dry RELEASING.md` shows every command with its inputs filled in, and runs nothing.
 - **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets out of the screen and the log.
 - **Manual steps too** - `confirm` blocks pause for the things only a person can do.
 - **A record of every run** - An optional transcript keeps every command, its output and how the run finished.

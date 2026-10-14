@@ -1,7 +1,8 @@
 # 📟 Command line
 
 ```sh
-paulrun go RUNBOOK [--dry] [--step]   # run a runbook
+paulrun RUNBOOK [--dry] [--step]      # run a runbook
+paulrun run RUNBOOK [--dry] [--step]  # the same, in full
 paulrun check RUNBOOK                 # find problems without running anything
 paulrun inputs RUNBOOK                # list the inputs a runbook needs
 paulrun library                       # list the books in your runbook library
@@ -9,13 +10,15 @@ paulrun backends                      # list the languages paulrun can run
 paulrun --version
 ```
 
+`paulrun` on its own shows this list, with a line about each command.
+
 ## Naming a runbook
 
 `RUNBOOK` is a path to a runbook file, or the name of a book in your runbook library.
 
 ```sh
-paulrun go RELEASING.md        # the file RELEASING.md, here
-paulrun go rebuild-frontend    # the book rebuild-frontend.md, in your library
+paulrun RELEASING.md        # the file RELEASING.md, here
+paulrun rebuild-frontend    # the book rebuild-frontend.md, in your library
 ```
 
 Your runbook library is a folder of runbooks you keep for yourself, rather than in a project. It's `~/runbooks`, unless you set `PAULRUN_LIBRARY` to somewhere else:
@@ -38,13 +41,15 @@ Error: Invalid value for 'RUNBOOK': no runbook 'rebuild-frontend': no such file 
 
 Wherever the runbook comes from, its blocks run in the folder you run paulrun from. See [Where blocks run](runbook-format.md#where-blocks-run).
 
-## paulrun go
+## paulrun run
 
 Runs a runbook, step by step. `RUNBOOK` is a file or a book in your library; see [Naming a runbook](#naming-a-runbook).
 
 ```sh
-paulrun go RELEASING.md
+paulrun RELEASING.md
 ```
+
+You don't need to type `run`: anything after `paulrun` that isn't one of its commands is a runbook to run. `paulrun run RELEASING.md` does exactly the same, and is how you run a book whose name is also a command, e.g. `paulrun run check` for a book called `check.md`, since `paulrun check` is always the `check` command. Options can go before or after the runbook, so `paulrun RELEASING.md --dry` and `paulrun --dry RELEASING.md` are the same.
 
 1. **Checks the runbook** first, exactly as [`paulrun check`](#paulrun-check) does. Any error stops it here, before anything runs. Warnings are shown, then it carries on.
 2. **Collects the inputs**, from the environment or by asking. See [How inputs are collected](runbook-format.md#how-inputs-are-collected).
@@ -101,7 +106,7 @@ If the runbook has an [`output_path`](runbook-format.md#transcript), the run is 
 Shows what the runbook would do, without doing any of it.
 
 ```sh
-paulrun go --dry RELEASING.md
+paulrun --dry RELEASING.md
 ```
 
 Every block is shown with its inputs filled in, but nothing runs. The plan still shows the folder blocks would run in, so you can check it before a real run. There's no `Start?` question, `confirm` blocks don't wait, and no transcript is written. Frontmatter inputs are still collected, so the blocks can be filled in, but secrets aren't needed, so they aren't asked for and show as `****`. [`input` blocks](runbook-format.md#input-blocks) aren't asked for either, since their values may not exist yet: each shows where the run would stop to ask, and later blocks show its placeholder as written.
@@ -134,7 +139,7 @@ finished: dry run, nothing was run
 Asks about every `run` block before running it.
 
 ```sh
-paulrun go --step RELEASING.md
+paulrun --step RELEASING.md
 ```
 
 After each block's code is shown, paulrun asks `Run this block? [y]es / [s]kip / [q]uit`:
@@ -170,7 +175,7 @@ Ctrl-C stops the run, cleanly:
 
 ## paulrun check
 
-Finds problems in a runbook without running anything. Like `go`, it takes a file or a book's name.
+Finds problems in a runbook without running anything. Like `run`, it takes a file or a book's name.
 
 ```sh
 paulrun check RELEASING.md
@@ -210,11 +215,11 @@ broken.md:21: error: syntax error near unexpected token `fi'
 - an input nothing uses
 - a Python `SyntaxWarning`, and [shellcheck](install.md#optional-shellcheck) findings if it's installed
 
-`paulrun go` runs the same checks before it starts.
+`paulrun run` runs the same checks before it starts.
 
 ## paulrun inputs
 
-Lists the inputs a runbook needs, so you know what to have ready, or what to set in the environment. Like `go`, it takes a file or a book's name.
+Lists the inputs a runbook needs, so you know what to have ready, or what to set in the environment. Like `run`, it takes a file or a book's name.
 
 ```sh
 paulrun inputs PUBLISHING.md

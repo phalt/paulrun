@@ -12,7 +12,7 @@ A book for any `uv` project. Run it from the project you want to update:
 
 ```sh
 cd ~/Projects/my-package
-paulrun go update-project-deps
+paulrun update-project-deps
 ```
 
 This copy only says what it would do, so it's safe to run anywhere.

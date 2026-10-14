@@ -16,8 +16,8 @@ paulrun asks for each input before the first step runs, unless it's already set
 in the environment:
 
 ```sh
-uv run paulrun go tests/runbooks/inputs-example.md
-VERSION=1.2.0 uv run paulrun go tests/runbooks/inputs-example.md
+uv run paulrun tests/runbooks/inputs-example.md
+VERSION=1.2.0 uv run paulrun tests/runbooks/inputs-example.md
 ```
 
 `VERSION` has to match its pattern, so an answer like `latest` is refused and

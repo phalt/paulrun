@@ -10,7 +10,7 @@ runs by name from anywhere, in the folder you run it from:
 
 ```sh
 cd /tmp
-PAULRUN_LIBRARY=~/Projects/paulrun/tests/library uv run --project ~/Projects/paulrun paulrun go say-where
+PAULRUN_LIBRARY=~/Projects/paulrun/tests/library uv run --project ~/Projects/paulrun paulrun say-where
 ```
 
 ## Say where

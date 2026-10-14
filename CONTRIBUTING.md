@@ -90,7 +90,7 @@ make test
 You can run your copy of paulrun with `uv run paulrun`, e.g. on one of the example runbooks in `tests/runbooks/`:
 
 ```sh
-uv run paulrun go tests/runbooks/two_steps.md
+uv run paulrun tests/runbooks/two_steps.md
 ```
 
 Run `make help` to see every command.

@@ -4,12 +4,12 @@ title: Two steps
 
 # Two steps
 
-A shell-only runbook for watching `paulrun go` stream output. Its blocks run
+A shell-only runbook for watching `paulrun` stream output. Its blocks run
 in the directory you start paulrun from, wherever the runbook itself is:
 
 ```sh
 cd /tmp
-uv run --project ~/Projects/paulrun paulrun go ~/Projects/paulrun/tests/runbooks/two_steps.md
+uv run --project ~/Projects/paulrun paulrun ~/Projects/paulrun/tests/runbooks/two_steps.md
 ```
 
 ## Count slowly

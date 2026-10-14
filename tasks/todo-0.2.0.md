@@ -173,15 +173,15 @@ Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul
 - CHANGELOG: a **Breaking** line saying `go` is now `run`, and that `paulrun RUNBOOK` works on its own.
 
 **Acceptance criteria:**
-- [ ] `paulrun RUNBOOK` and `paulrun run RUNBOOK` give the same output and exit code, for a file and for a book, with `--dry` and `--step` before or after the runbook
-- [ ] `paulrun go ...` is a usage error (it's read as a runbook called `go`, which doesn't exist); bare `paulrun` and `paulrun --help` show help listing `run`; `paulrun --version` still works
-- [ ] A command name is never read as a runbook, and `paulrun library` marks a book that shares a command's name
-- [ ] No `paulrun go` is left in the code, tests, fixtures, examples, `PUBLISHING.md`, README, docs or CONTRIBUTING, apart from the 0.1.0 CHANGELOG entry
+- [x] `paulrun RUNBOOK` and `paulrun run RUNBOOK` give the same output and exit code, for a file and for a book, with `--dry` and `--step` before or after the runbook
+- [x] `paulrun go ...` is a usage error (it's read as a runbook called `go`, which doesn't exist); bare `paulrun` and `paulrun --help` show help listing `run`; `paulrun --version` still works
+- [x] A command name is never read as a runbook, and `paulrun library` marks a book that shares a command's name
+- [x] No `paulrun go` is left in the code, tests, fixtures, examples, `PUBLISHING.md`, README, docs or CONTRIBUTING, apart from the 0.1.0 CHANGELOG entry
 
 **Verification:**
-- [ ] Tests pass: `make test`
-- [ ] Build succeeds: `uv run mkdocs build --strict`
-- [ ] Manual check: `VERSION=9.9.9 uv run paulrun PUBLISHING.md --dry` from the repo root, and `PAULRUN_LIBRARY=tests/library uv run paulrun say-where` from `/tmp`
+- [x] Tests pass: `make test`
+- [x] Build succeeds: `uv run mkdocs build --strict`
+- [x] Manual check: `VERSION=9.9.9 uv run paulrun PUBLISHING.md --dry` from the repo root, and `PAULRUN_LIBRARY=tests/library uv run paulrun say-where` from `/tmp`
 
 **Dependencies:** Task 5
 

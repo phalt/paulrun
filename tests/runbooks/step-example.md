@@ -8,7 +8,7 @@ description: Choose, block by block, what runs.
 With `--step`, paulrun shows each `run` block's code and then asks what to do:
 
 ```sh
-uv run paulrun go --step tests/runbooks/step-example.md
+uv run paulrun --step tests/runbooks/step-example.md
 ```
 
 - `y` runs the block.

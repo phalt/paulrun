@@ -17,10 +17,29 @@ from paulrun.transcript import Transcript, TranscriptError
 from paulrun.validate import Report, validate
 
 
-@click.group("paulrun")
+class RunsByDefault(click.Group):
+    """A group where anything that isn't a command is a runbook to run, so paulrun X is paulrun run X.
+
+    Command names always win, so a book called check.md is run with paulrun run check. With nothing at all,
+    the group shows its help.
+    """
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if not args:
+            click.echo(ctx.get_help())
+            ctx.exit(0)
+        if args[0] not in self.commands and args[0] not in ctx.help_option_names and args[0] != "--version":
+            args = ["run", *args]
+        return super().parse_args(ctx, args)
+
+
+@click.group("paulrun", cls=RunsByDefault, subcommand_metavar="RUNBOOK | COMMAND [ARGS]...")
 @click.version_option(settings.VERSION)
 def cli() -> None:
-    """Run hand-written markdown runbooks."""
+    """Run hand-written markdown runbooks.
+
+    paulrun RUNBOOK executes a runbook.
+    """
 
 
 class RunbookArgument(click.ParamType):
@@ -41,14 +60,15 @@ class RunbookArgument(click.ParamType):
         self.fail(f"no runbook {value!r}: no such file here, and no {book} in the library at {where}", param, ctx)
 
 
-@cli.command()
+@cli.command("run")
 @click.argument("runbook", type=RunbookArgument())
 @click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
 @click.option("--step", is_flag=True, help="Ask before each run block whether to run it, skip it or quit.")
-def go(runbook: Path, dry: bool, step: bool) -> None:
+def run_runbook(runbook: Path, dry: bool, step: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
     RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
+    paulrun RUNBOOK, with no command, does the same.
     """
     console = Console(highlight=False)
     parsed, backends, report = _validated(runbook)
@@ -129,7 +149,7 @@ def inputs(runbook: Path) -> None:
 def list_library() -> None:
     """List the books in your runbook library, with each one's title and description.
 
-    The library is ~/runbooks, or $PAULRUN_LIBRARY. Run a book from it by name, e.g. paulrun go deploy.
+    The library is ~/runbooks, or $PAULRUN_LIBRARY. Run a book from it by name, e.g. paulrun deploy.
     """
     console = Console(highlight=False)
     where = library.location(os.environ)
@@ -146,6 +166,9 @@ def list_library() -> None:
         console.out(f"{book.name:<{width}}  {heading}" if heading is not None else book.name)
         if book.description is not None:
             console.out(f"{'':<{width}}  {book.description}")
+        # Command names win, so paulrun <name> wouldn't run this book.
+        if book.name in cli.commands:
+            console.out(f"{'':<{width}}  run it with paulrun run {book.name}, since paulrun {book.name} is a command")
 
 
 def _input_blocks(path: Path) -> list[tuple[Input, str | None]]:

@@ -36,7 +36,7 @@ def shellcheck_not_installed(without_shellcheck):
 def write_runbook(tmp_path: Path, text: str) -> Path:
     """Write a dedented runbook into tmp_path and return its path.
 
-    go validates first and a title is required, so a runbook written without frontmatter gets `title: Test`.
+    run validates first and a title is required, so a runbook written without frontmatter gets `title: Test`.
     """
     text = textwrap.dedent(text)
     if not text.startswith("---\n"):
@@ -47,7 +47,7 @@ def write_runbook(tmp_path: Path, text: str) -> Path:
 
 
 def with_directory(output: str, directory: Path) -> str:
-    """go's output with the directory line's path as DIR, since it's a different temporary directory each time."""
+    """run's output with the directory line's path as DIR, since it's a different temporary directory each time."""
     return output.replace(f"\ndirectory: {directory}\n", "\ndirectory: DIR\n", 1)
 
 
@@ -108,28 +108,109 @@ def test_version_prints_package_version(runner):
     assert result.output == f"paulrun, version {importlib.metadata.version('paulrun')}\n"
 
 
-def test_help_lists_go_command(runner):
-    """--help lists the go command."""
+def test_help_lists_run_command_and_says_a_runbook_can_go_first(runner):
+    """--help lists run, and its usage shows a runbook can be given in place of a command."""
     result = runner.invoke(cli.cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "Usage: paulrun" in result.output
-    assert "\n  go " in result.output
+    assert "Usage: paulrun [OPTIONS] RUNBOOK | COMMAND [ARGS]..." in result.output
+    assert "\n  run " in result.output
 
 
-def test_go_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path, started_in):
-    """go names the directory it was started in straight after the title, so you see where blocks will run."""
+def test_paulrun_with_nothing_else_shows_help(runner):
+    """Bare paulrun shows help, as it always has, rather than running or picking anything."""
+    result = runner.invoke(cli.cli, [])
+
+    assert result.exit_code == 0
+    assert result.output == runner.invoke(cli.cli, ["--help"]).output
+
+
+def test_a_runbook_runs_the_same_with_or_without_the_run_command(runner, started_in):
+    """paulrun RUNBOOK is paulrun run RUNBOOK: same output, same exit code."""
+    shutil.copy(RUNBOOKS / "two_steps.md", started_in)
+
+    without_run = runner.invoke(cli.cli, ["two_steps.md"], input="y\n")
+    with_run = runner.invoke(cli.cli, ["run", "two_steps.md"], input="y\n")
+
+    assert without_run.exit_code == with_run.exit_code == 0, without_run.output
+    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", without_run.output) == re.sub(r"\(\d+\.\ds\)", "(Xs)", with_run.output)
+    assert without_run.output.startswith("Two steps\n")
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [["say-where", "--dry"], ["--dry", "say-where"], ["run", "--dry", "say-where"]],
+    ids=["option after", "option before", "with run"],
+)
+def test_options_work_on_either_side_of_a_runbook_given_without_run(arguments, runner, monkeypatch):
+    """--dry and --step can come before or after the runbook, with or without run."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, arguments)
+
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
+
+
+def test_a_runbook_given_without_run_has_the_same_errors(runner, empty_library):
+    """A runbook that isn't there is the same usage error, with or without run."""
+    result = runner.invoke(cli.cli, ["rebuild-frontend"])
+
+    assert result.exit_code == 2
+    assert f"no rebuild-frontend.md in the library at {empty_library}" in result.output
+
+
+def test_go_is_not_a_command_any_more(runner, empty_library):
+    """go was replaced by run, so paulrun go x looks for a runbook called go, and doesn't run x."""
+    shutil.copy(RUNBOOKS / "two_steps.md", empty_library)
+
+    result = runner.invoke(cli.cli, ["go", "two_steps"], input="y\n")
+
+    assert result.exit_code == 2
+    assert "no runbook 'go'" in result.output
+    assert "\n  go " not in runner.invoke(cli.cli, ["--help"]).output
+
+
+@pytest.mark.parametrize("command", ["check", "inputs", "library", "backends", "run"])
+def test_a_command_name_is_never_read_as_a_runbook(command, runner, monkeypatch, tmp_path):
+    """Command names win, so a book named after a command doesn't stop the command working."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / f"{command}.md").write_text(
+        "---\ntitle: A book named like a command\n---\n\n## S\n\n```sh run\necho book\n```\n"
+    )
+
+    result = runner.invoke(cli.cli, [command, "--help"])
+
+    assert result.exit_code == 0
+    assert f"Usage: paulrun {command} " in result.output
+
+
+def test_run_reaches_a_book_named_like_a_command(runner, monkeypatch, tmp_path):
+    """paulrun run check runs the book check.md, since paulrun check is the command."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "check.md").write_text(
+        "---\ntitle: Check the deploy\n---\n\n## S\n\n```sh run\necho the book ran\n```\n"
+    )
+
+    result = runner.invoke(cli.cli, ["run", "check"], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    assert "the book ran" in result.output.splitlines()
+
+
+def test_run_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path, started_in):
+    """run names the directory it was started in straight after the title, so you see where blocks will run."""
     path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
 
-    for arguments in (["go", str(path)], ["go", "--dry", str(path)]):
+    for arguments in (["run", str(path)], ["run", "--dry", str(path)]):
         result = runner.invoke(cli.cli, arguments, input="y\n")
 
         assert result.exit_code == 0
         assert result.output.splitlines()[:2] == ["Test", f"directory: {started_in}"]
 
 
-def test_go_prints_each_step_block_and_result(runner, tmp_path, started_in):
-    """go prints each step's name, each block's code, its output and exit code, then how the run finished."""
+def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
+    """run prints each step's name, each block's code, its output and exit code, then how the run finished."""
     path = write_runbook(
         tmp_path,
         """\
@@ -148,7 +229,7 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path, started_in):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
     assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
@@ -177,9 +258,9 @@ def test_go_prints_each_step_block_and_result(runner, tmp_path, started_in):
     )
 
 
-def test_go_runs_blocks_in_the_directory_it_is_started_from(runner, started_in):
+def test_run_runs_blocks_in_the_directory_it_is_started_from(runner, started_in):
     """Blocks run where paulrun is started, not in the runbook's directory, and can still find the runbook's."""
-    result = runner.invoke(cli.cli, ["go", str(RUNBOOKS / "two_steps.md")], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "two_steps.md")], input="y\n")
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
@@ -188,7 +269,7 @@ def test_go_runs_blocks_in_the_directory_it_is_started_from(runner, started_in):
     assert f"runbook: {RUNBOOKS.resolve()}" in lines
 
 
-def test_go_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
+def test_run_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
     """A failing block ends the run with exit code 1, naming the step, and later steps don't run."""
     path = write_runbook(
         tmp_path,
@@ -213,7 +294,7 @@ def test_go_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
     assert "passing" in result.output.splitlines()
@@ -223,7 +304,7 @@ def test_go_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
     assert "unreachable" not in result.output
 
 
-def test_go_prints_output_and_code_verbatim(runner, tmp_path):
+def test_run_prints_output_and_code_verbatim(runner, tmp_path):
     """Output and code that look like rich markup or emoji codes, and long lines, are printed exactly as they are."""
     path = write_runbook(
         tmp_path,
@@ -237,7 +318,7 @@ def test_go_prints_output_and_code_verbatim(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     lines = result.output.splitlines()
     assert "    echo '[bold]markup[/bold] :smile:'" in lines
@@ -245,9 +326,9 @@ def test_go_prints_output_and_code_verbatim(runner, tmp_path):
     assert "0" * 200 in lines
 
 
-def test_go_streams_output_line_by_line_through_a_pipe():
+def test_run_streams_output_line_by_line_through_a_pipe():
     """Each line is written as soon as the block prints it, even when paulrun's stdout is a pipe."""
-    command = [sys.executable, "-c", "from paulrun.cli import cli; cli()", "go", str(RUNBOOKS / "two_steps.md")]
+    command = [sys.executable, "-c", "from paulrun.cli import cli; cli()", "run", str(RUNBOOKS / "two_steps.md")]
     arrivals: dict[str, float] = {}
 
     with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) as process:
@@ -261,19 +342,19 @@ def test_go_streams_output_line_by_line_through_a_pipe():
     assert arrivals["3"] - arrivals["1"] >= 0.3
 
 
-def test_go_rejects_missing_runbook_as_usage_error(runner, tmp_path):
+def test_run_rejects_missing_runbook_as_usage_error(runner, tmp_path):
     """A runbook path that doesn't exist is a usage error."""
-    result = runner.invoke(cli.cli, ["go", str(tmp_path / "missing.md")])
+    result = runner.invoke(cli.cli, ["run", str(tmp_path / "missing.md")])
 
     assert result.exit_code == 2
 
 
 @pytest.mark.parametrize("name", ["say-where", "say-where.md"])
-def test_go_runs_a_book_from_the_library_by_name_where_it_was_started(name, runner, monkeypatch, started_in):
+def test_run_runs_a_book_from_the_library_by_name_where_it_was_started(name, runner, monkeypatch, started_in):
     """A name that isn't a file here is the book of that name in PAULRUN_LIBRARY, and runs here, not in the library."""
     monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
 
-    result = runner.invoke(cli.cli, ["go", name], input="y\n")
+    result = runner.invoke(cli.cli, ["run", name], input="y\n")
 
     assert result.exit_code == 0, result.output
     lines = result.output.splitlines()
@@ -285,7 +366,7 @@ def test_go_runs_a_book_from_the_library_by_name_where_it_was_started(name, runn
 @pytest.mark.parametrize("command", ["check", "inputs"])
 @pytest.mark.parametrize("name", ["update-project-deps", "update-project-deps.md"])
 def test_check_and_inputs_find_a_book_in_the_library_by_name(command, name, runner, monkeypatch):
-    """check and inputs look up a name the same way go does."""
+    """check and inputs look up a name the same way run does."""
     monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, [command, name])
@@ -303,7 +384,7 @@ def test_check_names_a_book_by_its_path_in_the_library(runner, monkeypatch):
     assert result.output == f"{LIBRARY / 'say-where.md'}: ok\n"
 
 
-def test_go_uses_the_default_library_in_the_home_directory(runner, tmp_path, monkeypatch):
+def test_run_uses_the_default_library_in_the_home_directory(runner, tmp_path, monkeypatch):
     """With no PAULRUN_LIBRARY, a name is looked up in ~/runbooks."""
     monkeypatch.delenv("PAULRUN_LIBRARY")
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -314,28 +395,28 @@ def test_go_uses_the_default_library_in_the_home_directory(runner, tmp_path, mon
     assert result.output == f"{tmp_path / 'runbooks' / 'say-where.md'}: ok\n"
 
 
-def test_go_runs_a_file_here_before_a_book_with_the_same_name(runner, monkeypatch, started_in):
+def test_run_runs_a_file_here_before_a_book_with_the_same_name(runner, monkeypatch, started_in):
     """Paths win over names: a runbook where paulrun is started is used, not the library's book."""
     monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
     write_runbook(started_in, "## Here\n\n```sh run\necho the local one\n```\n").rename(started_in / "say-where.md")
 
-    result = runner.invoke(cli.cli, ["go", "say-where.md"], input="y\n")
+    result = runner.invoke(cli.cli, ["run", "say-where.md"], input="y\n")
 
     assert result.exit_code == 0, result.output
     assert "the local one" in result.output.splitlines()
 
 
-def test_go_never_looks_in_the_library_for_a_path(runner, monkeypatch):
+def test_run_never_looks_in_the_library_for_a_path(runner, monkeypatch):
     """An argument with a / is only a path, so a mistyped path is an error, not a different runbook."""
     monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
 
-    result = runner.invoke(cli.cli, ["go", "docs/say-where.md"])
+    result = runner.invoke(cli.cli, ["run", "docs/say-where.md"])
 
     assert result.exit_code == 2
     assert "Error: Invalid value for 'RUNBOOK': no such file: docs/say-where.md\n" in result.output
 
 
-@pytest.mark.parametrize("command", ["go", "check", "inputs"])
+@pytest.mark.parametrize("command", ["run", "check", "inputs"])
 def test_a_name_that_is_not_here_or_in_the_library_is_a_usage_error(command, runner, empty_library):
     """The error names both places paulrun looked, so it's clear which one to fix."""
     result = runner.invoke(cli.cli, [command, "rebuild-frontend"])
@@ -347,18 +428,18 @@ def test_a_name_that_is_not_here_or_in_the_library_is_a_usage_error(command, run
     ) in result.output
 
 
-def test_go_reports_runbook_it_cannot_read(runner, tmp_path):
+def test_run_reports_runbook_it_cannot_read(runner, tmp_path):
     """A runbook that can't be parsed is reported as an error, without a traceback."""
     path = write_runbook(tmp_path, "---\ntitle: Unclosed\n\n## Step\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)])
+    result = runner.invoke(cli.cli, ["run", str(path)])
 
     assert result.exit_code == 1
     assert result.output == "Error: frontmatter has no closing ---\n"
 
 
-def test_go_refuses_to_start_a_runbook_with_errors(runner, tmp_path):
-    """go checks the runbook first, and any error stops it before inputs are asked for or anything runs."""
+def test_run_refuses_to_start_a_runbook_with_errors(runner, tmp_path):
+    """run checks the runbook first, and any error stops it before inputs are asked for or anything runs."""
     path = write_runbook(
         tmp_path,
         """\
@@ -381,28 +462,28 @@ def test_go_refuses_to_start_a_runbook_with_errors(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="1.2.0\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="1.2.0\ny\n")
 
     assert result.exit_code == 1
     assert result.output == f"{path}:14: error: no backend runs 'cobol' blocks\n\n1 error\n"
     assert not (tmp_path / "ran").exists()
 
 
-def test_go_dry_also_refuses_a_runbook_with_errors(runner, tmp_path):
+def test_run_dry_also_refuses_a_runbook_with_errors(runner, tmp_path):
     """--dry checks the runbook the same way, so a dry run can't hide a broken block."""
     path = write_runbook(tmp_path, "## Step\n\n```sh run\nif true; then\nfi\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", "--dry", str(path)])
+    result = runner.invoke(cli.cli, ["run", "--dry", str(path)])
 
     assert result.exit_code == 1
     assert result.output == f"{path}:9: error: syntax error near unexpected token `fi'\n\n1 error\n"
 
 
-def test_go_prints_warnings_and_carries_on(runner, tmp_path):
+def test_run_prints_warnings_and_carries_on(runner, tmp_path):
     """Warnings are printed before the run, but don't stop it."""
     path = write_runbook(tmp_path, "---\ntitle: Warns\nextra: 1\n---\n\n## Step\n\n```sh run\necho ran\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
     assert result.output.startswith(f"{path}:3: warning: unknown frontmatter key 'extra'\n\n1 warning\nWarns\n")
@@ -513,8 +594,8 @@ def test_help_lists_check_command(runner):
     assert "\n  check " in result.output
 
 
-def test_go_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
-    """If the installed backends conflict, go says so instead of crashing."""
+def test_run_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
+    """If the installed backends conflict, run says so instead of crashing."""
 
     def conflicting_backends():
         raise BackendError("language 'sh' is claimed by both 'shell' and 'rival'")
@@ -522,15 +603,15 @@ def test_go_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "load_backends", conflicting_backends)
     path = write_runbook(tmp_path, "## Step\n\n```sh run\necho hi\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)])
+    result = runner.invoke(cli.cli, ["run", str(path)])
 
     assert result.exit_code == 1
     assert result.output == "Error: language 'sh' is claimed by both 'shell' and 'rival'\n"
 
 
-def test_go_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
+def test_run_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
     """Inputs not in the environment are asked for by name and description, then used by the blocks."""
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert result.output.startswith(
@@ -543,20 +624,20 @@ def test_go_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
     assert "Publishing 1.2.0 with ****" in lines
 
 
-def test_go_never_shows_a_secret_typed_at_its_prompt(runner, inputs_runbook):
+def test_run_never_shows_a_secret_typed_at_its_prompt(runner, inputs_runbook):
     """A secret isn't echoed as it's typed, and a block printing it shows **** instead."""
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert "s3cret" not in result.output
 
 
-def test_go_uses_inputs_from_the_environment_without_prompting(runner, inputs_runbook, monkeypatch):
+def test_run_uses_inputs_from_the_environment_without_prompting(runner, inputs_runbook, monkeypatch):
     """Inputs set in the environment aren't asked for."""
     monkeypatch.setenv("VERSION", "1.2.0")
     monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
 
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="y\n")
 
     assert result.exit_code == 0
     assert "VERSION (" not in result.output
@@ -564,9 +645,9 @@ def test_go_uses_inputs_from_the_environment_without_prompting(runner, inputs_ru
     assert "Publishing 1.2.0 with ****" in result.output.splitlines()
 
 
-def test_go_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs_runbook):
+def test_run_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs_runbook):
     """A typed answer that doesn't match its pattern is refused with the reason, and asked for again."""
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="latest\n1.2.0\ns3cret\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="latest\n1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert result.output.startswith(
@@ -577,19 +658,19 @@ def test_go_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs_
     assert "Publishing 1.2.0 with ****" in result.output.splitlines()
 
 
-def test_go_reports_an_environment_value_that_does_not_match_the_pattern(runner, inputs_runbook, monkeypatch):
-    """A bad value from the environment stops go before anything runs, without a traceback."""
+def test_run_reports_an_environment_value_that_does_not_match_the_pattern(runner, inputs_runbook, monkeypatch):
+    """A bad value from the environment stops run before anything runs, without a traceback."""
     monkeypatch.setenv("VERSION", "latest")
 
-    result = runner.invoke(cli.cli, ["go", str(inputs_runbook)], input="s3cret\n")
+    result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="s3cret\n")
 
     assert result.exit_code == 1
     assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
 
 
-def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, started_in):
+def test_run_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, started_in):
     """Docstring and confirm text is printed with inputs substituted, and y at a confirm carries on."""
-    result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input="y\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(confirm_runbook)], input="y\ny\n")
 
     assert result.exit_code == 0
     assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
@@ -621,9 +702,9 @@ def test_go_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, sta
 
 
 @pytest.mark.parametrize("answer", ["n", "", "yes"])
-def test_go_aborts_at_a_confirm_not_answered_y(runner, confirm_runbook, answer):
+def test_run_aborts_at_a_confirm_not_answered_y(runner, confirm_runbook, answer):
     """Any answer but y at a confirm ends the run there with exit code 1, naming the step."""
-    result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input=f"y\n{answer}\n")
+    result = runner.invoke(cli.cli, ["run", str(confirm_runbook)], input=f"y\n{answer}\n")
 
     assert result.exit_code == 1
     assert "Built 1.2.0" in result.output.splitlines()
@@ -632,25 +713,25 @@ def test_go_aborts_at_a_confirm_not_answered_y(runner, confirm_runbook, answer):
 
 
 @pytest.mark.parametrize("answer", ["n", "", "yes"])
-def test_go_runs_nothing_when_the_start_prompt_is_not_answered_y(runner, confirm_runbook, answer):
+def test_run_runs_nothing_when_the_start_prompt_is_not_answered_y(runner, confirm_runbook, answer):
     """Declining to start runs no steps and exits 1."""
-    result = runner.invoke(cli.cli, ["go", str(confirm_runbook)], input=f"{answer}\n")
+    result = runner.invoke(cli.cli, ["run", str(confirm_runbook)], input=f"{answer}\n")
 
     assert result.exit_code == 1
     assert "===" not in result.output
     assert result.output.endswith(f"Start? [y/N] {answer}\n\nfinished: aborted before starting\n")
 
 
-def test_go_overview_counts_one_run_block_in_the_singular(runner, tmp_path, started_in):
+def test_run_overview_counts_one_run_block_in_the_singular(runner, tmp_path, started_in):
     """The overview says "1 run block", not "1 run blocks"."""
     path = write_runbook(tmp_path, "---\ntitle: One\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.output.startswith(f"One\ndirectory: {started_in}\n  1. Only\n1 run block\nStart? [y/N] y\n")
 
 
-def test_go_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
+def test_run_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
     """Text that looks like rich markup or emoji codes is printed exactly as written."""
     path = write_runbook(
         tmp_path,
@@ -667,16 +748,16 @@ def test_go_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\ny\n")
 
     lines = result.output.splitlines()
     assert "Run [bold]make[/bold] :smile:" in lines
     assert "Check [red]this[/red] :+1:" in lines
 
 
-def test_go_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbook, started_in):
+def test_run_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbook, started_in):
     """--dry asks only for plain inputs, shows every block with them filled in, and creates none of its files."""
-    result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)], input="1.2.0\n")
+    result = runner.invoke(cli.cli, ["run", "--dry", str(dry_runbook)], input="1.2.0\n")
 
     assert result.exit_code == 0
     assert with_directory(result.output, started_in) == textwrap.dedent(
@@ -703,31 +784,31 @@ def test_go_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runboo
     assert sorted(path.name for path in dry_runbook.parent.iterdir()) == ["dry-run-example.md"]
 
 
-def test_go_dry_never_reads_or_shows_a_secret(runner, dry_runbook, monkeypatch):
+def test_run_dry_never_reads_or_shows_a_secret(runner, dry_runbook, monkeypatch):
     """A secret set in the environment is shown as **** and never appears in the output."""
     monkeypatch.setenv("VERSION", "1.2.0")
     monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
 
-    result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)])
+    result = runner.invoke(cli.cli, ["run", "--dry", str(dry_runbook)])
 
     assert result.exit_code == 0
     assert "inputs: VERSION=1.2.0 PUBLISH_TOKEN=****" in result.output.splitlines()
     assert "s3cret" not in result.output
 
 
-def test_go_dry_still_rejects_a_bad_plain_input_from_the_environment(runner, dry_runbook, monkeypatch):
+def test_run_dry_still_rejects_a_bad_plain_input_from_the_environment(runner, dry_runbook, monkeypatch):
     """Plain inputs are checked under --dry exactly as in a real run."""
     monkeypatch.setenv("VERSION", "latest")
 
-    result = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)])
+    result = runner.invoke(cli.cli, ["run", "--dry", str(dry_runbook)])
 
     assert result.exit_code == 1
     assert result.output == "Error: VERSION from the environment must match ^\\d+\\.\\d+\\.\\d+$\n"
 
 
-def test_go_step_runs_skips_and_quits_block_by_block(runner, started_in):
+def test_run_step_runs_skips_and_quits_block_by_block(runner, started_in):
     """--step asks after each run block's code: y runs it, s skips it, and q ends the run there with exit 1."""
-    result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\ny\ns\nq\n")
+    result = runner.invoke(cli.cli, ["run", "--step", str(RUNBOOKS / "step-example.md")], input="y\ny\ns\nq\n")
 
     assert result.exit_code == 1
     assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
@@ -760,53 +841,53 @@ def test_go_step_runs_skips_and_quits_block_by_block(runner, started_in):
     )
 
 
-def test_go_step_finishes_ok_when_blocks_are_only_skipped(runner):
+def test_run_step_finishes_ok_when_blocks_are_only_skipped(runner):
     """Skipping isn't failing: a run where every block is skipped still exits 0."""
-    result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\ns\ns\ns\n")
+    result = runner.invoke(cli.cli, ["run", "--step", str(RUNBOOKS / "step-example.md")], input="y\ns\ns\ns\n")
 
     assert result.exit_code == 0
     assert result.output.count("skipped (--step)") == 3
     assert "Building" not in result.output.splitlines()
 
 
-def test_go_step_asks_again_after_an_answer_it_does_not_know(runner):
+def test_run_step_asks_again_after_an_answer_it_does_not_know(runner):
     """An answer other than y, s or q gets the question again."""
-    result = runner.invoke(cli.cli, ["go", "--step", str(RUNBOOKS / "step-example.md")], input="y\nmaybe\n\nq\n")
+    result = runner.invoke(cli.cli, ["run", "--step", str(RUNBOOKS / "step-example.md")], input="y\nmaybe\n\nq\n")
 
     assert result.exit_code == 1
     assert result.output.count("Run this block? [y]es / [s]kip / [q]uit") == 3
 
 
-def test_go_dry_step_behaves_exactly_like_dry(runner, dry_runbook):
+def test_run_dry_step_behaves_exactly_like_dry(runner, dry_runbook):
     """--step is ignored with --dry: same output, nothing asked, nothing run."""
-    dry = runner.invoke(cli.cli, ["go", "--dry", str(dry_runbook)], input="1.2.0\n")
-    dry_step = runner.invoke(cli.cli, ["go", "--dry", "--step", str(dry_runbook)], input="1.2.0\n")
+    dry = runner.invoke(cli.cli, ["run", "--dry", str(dry_runbook)], input="1.2.0\n")
+    dry_step = runner.invoke(cli.cli, ["run", "--dry", "--step", str(dry_runbook)], input="1.2.0\n")
 
     assert dry_step.exit_code == 0
     assert dry_step.output == dry.output
     assert sorted(path.name for path in dry_runbook.parent.iterdir()) == ["dry-run-example.md"]
 
 
-def test_go_help_describes_step(runner):
-    """go --help lists --step."""
-    result = runner.invoke(cli.cli, ["go", "--help"])
+def test_run_help_describes_step(runner):
+    """run --help lists --step."""
+    result = runner.invoke(cli.cli, ["run", "--help"])
 
     assert "--step" in result.output
 
 
-def test_go_help_describes_dry(runner):
-    """go --help lists --dry."""
-    result = runner.invoke(cli.cli, ["go", "--help"])
+def test_run_help_describes_dry(runner):
+    """run --help lists --dry."""
+    result = runner.invoke(cli.cli, ["run", "--help"])
 
     assert result.exit_code == 0
     assert "--dry" in result.output
 
 
-def test_go_runs_python_blocks(runner, monkeypatch):
+def test_run_runs_python_blocks(runner, monkeypatch):
     """The python example's blocks run under Python, with inputs substituted and exported."""
     monkeypatch.setenv("VERSION", "1.2.0")
 
-    result = runner.invoke(cli.cli, ["go", str(RUNBOOKS / "python-example.md")], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "python-example.md")], input="y\n")
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
@@ -814,7 +895,7 @@ def test_go_runs_python_blocks(runner, monkeypatch):
     assert "Next version: 1.2.1" in lines
 
 
-def test_go_stops_at_a_python_block_that_raises(runner, tmp_path):
+def test_run_stops_at_a_python_block_that_raises(runner, tmp_path):
     """A Python block that raises fails the run, naming its step, and later steps don't run."""
     path = write_runbook(
         tmp_path,
@@ -833,7 +914,7 @@ def test_go_stops_at_a_python_block_that_raises(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
     assert "not today" in result.output.splitlines()
@@ -841,12 +922,12 @@ def test_go_stops_at_a_python_block_that_raises(runner, tmp_path):
     assert "unreachable" not in result.output
 
 
-def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook, started_in):
-    """With output_path set, go appends the run to that file and says where it went.
+def test_run_writes_a_transcript_to_output_path(runner, transcript_runbook, started_in):
+    """With output_path set, run appends the run to that file and says where it went.
 
     The path is relative to where paulrun was started, so nothing is written next to the runbook.
     """
-    result = runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\ny\n")
 
     transcript = started_in / "logs" / "release-1.2.0.md"
     assert result.exit_code == 0
@@ -877,32 +958,32 @@ def test_go_writes_a_transcript_to_output_path(runner, transcript_runbook, start
     )
 
 
-def test_go_shows_a_transcript_under_where_it_was_started_relative_to_there(runner, tmp_path, started_in):
+def test_run_shows_a_transcript_under_where_it_was_started_relative_to_there(runner, tmp_path, started_in):
     """A transcript under the directory paulrun was started in is shown as a relative path, as the docs show it."""
     path = write_runbook(tmp_path, "---\ntitle: T\noutput_path: logs/run.md\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
     assert result.output.endswith(f"transcript: {Path('logs') / 'run.md'}\n")
     assert (started_in / "logs" / "run.md").exists()
 
 
-def test_go_shows_a_transcript_outside_where_it_was_started_in_full(runner, tmp_path):
+def test_run_shows_a_transcript_outside_where_it_was_started_in_full(runner, tmp_path):
     """A transcript anywhere else, such as an absolute output_path, is shown as its absolute path."""
     target = tmp_path / "records" / "run.md"
     path = write_runbook(tmp_path, f"---\ntitle: T\noutput_path: {target}\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
     assert result.output.endswith(f"transcript: {target}\n")
 
 
-def test_go_appends_a_second_run_to_the_transcript(runner, transcript_runbook, started_in):
+def test_run_appends_a_second_run_to_the_transcript(runner, transcript_runbook, started_in):
     """Running twice keeps both runs, so a failed attempt and its rerun are both in the file."""
-    runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\nn\n")
-    runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
+    runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\nn\n")
+    runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\ny\n")
 
     text = (started_in / "logs" / "release-1.2.0.md").read_text()
     assert text.count("--- paulrun transcript-example.md @") == 2
@@ -910,50 +991,50 @@ def test_go_appends_a_second_run_to_the_transcript(runner, transcript_runbook, s
     assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
 
 
-def test_go_never_writes_a_secret_to_the_transcript(runner, transcript_runbook, started_in):
+def test_run_never_writes_a_secret_to_the_transcript(runner, transcript_runbook, started_in):
     """The secret is set and printed by a block, but the file only ever has ****."""
-    runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="y\ny\n")
+    runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\ny\n")
 
     assert "s3cret" not in (started_in / "logs" / "release-1.2.0.md").read_text()
 
 
-def test_go_dry_writes_no_transcript(runner, transcript_runbook, started_in):
+def test_run_dry_writes_no_transcript(runner, transcript_runbook, started_in):
     """--dry runs nothing, so there's nothing to record, and no file or directory is made."""
-    result = runner.invoke(cli.cli, ["go", "--dry", str(transcript_runbook)])
+    result = runner.invoke(cli.cli, ["run", "--dry", str(transcript_runbook)])
 
     assert result.exit_code == 0
     assert not (started_in / "logs").exists()
     assert "transcript:" not in result.output
 
 
-def test_go_writes_no_transcript_when_the_run_is_not_started(runner, transcript_runbook, started_in):
+def test_run_writes_no_transcript_when_the_run_is_not_started(runner, transcript_runbook, started_in):
     """Declining to start writes nothing and doesn't mention a transcript."""
-    result = runner.invoke(cli.cli, ["go", str(transcript_runbook)], input="n\n")
+    result = runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="n\n")
 
     assert result.exit_code == 1
     assert not (started_in / "logs").exists()
     assert "transcript:" not in result.output
 
 
-def test_go_without_output_path_writes_no_transcript(runner, tmp_path):
+def test_run_without_output_path_writes_no_transcript(runner, tmp_path):
     """A runbook with no output_path never mentions a transcript."""
     path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
     assert "transcript:" not in result.output
     assert sorted(entry.name for entry in tmp_path.iterdir()) == ["runbook.md"]
 
 
-def test_go_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, tmp_path, started_in):
-    """If the transcript can't be opened, go stops with an error before the first block runs."""
+def test_run_reports_a_transcript_it_cannot_write_before_any_block_runs(runner, tmp_path, started_in):
+    """If the transcript can't be opened, run stops with an error before the first block runs."""
     (started_in / "logs").write_text("a file where the transcript's directory should be")
     path = write_runbook(
         tmp_path, "---\ntitle: T\noutput_path: logs/run.md\n---\n\n## Only\n\n```sh run\ntouch ran\n```\n"
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
     [error] = [line for line in result.output.splitlines() if line.startswith("Error:")]
@@ -1124,6 +1205,24 @@ def test_library_prints_titles_and_descriptions_verbatim(runner, tmp_path, monke
     assert result.output == f"library: {tmp_path}\nodd  [bold]Odd[/bold] :rocket:\n     [red]x[/red]\n"
 
 
+def test_library_marks_a_book_whose_name_is_a_command(runner, tmp_path, monkeypatch):
+    """paulrun check is the check command, so a book called check.md says how to run it instead."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "check.md").write_text("---\ntitle: Check the deploy\n---\n")
+    (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\n---\n")
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert result.output == textwrap.dedent(
+        f"""\
+        library: {tmp_path}
+        check   Check the deploy
+                run it with paulrun run check, since paulrun check is a command
+        deploy  Deploy
+        """
+    )
+
+
 def test_help_lists_library_command(runner):
     """--help lists the library command."""
     result = runner.invoke(cli.cli, ["--help"])
@@ -1184,8 +1283,8 @@ def test_backends_lists_an_external_backend(runner, external_backend):
     assert echo.split() == ["echo", "fakelang", f"{__name__}:EchoBackend"]
 
 
-def test_go_runs_an_external_backends_blocks(runner, external_backend, tmp_path):
-    """go runs a block in an external backend's language end to end, alongside built-in blocks."""
+def test_run_runs_an_external_backends_blocks(runner, external_backend, tmp_path):
+    """run runs a block in an external backend's language end to end, alongside built-in blocks."""
     path = write_runbook(
         tmp_path,
         """\
@@ -1202,7 +1301,7 @@ def test_go_runs_an_external_backends_blocks(runner, external_backend, tmp_path)
         """,
     )
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
@@ -1215,11 +1314,11 @@ def test_go_runs_an_external_backends_blocks(runner, external_backend, tmp_path)
     ]
 
 
-def test_go_stops_at_an_external_block_that_fails(runner, external_backend, tmp_path):
+def test_run_stops_at_an_external_block_that_fails(runner, external_backend, tmp_path):
     """An external backend's exit code fails the run like any other block's."""
     path = write_runbook(tmp_path, "## Fails\n\n```fakelang run\nbefore\nFAIL\nafter\n```\n")
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
     assert "echo: before" in result.output.splitlines()
@@ -1258,9 +1357,9 @@ def test_help_lists_backends_command(runner):
     assert "\n  backends " in result.output
 
 
-def test_go_step_records_skipped_blocks_in_the_transcript(runner, transcript_runbook, started_in):
+def test_run_step_records_skipped_blocks_in_the_transcript(runner, transcript_runbook, started_in):
     """A block skipped under --step is in the transcript as skipped, and the run still finishes ok."""
-    result = runner.invoke(cli.cli, ["go", "--step", str(transcript_runbook)], input="y\ny\ny\ns\n")
+    result = runner.invoke(cli.cli, ["run", "--step", str(transcript_runbook)], input="y\ny\ny\ns\n")
 
     assert result.exit_code == 0
     text = (started_in / "logs" / "release-1.2.0.md").read_text()
@@ -1269,11 +1368,11 @@ def test_go_step_records_skipped_blocks_in_the_transcript(runner, transcript_run
     assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
 
 
-def test_go_refuses_a_runbook_that_declares_an_input_twice(runner):
-    """go won't start a runbook with a repeated input name, since it can't tell which declaration is meant."""
+def test_run_refuses_a_runbook_that_declares_an_input_twice(runner):
+    """run won't start a runbook with a repeated input name, since it can't tell which declaration is meant."""
     path = RUNBOOKS / "broken" / "duplicate-input-name.md"
 
-    result = runner.invoke(cli.cli, ["go", str(path)], input="1.2.0\ny\n")
+    result = runner.invoke(cli.cli, ["run", str(path)], input="1.2.0\ny\n")
 
     assert result.exit_code == 1
     assert result.output == f"{path}:6: error: input VERSION is declared twice (first on line 4)\n\n1 error\n"
@@ -1306,9 +1405,9 @@ def test_click_prompter_leaves_end_of_input_as_abort(monkeypatch):
         cli.ClickPrompter(cli.Console()).confirm("Start? [y/N]")
 
 
-def test_go_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_runbook):
+def test_run_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_runbook):
     """Each input block's prompt comes where the block is, after the steps before it have run."""
-    result = runner.invoke(cli.cli, ["go", str(input_block_runbook)], input="y\ny\n42\n123456\n")
+    result = runner.invoke(cli.cli, ["run", str(input_block_runbook)], input="y\ny\n42\n123456\n")
 
     assert result.exit_code == 0
     lines = re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output).splitlines()
@@ -1331,9 +1430,9 @@ def test_go_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_ru
     assert "123456" not in result.output
 
 
-def test_go_records_input_blocks_in_the_transcript(runner, input_block_runbook, started_in):
+def test_run_records_input_blocks_in_the_transcript(runner, input_block_runbook, started_in):
     """The transcript shows where each input block was answered, with the secret as ****."""
-    runner.invoke(cli.cli, ["go", str(input_block_runbook)], input="y\ny\n42\n123456\n")
+    runner.invoke(cli.cli, ["run", str(input_block_runbook)], input="y\ny\n42\n123456\n")
 
     text = (started_in / "logs" / "pr-release.md").read_text()
     assert "confirm: Open a pull request for 1.2.0 on GitHub. -> yes\ninput: PR=42\n" in text
@@ -1341,9 +1440,9 @@ def test_go_records_input_blocks_in_the_transcript(runner, input_block_runbook, 
     assert "123456" not in text
 
 
-def test_go_dry_shows_input_blocks_without_asking(runner, input_block_runbook, started_in):
+def test_run_dry_shows_input_blocks_without_asking(runner, input_block_runbook, started_in):
     """--dry says where the run would stop to ask, and leaves those placeholders as written."""
-    result = runner.invoke(cli.cli, ["go", "--dry", str(input_block_runbook)])
+    result = runner.invoke(cli.cli, ["run", "--dry", str(input_block_runbook)])
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
