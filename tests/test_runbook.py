@@ -546,6 +546,137 @@ def test_parse_pattern_that_is_not_a_string_is_none(tmp_path):
     assert parsed.inputs == (Input(name="VERSION", description="Version"),)
 
 
+def test_parse_reads_an_inputs_default(tmp_path):
+    """A string default is kept on the input."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        inputs:
+          - name: BRANCH
+            description: The branch
+            default: main
+        ---
+        """,
+    )
+
+    assert runbook.parse(path).inputs == (Input(name="BRANCH", description="The branch", default="main"),)
+
+
+def test_parse_drops_a_default_that_is_not_a_string(tmp_path):
+    """default: 1.10 is the number 1.1 to YAML, so it's dropped rather than turned into the wrong string."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        inputs:
+          - name: VERSION
+            description: Version
+            default: 1.10
+        ---
+        """,
+    )
+
+    assert runbook.parse(path).inputs == (Input(name="VERSION", description="Version"),)
+
+
+def test_parse_never_gives_a_secret_a_default(tmp_path):
+    """A secret's default would be its value written in the runbook, so it's never used, even without check."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        inputs:
+          - name: TOKEN
+            description: Token
+            secret: true
+            default: s3cret
+        ---
+        """,
+    )
+
+    assert runbook.parse(path).inputs == (Input(name="TOKEN", description="Token", secret=True),)
+
+
+def test_parse_reads_a_default_in_an_input_block(tmp_path):
+    """An input block's default is read the same way as one in the frontmatter."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Open the pull request
+
+        ```input
+        name: BASE
+        description: The branch to merge into
+        default: main
+        ```
+        """,
+    )
+
+    [block] = runbook.parse(path).steps[0].blocks
+
+    assert block.input == Input(name="BASE", description="The branch to merge into", default="main")
+
+
+def test_parse_reads_an_inputs_choices(tmp_path):
+    """A list of strings is kept as the input's choices, in order."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        inputs:
+          - name: FE_SET
+            description: Which set
+            choices: [comms, billing, all]
+        ---
+        """,
+    )
+
+    assert runbook.parse(path).inputs == (
+        Input(name="FE_SET", description="Which set", choices=("comms", "billing", "all")),
+    )
+
+
+@pytest.mark.parametrize("choices", ["comms", "[]", "[comms, 3]", "{a: b}"])
+def test_parse_drops_choices_that_are_not_a_list_of_strings(choices, tmp_path):
+    """Choices of the wrong shape are dropped, so they can't accept or refuse the wrong values; check reports them."""
+    path = write_runbook(
+        tmp_path, f"---\ninputs:\n  - name: FE_SET\n    description: Which set\n    choices: {choices}\n---\n"
+    )
+
+    assert runbook.parse(path).inputs == (Input(name="FE_SET", description="Which set"),)
+
+
+def test_parse_never_gives_a_secret_choices(tmp_path):
+    """A secret's choices would list its possible values in the runbook, so they're never used."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        inputs:
+          - name: TOKEN
+            description: Token
+            secret: true
+            choices: [one, two]
+        ---
+        """,
+    )
+
+    assert runbook.parse(path).inputs == (Input(name="TOKEN", description="Token", secret=True),)
+
+
+def test_parse_reads_choices_in_an_input_block(tmp_path):
+    """An input block's choices are read the same way as a frontmatter input's."""
+    path = write_runbook(
+        tmp_path,
+        "## Deploy\n\n```input\nname: ENV\ndescription: Where to deploy\nchoices: [staging, prod]\n```\n",
+    )
+
+    [block] = runbook.parse(path).steps[0].blocks
+
+    assert block.input == Input(name="ENV", description="Where to deploy", choices=("staging", "prod"))
+
+
 def test_parse_secret_that_is_not_a_bool_is_still_secret(tmp_path):
     """Anything truthy marks an input secret, so a typo can only hide a value, never leak it."""
     path = write_runbook(

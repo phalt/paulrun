@@ -9,6 +9,8 @@
 - **Breaking:** blocks now run in the folder you run paulrun from, not the folder the runbook is in. A relative `output_path` is now relative to that folder too. A runbook kept at the root of its project, run from there, works as before. One run as `paulrun path/to/RUNBOOK.md` from another folder now works on that other folder and writes its transcript there. This includes blocks run by external backends, whose `cwd` is now the folder paulrun was started from.
 - Blocks get `PAULRUN_RUNBOOK_DIR`, the folder the runbook is in, so a runbook can still use files kept next to it.
 - Running a runbook shows the folder blocks will run in, as `directory:` straight after the title, so you can check it before answering `Start?`. `--dry` shows it too.
+- Inputs can have a `default`, shown at the prompt and used when you press enter. The environment still comes first. `check` reports a default that isn't text, doesn't match the input's `pattern`, or is on a secret.
+- Inputs can have `choices`: the only values accepted, listed at the prompt. You type the choice itself, and a value from the environment has to be one of them too. `check` reports choices that aren't a list of text, a choice the `pattern` refuses, a default that isn't a choice, and choices on a secret.
 
 ## 0.1.0
 

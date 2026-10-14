@@ -157,11 +157,25 @@ def parse_inputs(value: Any) -> tuple[Input, ...]:
             description=entry["description"],
             pattern=_string(entry.get("pattern")),
             # Anything truthy is secret, so a malformed flag can only hide a value, never leak it.
-            secret=bool(entry.get("secret", False)),
+            secret=_secret(entry),
+            # A secret's default or choices would put its value in the runbook, so they're never used.
+            default=None if _secret(entry) else _string(entry.get("default")),
+            choices=() if _secret(entry) else _choices(entry.get("choices")),
         )
         for entry in value
         if isinstance(entry, dict) and isinstance(entry.get("name"), str) and isinstance(entry.get("description"), str)
     )
+
+
+def _secret(entry: dict[str, Any]) -> bool:
+    return bool(entry.get("secret", False))
+
+
+def _choices(value: Any) -> tuple[str, ...]:
+    """A non-empty list of strings as choices. Anything else is no choices; validation reports it."""
+    if isinstance(value, list) and value and all(isinstance(choice, str) for choice in value):
+        return tuple(value)
+    return ()
 
 
 def _block(token: Token, offset: int) -> Block | None:

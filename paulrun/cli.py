@@ -169,7 +169,9 @@ def inputs(runbook: Path) -> None:
     width = max(len(input.name) for input, _ in declared)
     for input, step in declared:
         console.out(f"{input.name:<{width}}  {input.description}")
-        details = [f"pattern: {input.pattern}"] if input.pattern is not None else []
+        details = [f"default: {input.default}"] if input.default is not None else []
+        details += [f"choices: {', '.join(input.choices)}"] if input.choices else []
+        details += [f"pattern: {input.pattern}"] if input.pattern is not None else []
         details += ["secret"] if input.secret else []
         details += [f'asked in "{step}"'] if step is not None else []
         for detail in details:
@@ -279,7 +281,13 @@ class ClickPrompter:
         if problem is not None:
             # console.out, because a pattern such as [a-z] would be read as markup.
             self.console.out(problem, style="red")
-        return _prompt(f"{input.name} ({input.description})", hide_input=input.secret)
+        text = f"{input.name} ({input.description})"
+        text += f" [{input.default}]" if input.default is not None else ""
+        text += f" ({', '.join(input.choices)})" if input.choices else ""
+        if input.default is None:
+            return _prompt(text, hide_input=input.secret)
+        # Enter gives "" rather than the default, so collect applies the default and checks it like any answer.
+        return _prompt(text, default="", show_default=False, hide_input=input.secret)
 
     def confirm(self, question: str) -> str:
         # An empty default lets enter through as "", which the runner reads as no.

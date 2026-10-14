@@ -246,13 +246,13 @@ Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul
 - Add a readable `tests/runbooks/default-example.md`, a broken fixture per error, and the Inputs docs in `docs/runbook-format.md`.
 
 **Acceptance criteria:**
-- [ ] Pressing enter at a prompt with a default uses the default; an environment value overrides it; the same works in an `input` block
-- [ ] `check` reports each of the three errors on its line, with a broken fixture each
-- [ ] `paulrun inputs` shows the default
+- [x] Pressing enter at a prompt with a default uses the default; an environment value overrides it; the same works in an `input` block
+- [x] `check` reports each of the three errors on its line, with a broken fixture each
+- [x] `paulrun inputs` shows the default
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runbook.py tests/test_validate.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun tests/runbooks/default-example.md`, pressing enter at the prompt
+- [x] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runbook.py tests/test_validate.py tests/test_cli.py`
+- [x] Manual check: `uv run paulrun tests/runbooks/default-example.md`, pressing enter at the prompt
 
 **Dependencies:** None (independent of Tasks 1-6)
 
@@ -280,13 +280,13 @@ Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul
 - Add a readable `tests/runbooks/choices-example.md`, a broken fixture per error, and the docs.
 
 **Acceptance criteria:**
-- [ ] A typed answer outside `choices` is asked again, and an environment value outside them fails before anything runs, in frontmatter inputs and `input` blocks
-- [ ] `check` reports each of the four errors on its line, with a broken fixture each
-- [ ] `paulrun inputs` shows the choices, and the prompt lists them
+- [x] A typed answer outside `choices` is asked again, and an environment value outside them fails before anything runs, in frontmatter inputs and `input` blocks
+- [x] `check` reports each of the four errors on its line, with a broken fixture each
+- [x] `paulrun inputs` shows the choices, and the prompt lists them
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runbook.py tests/test_validate.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun tests/runbooks/choices-example.md`, typing a wrong answer first
+- [x] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runbook.py tests/test_validate.py tests/test_cli.py`
+- [x] Manual check: `uv run paulrun tests/runbooks/choices-example.md`, typing a wrong answer first
 
 **Dependencies:** Task 7
 
@@ -299,8 +299,8 @@ Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul
 **Estimated scope:** Medium (small changes across four modules)
 
 ### Checkpoint 3: Feature complete
-- [ ] Every code-level success criterion in the spec has a passing test
-- [ ] Review with Paul
+- [x] Every code-level success criterion in the spec has a passing test
+- [x] Review with Paul (approved 2026-10-14)
 
 ---
 

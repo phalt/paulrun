@@ -14,6 +14,8 @@ class Input:
     description: str
     pattern: str | None = None
     secret: bool = False
+    default: str | None = None  # used for an empty answer at the prompt; never set for a secret
+    choices: tuple[str, ...] = ()  # if any, the only values accepted; never set for a secret
 
 
 class Prompter(Protocol):
@@ -36,9 +38,11 @@ class InputError(Exception):
 def collect(
     inputs: Iterable[Input], env: Mapping[str, str], prompter: Prompter, *, skip_secrets: bool = False
 ) -> dict[str, str]:
-    """Get a value for each input, from env if it's set there, otherwise by asking until the answer matches.
+    """Get a value for each input, from env if it's set there, otherwise by asking until the answer is accepted.
 
-    With skip_secrets, secrets are left out entirely: not read from env, not asked for, and not in the result.
+    A value is accepted if it's one of the input's choices, if it has any, and matches its pattern. An empty
+    answer to an input with a default is the default, which is checked like any answer. With skip_secrets,
+    secrets are left out entirely: not read from env, not asked for, and not in the result.
     """
     values = {}
     for input in inputs:
@@ -46,18 +50,28 @@ def collect(
             continue
         # An empty variable counts as unset, so a stray `VERSION=` can't release an empty version.
         if value := env.get(input.name):
-            if not _matches(input, value):
-                raise InputError(f"{input.name} from the environment must match {input.pattern}")
+            if (problem := _problem(input, value)) is not None:
+                raise InputError(f"{input.name} from the environment {problem}")
         else:
-            value = prompter.ask(input, None)
-            while not _matches(input, value):
-                value = prompter.ask(input, f"{input.name} must match {input.pattern}")
+            value = _answer(input, prompter.ask(input, None))
+            while (problem := _problem(input, value)) is not None:
+                value = _answer(input, prompter.ask(input, f"{input.name} {problem}"))
         values[input.name] = value
     return values
 
 
-def _matches(input: Input, value: str) -> bool:
-    return input.pattern is None or re.fullmatch(input.pattern, value) is not None
+def _answer(input: Input, answer: str) -> str:
+    """The value an answer gives: the answer itself, or the input's default for an empty one."""
+    return input.default if not answer and input.default is not None else answer
+
+
+def _problem(input: Input, value: str) -> str | None:
+    """Why value isn't accepted for input, e.g. "must match ^\\d+$", or None if it is."""
+    if input.choices and value not in input.choices:
+        return f"must be one of: {', '.join(input.choices)}"
+    if input.pattern is not None and re.fullmatch(input.pattern, value) is None:
+        return f"must match {input.pattern}"
+    return None
 
 
 def substitute(text: str, values: Mapping[str, str]) -> str:

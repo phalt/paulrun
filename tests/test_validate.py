@@ -33,6 +33,25 @@ BROKEN_CASES = [
     ("input-missing-description.md", 4, "input VERSION needs a description"),
     ("input-name-not-upper-snake-case.md", 4, "input name 'version' must be UPPER_SNAKE_CASE, e.g. VERSION"),
     (
+        "default-not-a-string.md",
+        4,
+        "input VERSION's default must be a string, but YAML read it as the number 1.1; put it in quotes",
+    ),
+    (
+        "default-on-a-secret.md",
+        4,
+        "input TOKEN is secret, so it can't have a default: its value would be written in the runbook",
+    ),
+    ("default-does-not-match-pattern.md", 4, "input VERSION's default 'latest' doesn't match its pattern"),
+    ("choices-not-a-list-of-strings.md", 4, "input FE_SET's choices must be a list of strings, e.g. [a, b]"),
+    (
+        "choices-on-a-secret.md",
+        4,
+        "input TOKEN is secret, so it can't have choices: its values would be written in the runbook",
+    ),
+    ("choice-does-not-match-pattern.md", 4, "input ENV's choice 'prod-eu' doesn't match its pattern"),
+    ("default-not-one-of-the-choices.md", 4, "input FE_SET's default 'everything' isn't one of its choices"),
+    (
         "invalid-pattern.md",
         4,
         "input VERSION's pattern isn't a valid regex: missing ), unterminated subpattern at position 1",
@@ -64,6 +83,8 @@ VALID_FIXTURES = [
     "step-example.md",
     "transcript-example.md",
     "input-block-example.md",
+    "default-example.md",
+    "choices-example.md",
 ]
 
 
@@ -127,7 +148,7 @@ def test_validate_warns_about_unknown_input_keys(tmp_path):
         inputs:
           - name: VERSION
             description: The version
-            default: 1.0.0
+            example: 1.0.0
         ---
 
         ## Only
@@ -138,7 +159,216 @@ def test_validate_warns_about_unknown_input_keys(tmp_path):
         """,
     )
 
-    assert check(path).findings == [Finding(4, "unknown key 'default' on input VERSION", warning=True)]
+    assert check(path).findings == [Finding(4, "unknown key 'example' on input VERSION", warning=True)]
+
+
+def test_validate_accepts_a_string_default_that_matches_the_pattern(tmp_path):
+    """default is a known key, and a quoted default that matches the whole pattern is fine."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release
+        inputs:
+          - name: VERSION
+            description: The version
+            pattern: '^\\d+\\.\\d+\\.\\d+$'
+            default: '1.10.0'
+        ---
+
+        ## Only
+
+        ```sh run
+        echo <VERSION>
+        ```
+        """,
+    )
+
+    assert check(path).findings == []
+
+
+def test_validate_checks_a_default_against_the_whole_pattern(tmp_path):
+    """A pattern has to match all of the default, the same as for a typed answer."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release
+        inputs:
+          - name: VERSION
+            description: The version
+            pattern: '\\d+'
+            default: 12abc
+        ---
+
+        ## Only
+
+        ```sh run
+        echo <VERSION>
+        ```
+        """,
+    )
+
+    assert check(path).errors == [Finding(4, "input VERSION's default '12abc' doesn't match its pattern")]
+
+
+def test_validate_only_reports_the_pattern_when_it_is_broken_not_the_default_too(tmp_path):
+    """A default can't be checked against a pattern that isn't a valid regex, so only the pattern is reported."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release
+        inputs:
+          - name: VERSION
+            description: The version
+            pattern: '^(\\d+$'
+            default: '1'
+        ---
+
+        ## Only
+
+        ```sh run
+        echo <VERSION>
+        ```
+        """,
+    )
+
+    [error] = check(path).errors
+    assert error.message.startswith("input VERSION's pattern isn't a valid regex")
+
+
+@pytest.mark.parametrize(
+    ("written", "read_as"),
+    [
+        ("yes", "true, a yes or no"),
+        ("3", "the number 3"),
+        ("2026-10-14", "a date, 2026-10-14"),
+        ("[main, release]", "a list"),
+        ("", "nothing"),
+    ],
+)
+def test_validate_says_what_yaml_made_of_a_default_that_is_not_a_string(written, read_as, tmp_path):
+    """Unquoted YAML isn't always text, so the error says what it became, to make the fix obvious."""
+    path = write_runbook(
+        tmp_path,
+        f"---\ntitle: T\ninputs:\n  - name: BRANCH\n    description: B\n    default: {written}\n---\n\n"
+        "## Only\n\n```sh run\necho <BRANCH>\n```\n",
+    )
+
+    assert check(path).errors == [
+        Finding(4, f"input BRANCH's default must be a string, but YAML read it as {read_as}; put it in quotes")
+    ]
+
+
+def choices_runbook(tmp_path: Path, keys: str, block: str = 'echo "<FE_SET>"') -> Path:
+    """A runbook with one input, FE_SET, on line 4, with keys added to it."""
+    return write_runbook(
+        tmp_path,
+        f"---\ntitle: T\ninputs:\n  - name: FE_SET\n    description: Which set\n{keys}---\n\n"
+        f"## Only\n\n```sh run\n{block}\n```\n",
+    )
+
+
+def test_validate_accepts_choices_with_a_default_among_them(tmp_path):
+    """choices is a known key, and a list of strings with a default that's one of them is fine."""
+    path = choices_runbook(tmp_path, "    choices: [comms, billing, all]\n    default: comms\n")
+
+    assert check(path).findings == []
+
+
+@pytest.mark.parametrize("choices", ["comms", "[]", "[comms, 3]", "{a: b}", "''"])
+def test_validate_reports_choices_that_are_not_a_non_empty_list_of_strings(choices, tmp_path):
+    """Choices have to be a list, with at least one choice, and every choice text."""
+    path = choices_runbook(tmp_path, f"    choices: {choices}\n")
+
+    assert check(path).errors == [Finding(4, "input FE_SET's choices must be a list of strings, e.g. [a, b]")]
+
+
+def test_validate_reports_every_choice_the_pattern_refuses(tmp_path):
+    """Each choice that could never be accepted is its own error."""
+    path = choices_runbook(tmp_path, "    pattern: '^[a-z]+$'\n    choices: [comms, bill-ing, ALL]\n")
+
+    assert check(path).errors == [
+        Finding(4, "input FE_SET's choice 'bill-ing' doesn't match its pattern"),
+        Finding(4, "input FE_SET's choice 'ALL' doesn't match its pattern"),
+    ]
+
+
+def test_validate_only_reports_a_broken_pattern_not_the_choices_too(tmp_path):
+    """Choices can't be checked against a pattern that isn't a valid regex, so only the pattern is reported."""
+    path = choices_runbook(tmp_path, "    pattern: '^(a$'\n    choices: [comms]\n")
+
+    [error] = check(path).errors
+    assert error.message.startswith("input FE_SET's pattern isn't a valid regex")
+
+
+def test_validate_reports_a_default_outside_the_choices_once_even_if_the_pattern_refuses_it_too(tmp_path):
+    """A default that's neither a choice nor matches the pattern is one problem, named by the choices."""
+    path = choices_runbook(tmp_path, "    pattern: '^[a-z]+$'\n    choices: [comms]\n    default: ALL\n")
+
+    assert check(path).errors == [Finding(4, "input FE_SET's default 'ALL' isn't one of its choices")]
+
+
+def test_validate_does_not_check_a_default_against_choices_that_are_not_usable(tmp_path):
+    """With choices of the wrong shape, only the choices are reported, not the default against them."""
+    path = choices_runbook(tmp_path, "    choices: comms\n    default: billing\n")
+
+    assert check(path).errors == [Finding(4, "input FE_SET's choices must be a list of strings, e.g. [a, b]")]
+
+
+def test_validate_applies_the_choices_rules_to_input_blocks(tmp_path):
+    """An input block's choices are checked the same way as a frontmatter input's."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release
+        ---
+
+        ## Deploy
+
+        ```input
+        name: ENV
+        description: Where to deploy
+        choices: [staging, prod]
+        default: dev
+        ```
+
+        ```sh run
+        echo <ENV>
+        ```
+        """,
+    )
+
+    assert check(path).errors == [Finding(7, "input ENV's default 'dev' isn't one of its choices")]
+
+
+def test_validate_applies_the_default_rules_to_input_blocks(tmp_path):
+    """An input block's default is checked the same way as a frontmatter input's."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Release
+        ---
+
+        ## Open the pull request
+
+        ```input
+        name: PR
+        description: The pull request number
+        pattern: '\\d+'
+        default: latest
+        ```
+
+        ```sh run
+        echo <PR>
+        ```
+        """,
+    )
+
+    assert check(path).errors == [Finding(7, "input PR's default 'latest' doesn't match its pattern")]
 
 
 def test_validate_warns_about_inputs_that_are_never_used(tmp_path):
@@ -583,7 +813,7 @@ def test_validate_applies_frontmatter_input_rules_to_input_blocks(tmp_path):
         name: pr
         description: x
         pattern: '['
-        default: 1
+        example: 1
         ```
 
         ```sh run
@@ -595,7 +825,7 @@ def test_validate_applies_frontmatter_input_rules_to_input_blocks(tmp_path):
     assert [finding.message for finding in check(path).findings] == [
         "input name 'pr' must be UPPER_SNAKE_CASE, e.g. PR",
         "input pr's pattern isn't a valid regex: unterminated character set at position 0",
-        "unknown key 'default' on input pr",
+        "unknown key 'example' on input pr",
     ]
     assert {finding.line for finding in check(path).findings} == {7}
 

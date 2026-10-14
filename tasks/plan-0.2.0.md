@@ -79,12 +79,12 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 - [x] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only; approved 2026-10-14)
 
 ### Phase 3: Input defaults and choices
-- [ ] Task 7: `default` on inputs
-- [ ] Task 8: `choices` on inputs
+- [x] Task 7: `default` on inputs
+- [x] Task 8: `choices` on inputs
 
 ### Checkpoint 3: Feature complete
-- [ ] Every code-level success criterion in the spec has a passing test
-- [ ] Review with Paul
+- [x] Every code-level success criterion in the spec has a passing test
+- [x] Review with Paul (approved 2026-10-14)
 
 ### Phase 4: Docs
 - [ ] Task 9: "Your runbook library" docs page, README and home page

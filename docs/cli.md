@@ -243,6 +243,10 @@ paulrun inputs PUBLISHING.md
 ```
 VERSION  The version being released, e.g. 1.2.0
          pattern: ^\d+\.\d+\.\d+$
+BRANCH   The branch to release from
+         default: main
+ENV      Where to deploy
+         choices: staging, prod
 PR       The number GitHub gave the pull request
          pattern: ^\d+$
          asked in "Open the pull request"

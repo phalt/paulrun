@@ -44,6 +44,8 @@ Inputs are values a runbook needs each time it runs, such as the version being r
 | `description` | yes | What to enter. Shown when paulrun asks for it. |
 | `pattern` | no | A regular expression the whole value must match, e.g. `'^\d+\.\d+\.\d+$'`. |
 | `secret` | no | `true` for passwords and tokens. See [Secrets](#secrets). |
+| `default` | no | The value to use if you press enter at the prompt, e.g. `main`. See [Defaults](#defaults). |
+| `choices` | no | The only values accepted, e.g. `[staging, prod]`. See [Choices](#choices). |
 
 Each name can only be declared once, in the frontmatter or an [input block](#input-blocks). Other keys on an input are `check` warnings.
 
@@ -52,9 +54,58 @@ Each name can only be declared once, in the frontmatter or an [input block](#inp
 Frontmatter inputs are all collected before the first step runs, in the order they're declared. [Input blocks](#input-blocks) are collected the same way, but later, when the run reaches them.
 
 1. If an environment variable with the input's name is set, paulrun uses it without asking. `VERSION=1.2.0 paulrun RELEASING.md` releases 1.2.0 with no prompt. An empty variable counts as not set.
-2. Otherwise paulrun asks for it, showing its name and description.
+2. Otherwise paulrun asks for it, showing its name and description, its default and its choices. Pressing enter takes the default.
 
-If the input has a `pattern`, the value must match all of it. A typed answer that doesn't match is refused and asked for again. A value from the environment that doesn't match stops paulrun with an error, before anything runs.
+If the input has `choices`, the value must be one of them, and if it has a `pattern`, the value must match all of it. A typed answer that isn't accepted is refused and asked for again. A value from the environment that isn't accepted stops paulrun with an error, before anything runs.
+
+### Defaults
+
+Give an input a `default` for the answer you usually give, so pressing enter is enough:
+
+```yaml
+inputs:
+  - name: BRANCH
+    description: The branch to release from
+    default: main
+```
+
+```
+BRANCH (The branch to release from) [main]:
+```
+
+The environment still comes first, so `BRANCH=release paulrun RELEASING.md` uses `release` without asking. A default is still checked against the input's `pattern`, like a typed answer.
+
+`check` reports a default that can't work:
+
+- **A default that isn't text.** YAML reads some unquoted values as something else, e.g. `1.10` as the number `1.1` and `yes` as true. Put them in quotes: `default: '1.10'`.
+- **A default that doesn't match the input's `pattern`**, since it could never be accepted.
+- **A default on a secret**, since the secret would be written in the runbook for anyone to read. paulrun never uses one.
+
+### Choices
+
+Give an input `choices` when only a few values make sense. paulrun lists them at the prompt, and won't take anything else:
+
+```yaml
+inputs:
+  - name: FE_SET
+    description: Which frontend set to rebuild
+    choices: [comms, billing, all]
+    default: comms
+```
+
+```
+FE_SET (Which frontend set to rebuild) [comms] (comms, billing, all): everything
+FE_SET must be one of: comms, billing, all
+```
+
+Type the choice itself, e.g. `billing`, not its number. Choices are compared exactly, so `Comms` isn't `comms`. A value from the environment has to be one of the choices too.
+
+`check` reports choices that can't work:
+
+- **Choices that aren't a list of text**, e.g. `choices: comms` rather than `choices: [comms]`, or an empty list.
+- **A choice that doesn't match the input's `pattern`**, since it could never be accepted. You can use both, and a value has to pass both.
+- **A default that isn't one of the choices.**
+- **Choices on a secret**, since they'd list the secret's possible values in the runbook.
 
 ### Using inputs
 

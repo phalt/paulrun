@@ -55,6 +55,62 @@ def test_collect_prompts_when_the_environment_value_is_empty():
     assert prompter.asked == [("VERSION", None)]
 
 
+def test_collect_takes_the_default_when_the_answer_is_empty():
+    """Pressing enter at a prompt for an input with a default gives the default."""
+    branch = Input(name="BRANCH", description="The branch", default="main")
+    prompter = FakePrompter(answers=[""])
+
+    values = collect([branch], {}, prompter)
+
+    assert values == {"BRANCH": "main"}
+    assert prompter.asked == [("BRANCH", None)]
+
+
+def test_collect_uses_a_typed_answer_over_the_default():
+    """The default is only for an empty answer; anything typed is used as it is."""
+    branch = Input(name="BRANCH", description="The branch", default="main")
+
+    assert collect([branch], {}, FakePrompter(answers=["release"])) == {"BRANCH": "release"}
+
+
+def test_collect_uses_the_environment_over_the_default_without_asking():
+    """The environment still comes first, so BRANCH=release overrides the default and nothing is asked."""
+    branch = Input(name="BRANCH", description="The branch", default="main")
+    prompter = FakePrompter(answers=[])
+
+    assert collect([branch], {"BRANCH": "release"}, prompter) == {"BRANCH": "release"}
+    assert prompter.asked == []
+
+
+def test_collect_still_asks_for_an_input_with_a_default():
+    """A default is offered at the prompt, not used silently, so the person running it can see and change it."""
+    branch = Input(name="BRANCH", description="The branch", default="main")
+    prompter = FakePrompter(answers=[""])
+
+    collect([branch], {}, prompter)
+
+    assert prompter.asked == [("BRANCH", None)]
+
+
+def test_collect_keeps_an_empty_answer_when_there_is_no_default():
+    """Without a default, an empty answer is still the empty string, as before."""
+    note = Input(name="NOTE", description="A note")
+
+    assert collect([note], {}, FakePrompter(answers=[""])) == {"NOTE": ""}
+
+
+def test_collect_checks_a_default_against_the_pattern():
+    """A default is checked like any answer, so a default that doesn't match is refused and asked for again.
+
+    check reports such a default before a run starts, so this only matters for a runbook run without checking.
+    """
+    version = Input(name="VERSION", description="The version", pattern=r"\d+\.\d+\.\d+", default="latest")
+    prompter = FakePrompter(answers=["", "1.2.0"])
+
+    assert collect([version], {}, prompter) == {"VERSION": "1.2.0"}
+    assert prompter.asked == [("VERSION", None), ("VERSION", r"VERSION must match \d+\.\d+\.\d+")]
+
+
 def test_collect_asks_again_when_an_answer_does_not_match_the_pattern():
     """A typed answer that doesn't match is refused, and the prompt says why."""
     prompter = FakePrompter(answers=["latest", "v1", "1.2.0"])
@@ -96,6 +152,52 @@ def test_collect_fails_when_an_environment_value_does_not_match_the_pattern():
         collect([VERSION], {"VERSION": "latest"}, FakePrompter(answers=[]))
 
     assert str(error.value) == r"VERSION from the environment must match \d+\.\d+\.\d+"
+
+
+FE_SET = Input(name="FE_SET", description="Which set", choices=("comms", "billing", "all"))
+
+
+def test_collect_accepts_an_answer_that_is_one_of_the_choices():
+    """A typed answer that's one of the choices is used."""
+    assert collect([FE_SET], {}, FakePrompter(answers=["billing"])) == {"FE_SET": "billing"}
+
+
+def test_collect_asks_again_when_an_answer_is_not_one_of_the_choices():
+    """An answer that isn't one of the choices is refused, and the prompt lists them."""
+    prompter = FakePrompter(answers=["everything", "Comms", "comms"])
+
+    values = collect([FE_SET], {}, prompter)
+
+    assert values == {"FE_SET": "comms"}
+    assert prompter.asked == [
+        ("FE_SET", None),
+        ("FE_SET", "FE_SET must be one of: comms, billing, all"),
+        ("FE_SET", "FE_SET must be one of: comms, billing, all"),
+    ]
+
+
+def test_collect_fails_when_an_environment_value_is_not_one_of_the_choices():
+    """A value from the environment can't be asked for again, so one outside the choices is an error."""
+    with pytest.raises(InputError) as error:
+        collect([FE_SET], {"FE_SET": "everything"}, FakePrompter(answers=[]))
+
+    assert str(error.value) == "FE_SET from the environment must be one of: comms, billing, all"
+
+
+def test_collect_takes_a_default_that_is_one_of_the_choices():
+    """Pressing enter gives the default, which is one of the choices."""
+    with_default = Input(name="FE_SET", description="Which set", choices=("comms", "billing"), default="comms")
+
+    assert collect([with_default], {}, FakePrompter(answers=[""])) == {"FE_SET": "comms"}
+
+
+def test_collect_needs_a_value_to_pass_both_choices_and_pattern():
+    """With both set, a choice the pattern refuses is refused too, and the message names the choices."""
+    both = Input(name="ENV", description="Where", choices=("staging", "prod"), pattern="staging")
+    prompter = FakePrompter(answers=["prod", "staging"])
+
+    assert collect([both], {}, prompter) == {"ENV": "staging"}
+    assert prompter.asked == [("ENV", None), ("ENV", "ENV must match staging")]
 
 
 def test_substitute_replaces_each_placeholder_with_its_value():

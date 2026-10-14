@@ -12,7 +12,7 @@ from paulrun.inputs import PLACEHOLDER
 from paulrun.runbook import Block, Runbook
 
 CORE_KEYS = ("title", "description", "output_path", "python", "inputs")
-INPUT_KEYS = ("name", "description", "pattern", "secret")
+INPUT_KEYS = ("name", "description", "pattern", "secret", "default", "choices")
 _UPPER_SNAKE_CASE = re.compile(r"[A-Z][A-Z0-9_]*")
 
 
@@ -123,17 +123,81 @@ def _inputs(runbook: Runbook) -> Iterator[Finding]:
         if not isinstance(entry.value.get("description"), str):
             yield Finding(entry.line, f"{label} needs a description")
         pattern = entry.value.get("pattern")
+        compiled = None  # the pattern, if it's one a value can be checked against
         if pattern is not None:
             if not isinstance(pattern, str):
                 yield Finding(entry.line, f"{label}'s pattern must be a string")
             else:
                 try:
-                    re.compile(pattern)
+                    compiled = re.compile(pattern)
                 except re.error as e:
                     yield Finding(entry.line, f"{label}'s pattern isn't a valid regex: {e}")
+        findings, choices = _choices(entry, label, compiled)
+        yield from findings
+        yield from _default(entry, label, compiled, choices)
         for key in entry.value:
             if key not in INPUT_KEYS:
                 yield Finding(entry.line, f"unknown key {key!r} on {label}", warning=True)
+
+
+def _choices(entry: _Entry, label: str, pattern: re.Pattern[str] | None) -> tuple[list[Finding], list[str] | None]:
+    """Problems with an input's choices, and the choices if a default can be checked against them.
+
+    Choices on a secret, or that aren't a non-empty list of strings, are errors. So is a choice the pattern
+    refuses, since it could never be accepted.
+    """
+    if "choices" not in entry.value:
+        return [], None
+    choices = entry.value["choices"]
+    if entry.secret:
+        secret = f"{label} is secret, so it can't have choices: its values would be written in the runbook"
+        return [Finding(entry.line, secret)], None
+    if not (isinstance(choices, list) and choices and all(isinstance(choice, str) for choice in choices)):
+        return [Finding(entry.line, f"{label}'s choices must be a list of strings, e.g. [a, b]")], None
+    refused = [choice for choice in choices if pattern is not None and pattern.fullmatch(choice) is None]
+    return [
+        Finding(entry.line, f"{label}'s choice {choice!r} doesn't match its pattern") for choice in refused
+    ], choices
+
+
+def _default(
+    entry: _Entry, label: str, pattern: re.Pattern[str] | None, choices: list[str] | None
+) -> Iterator[Finding]:
+    """Problems with an input's default: it's a secret's, isn't a string, isn't a choice, or doesn't match."""
+    if "default" not in entry.value:
+        return
+    default = entry.value["default"]
+    if entry.secret:
+        yield Finding(
+            entry.line, f"{label} is secret, so it can't have a default: its value would be written in the runbook"
+        )
+    elif not isinstance(default, str):
+        # Unquoted YAML like 1.10 or yes isn't text, and isn't what was written: 1.10 is the number 1.1.
+        yield Finding(
+            entry.line,
+            f"{label}'s default must be a string, but YAML read it as {_yaml_type(default)}; put it in quotes",
+        )
+    elif choices is not None and default not in choices:
+        yield Finding(entry.line, f"{label}'s default {default!r} isn't one of its choices")
+    elif pattern is not None and pattern.fullmatch(default) is None:
+        yield Finding(entry.line, f"{label}'s default {default!r} doesn't match its pattern")
+
+
+def _yaml_type(value: Any) -> str:
+    """What YAML made of an unquoted value, for a message saying why it isn't the text that was written."""
+    match value:
+        case bool():
+            return f"{'true' if value else 'false'}, a yes or no"
+        case int() | float():
+            return f"the number {value}"
+        case None:
+            return "nothing"
+        case list():
+            return "a list"
+        case dict():
+            return "a mapping"
+        case _:
+            return f"a {type(value).__name__}, {value}"
 
 
 @dataclass(frozen=True)

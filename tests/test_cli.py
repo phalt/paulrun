@@ -626,6 +626,106 @@ def test_run_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
     assert "Publishing 1.2.0 with ****" in lines
 
 
+def test_run_shows_an_inputs_default_and_takes_it_when_enter_is_pressed(runner, monkeypatch):
+    """The prompt shows the default in brackets, and an empty answer uses it."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.delenv("BRANCH", raising=False)
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "default-example.md")], input="\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert result.output.startswith("BRANCH (The branch to release from) [main]: \n")
+    assert "Releasing 1.2.0 from main" in result.output.splitlines()
+
+
+def test_run_uses_an_answer_typed_over_the_default(runner, monkeypatch):
+    """Typing an answer replaces the default."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.delenv("BRANCH", raising=False)
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "default-example.md")], input="release\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Releasing 1.2.0 from release" in result.output.splitlines()
+
+
+def test_run_uses_the_environment_over_a_default_without_asking(runner, monkeypatch):
+    """BRANCH set in the environment is used, and BRANCH isn't asked for."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("BRANCH", "release")
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "default-example.md")], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    assert "BRANCH (" not in result.output
+    assert "Releasing 1.2.0 from release" in result.output.splitlines()
+
+
+def test_run_shows_a_default_in_an_input_block_prompt(runner, tmp_path):
+    """An input block's default is shown and used the same way."""
+    path = write_runbook(
+        tmp_path,
+        "## Merge\n\n```input\nname: BASE\ndescription: The branch to merge into\ndefault: main\n```\n\n"
+        "```sh run\necho merging into <BASE>\n```\n",
+    )
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n\n")
+
+    assert result.exit_code == 0, result.output
+    assert "BASE (The branch to merge into) [main]: " in result.output
+    assert "merging into main" in result.output.splitlines()
+
+
+def test_run_lists_an_inputs_choices_and_asks_again_for_an_answer_outside_them(runner, monkeypatch):
+    """The prompt lists the choices, and an answer that isn't one gets why and the question again."""
+    monkeypatch.delenv("FE_SET", raising=False)
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "choices-example.md")], input="everything\nbilling\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert result.output.startswith(
+        "FE_SET (Which frontend set to rebuild) [comms] (comms, billing, all): everything\n"
+        "FE_SET must be one of: comms, billing, all\n"
+        "FE_SET (Which frontend set to rebuild) [comms] (comms, billing, all): billing\n"
+    )
+    assert "Rebuilding the billing frontend" in result.output.splitlines()
+
+
+def test_run_takes_a_default_that_is_one_of_the_choices(runner, monkeypatch):
+    """Pressing enter gives the default, which is one of the choices."""
+    monkeypatch.delenv("FE_SET", raising=False)
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "choices-example.md")], input="\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Rebuilding the comms frontend" in result.output.splitlines()
+
+
+def test_run_stops_for_an_environment_value_that_is_not_one_of_the_choices(runner, monkeypatch, started_in):
+    """A value from the environment outside the choices stops the run before anything runs."""
+    monkeypatch.setenv("FE_SET", "everything")
+
+    result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "choices-example.md")])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: FE_SET from the environment must be one of: comms, billing, all\n"
+
+
+def test_run_lists_choices_for_an_input_block(runner, tmp_path):
+    """An input block's choices are listed and checked the same way."""
+    path = write_runbook(
+        tmp_path,
+        "## Deploy\n\n```input\nname: ENV\ndescription: Where to deploy\nchoices: [staging, prod]\n```\n\n"
+        "```sh run\necho deploying to <ENV>\n```\n",
+    )
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\nqa\nprod\n")
+
+    assert result.exit_code == 0, result.output
+    assert "ENV (Where to deploy) (staging, prod): qa\nENV must be one of: staging, prod\n" in result.output
+    assert "deploying to prod" in result.output.splitlines()
+
+
 def test_run_never_shows_a_secret_typed_at_its_prompt(runner, inputs_runbook):
     """A secret isn't echoed as it's typed, and a block printing it shows **** instead."""
     result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
@@ -1056,6 +1156,35 @@ def test_inputs_lists_each_input_with_its_description_pattern_and_secret_flag(ru
                        pattern: ^\\d+\\.\\d+\\.\\d+$
         PUBLISH_TOKEN  Token for the package index
                        secret
+        """
+    )
+
+
+def test_inputs_shows_each_inputs_default(runner):
+    """An input's default is listed with its other details."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "default-example.md")])
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        """\
+        BRANCH   The branch to release from
+                 default: main
+        VERSION  The version being released, e.g. 1.2.0
+                 pattern: ^\\d+\\.\\d+\\.\\d+$
+        """
+    )
+
+
+def test_inputs_shows_each_inputs_choices(runner):
+    """An input's choices are listed with its other details."""
+    result = runner.invoke(cli.cli, ["inputs", str(RUNBOOKS / "choices-example.md")])
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        """\
+        FE_SET  Which frontend set to rebuild
+                default: comms
+                choices: comms, billing, all
         """
     )
 
