@@ -93,7 +93,7 @@ Every run is also recorded in `logs/release-1.2.0.md`, so you can see afterwards
 
 ## Your runbook library
 
-Keep runbooks you use across projects in `~/runbooks`, your runbook library, and run them by name from anywhere:
+Keep runbooks you use across projects in `~/runbooks`, and run them by name from anywhere:
 
 ```
 $ paulrun library
@@ -105,19 +105,18 @@ $ cd ~/Projects/website
 $ paulrun rebuild-frontend
 ```
 
-A book runs in the folder you're in, so one book works on whichever project you run it from. `paulrun run` with no name lets you pick one from a list. See [Your runbook library](library.md).
+A book runs in the folder you're in, so one book works for every project. See [Your runbook library](library.md).
 
 ## Why use paulrun?
 
 Release steps get forgotten. Writing them down helps; making the written-down version run itself fixes it.
 
 - **It's just markdown** - A runbook reads like documentation, renders on GitHub, and works fine without paulrun.
-- **Check before you run** - `paulrun check` catches undeclared placeholders, broken frontmatter and shell or Python syntax errors before anything runs.
+- **Check before you run** - `paulrun check` finds broken frontmatter, undeclared placeholders and syntax errors.
 - **See what would happen** - `paulrun --dry RELEASING.md` shows every command with its inputs filled in, and runs nothing.
-- **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets out of the screen and the log.
+- **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets off the screen and out of the log.
 - **Manual steps too** - `confirm` blocks pause for the things only a person can do.
-- **A record of every run** - An optional transcript keeps every command, its output and how the run finished.
-- **A library of your own** - Keep runbooks you use everywhere in `~/runbooks`, and run any of them by name from whichever project you're in.
+- **A record of every run** - An optional transcript keeps every command, its output and how it finished.
 - **More than shell** - Shell and Python blocks are built in, and other languages can be added as backends.
 
 ## Next steps

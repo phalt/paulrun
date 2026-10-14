@@ -10,51 +10,39 @@ paulrun backends                      # list the languages paulrun can run
 paulrun --version
 ```
 
-`paulrun` on its own shows this list, with a line about each command.
+`paulrun` on its own shows this list.
 
 ## Naming a runbook
 
-`RUNBOOK` is a path to a runbook file, or the name of a book in your runbook library.
+`RUNBOOK` is a file, or the name of a book in your [runbook library](library.md):
 
 ```sh
 paulrun RELEASING.md        # the file RELEASING.md, here
 paulrun rebuild-frontend    # the book rebuild-frontend.md, in your library
 ```
 
-Your runbook library is a folder of runbooks you keep for yourself, rather than in a project. It's `~/runbooks`, unless you set `PAULRUN_LIBRARY` to somewhere else:
-
-```sh
-export PAULRUN_LIBRARY=~/work-runbooks
-```
-
-Run [`paulrun library`](#paulrun-library) to see which books are in it.
-
-paulrun works out which runbook you mean like this:
-
-1. If `RUNBOOK` is a file that exists, that's the runbook. A runbook in your project is never hidden by a book with the same name.
-2. Otherwise, if it has no `/` in it, it's a book's name, and paulrun uses `<name>.md` from your library. `rebuild-frontend` and `rebuild-frontend.md` are the same book.
-3. Otherwise there's no such runbook, which is a usage error. paulrun names the places it looked:
+1. If `RUNBOOK` is a file that exists, that's the runbook, so a file is never hidden by a book with the same name.
+2. Otherwise, if it has no `/`, it's the book `<name>.md` in your library. The `.md` is optional.
+3. Otherwise it's a usage error, which names both places paulrun looked:
 
 ```
 Error: Invalid value for 'RUNBOOK': no runbook 'rebuild-frontend': no such file here, and no rebuild-frontend.md in the library at /home/you/runbooks
 ```
 
-Wherever the runbook comes from, its blocks run in the folder you run paulrun from. See [Where blocks run](runbook-format.md#where-blocks-run).
-
 ## paulrun run
 
-Runs a runbook, step by step. `RUNBOOK` is a file or a book in your library; see [Naming a runbook](#naming-a-runbook).
+Runs a runbook, step by step.
 
 ```sh
 paulrun RELEASING.md
 ```
 
-You don't need to type `run`: anything after `paulrun` that isn't one of its commands is a runbook to run. `paulrun run RELEASING.md` does exactly the same, and is how you run a book whose name is also a command, e.g. `paulrun run check` for a book called `check.md`, since `paulrun check` is always the `check` command. Options can go before or after the runbook, so `paulrun RELEASING.md --dry` and `paulrun --dry RELEASING.md` are the same.
+You don't need to type `run`: anything after `paulrun` that isn't a command is a runbook. Options go before or after it, so `paulrun RELEASING.md --dry` is the same as `paulrun --dry RELEASING.md`. Use `paulrun run check` to run a book called `check.md`, since `paulrun check` is the command.
 
-1. **Checks the runbook** first, exactly as [`paulrun check`](#paulrun-check) does. Any error stops it here, before anything runs. Warnings are shown, then it carries on.
-2. **Collects the inputs**, from the environment or by asking. See [How inputs are collected](runbook-format.md#how-inputs-are-collected).
-3. **Shows the plan** (the title, the folder blocks will run in, the inputs, each step, and how many blocks will run) and asks `Start? [y/N]`.
-4. **Goes through each step in order**, showing its name, then each block: notes are shown, `confirm` blocks wait for `y`, [`input` blocks](runbook-format.md#input-blocks) ask for their value, and `run` blocks run with their output streamed as it's printed.
+1. **Checks the runbook**, as [`paulrun check`](#paulrun-check) does. Errors stop it here.
+2. **Collects the inputs**. See [Inputs](runbook-format.md#inputs).
+3. **Shows the plan** and asks `Start? [y/N]`.
+4. **Runs each step in order**, streaming each block's output as it's printed.
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
@@ -85,7 +73,9 @@ finished: ok (12.8s)
 transcript: logs/release-1.2.0.md
 ```
 
-The run stops at the first block that fails, and later steps don't run:
+`directory:` is where blocks will run. See [Where blocks run](runbook-format.md#where-blocks-run).
+
+The run stops at the first block that fails:
 
 ```
 === Build ===
@@ -97,13 +87,11 @@ exit 2 (0.0s)
 finished: failed at "Build" (exit 2)
 ```
 
-Only `y` answers `Start?` and `Continue?` with a yes. Anything else, including just pressing enter, ends the run as aborted.
-
-If the runbook has an [`output_path`](runbook-format.md#transcript), the run is recorded there, and the last line says where.
+Only `y` answers `Start?` and `Continue?` with yes. Anything else, including enter, ends the run as aborted.
 
 ### Picking a book
 
-With no runbook, `paulrun run` lists the books in your [runbook library](#naming-a-runbook) and asks which one to run:
+With no runbook, `paulrun run` asks which book from your library to run:
 
 ```
 $ paulrun run
@@ -112,19 +100,19 @@ $ paulrun run
 Run which? 1
 ```
 
-Answer with a book's number, and it runs exactly as if you'd typed its name. `--dry` and `--step` work too: `paulrun run --dry` picks a book, then shows what it would do. Any other answer gets the question again. Press enter without answering, or Ctrl-C, to stop without running anything.
-
-`paulrun` on its own shows help rather than the picker, so you need the `run`.
+Answer with a number. `--dry` and `--step` work too. Press enter, or Ctrl-C, to stop without running anything.
 
 ### --dry
 
-Shows what the runbook would do, without doing any of it.
+Shows what the runbook would do, without running anything.
 
 ```sh
 paulrun --dry RELEASING.md
 ```
 
-Every block is shown with its inputs filled in, but nothing runs. The plan still shows the folder blocks would run in, so you can check it before a real run. There's no `Start?` question, `confirm` blocks don't wait, and no transcript is written. Frontmatter inputs are still collected, so the blocks can be filled in, but secrets aren't needed, so they aren't asked for and show as `****`. [`input` blocks](runbook-format.md#input-blocks) aren't asked for either, since their values may not exist yet: each shows where the run would stop to ask, and later blocks show its placeholder as written.
+- Every block is shown with its inputs filled in.
+- There's no `Start?`, `confirm` blocks don't wait, and no transcript is written.
+- Secrets and [input blocks](runbook-format.md#input-blocks) aren't asked for.
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
@@ -151,19 +139,11 @@ finished: dry run, nothing was run
 
 ### --step
 
-Asks about every `run` block before running it.
+Asks before running each `run` block.
 
 ```sh
 paulrun --step RELEASING.md
 ```
-
-After each block's code is shown, paulrun asks `Run this block? [y]es / [s]kip / [q]uit`:
-
-- `y` runs the block.
-- `s` skips it, and the run carries on with the next block.
-- `q` quits, and the run ends as aborted.
-
-Any other answer gets the question again. Skipped blocks are marked as skipped in the transcript. `--step` only asks about `run` blocks; `input` blocks are always asked. With `--dry`, `--step` does nothing, since nothing runs anyway.
 
 ```
 === Build ===
@@ -180,17 +160,17 @@ skipped (--step)
 finished: ok (0.0s)
 ```
 
+`y` runs the block, `s` skips it, and `q` ends the run as aborted. With `--dry`, `--step` does nothing, since nothing runs.
+
 ### Pressing Ctrl-C
 
-Ctrl-C stops the run, cleanly:
-
-- If a block is running, it gets the Ctrl-C too, and paulrun waits for it to stop, still showing anything it prints. Its exit code is recorded.
-- If a block ignores Ctrl-C, press it again. paulrun stops the block and everything it started.
-- Later steps don't run, and the run ends as `finished: interrupted at "<step>"`, in the transcript too.
+- A running block gets the Ctrl-C too, and paulrun waits for it to stop.
+- If a block ignores it, press Ctrl-C again to stop the block and everything it started.
+- The run ends as `finished: interrupted at "<step>"`.
 
 ## paulrun check
 
-Finds problems in a runbook without running anything. Like `run`, it takes a file or a book's name.
+Finds problems in a runbook without running anything.
 
 ```sh
 paulrun check RELEASING.md
@@ -200,7 +180,7 @@ paulrun check RELEASING.md
 RELEASING.md: ok
 ```
 
-Each problem is shown with the line it's on, so your editor can jump to it, then a count:
+Each problem is shown with its line, so your editor can jump to it:
 
 ```
 broken.md:6: error: input VERSION is declared twice (first on line 4)
@@ -212,29 +192,26 @@ broken.md:21: error: syntax error near unexpected token `fi'
 4 errors, 1 warning
 ```
 
-**Errors** are problems that would make the runbook go wrong:
+**Errors** stop the runbook running:
 
 - a missing `title`, or a frontmatter value of the wrong type
-- an input without a `name` or `description`, a name that isn't UPPER_SNAKE_CASE, a name declared twice, or a `pattern` that isn't a valid regular expression
-- an `input` block that isn't valid YAML, or isn't a mapping
+- an input without a `name` or `description`, a name that isn't UPPER_SNAKE_CASE or is declared twice, or a `pattern` that isn't a valid regular expression
+- a `default` or `choices` that can't work. See [Defaults](runbook-format.md#defaults) and [Choices](runbook-format.md#choices).
 - a placeholder that isn't a declared input, or a secret used as a placeholder
-- an `input` block's value used before the block, or in `output_path`
-- a `run`, `docstring`, `confirm` or `input` block before the first `##` heading
-- a `run` block in a language no backend runs
-- a `python` command that isn't installed
+- an `input` block that isn't valid YAML, or is used before it's asked for
+- a block before the first `##` heading
+- a `run` block in a language no backend runs, or a `python` command that isn't installed
 - a syntax error in a shell or Python block
 
-**Warnings** are worth a look, but don't stop the runbook:
+**Warnings** don't:
 
-- a frontmatter or input key paulrun doesn't know, which is often a typo
+- a frontmatter or input key paulrun doesn't know, often a typo
 - an input nothing uses
 - a Python `SyntaxWarning`, and [shellcheck](install.md#optional-shellcheck) findings if it's installed
 
-`paulrun run` runs the same checks before it starts.
-
 ## paulrun inputs
 
-Lists the inputs a runbook needs, so you know what to have ready, or what to set in the environment. Like `run`, it takes a file or a book's name.
+Lists the inputs a runbook needs, so you know what to have ready.
 
 ```sh
 paulrun inputs PUBLISHING.md
@@ -245,8 +222,6 @@ VERSION  The version being released, e.g. 1.2.0
          pattern: ^\d+\.\d+\.\d+$
 BRANCH   The branch to release from
          default: main
-ENV      Where to deploy
-         choices: staging, prod
 PR       The number GitHub gave the pull request
          pattern: ^\d+$
          asked in "Open the pull request"
@@ -256,54 +231,36 @@ OTP      The code from your authenticator app
          asked in "Publish"
 ```
 
-Frontmatter inputs come first. Inputs from [`input` blocks](runbook-format.md#input-blocks) come after, each with the step that asks for it.
-
-If the rest of the runbook is broken, the frontmatter inputs are still listed; input blocks need the rest of the runbook to be readable. Inputs that are missing a name or description aren't listed; `paulrun check` reports those.
+Inputs from [input blocks](runbook-format.md#input-blocks) come last, with the step that asks for them. Frontmatter inputs are listed even if the rest of the runbook is broken.
 
 ## paulrun library
 
-Lists the books in your [runbook library](#naming-a-runbook), so you can find the one you need.
-
-```sh
-paulrun library
-```
+Lists the books in your [runbook library](library.md), with each one's `title` and `description`.
 
 ```
+$ paulrun library
 library: /home/you/runbooks
 rebuild-frontend     Rebuild the frontend
                      Clean install the frontend's dependencies, then rebuild it.
 update-project-deps  Update a project's dependencies
 ```
 
-Each book is listed by the name you run it with, then its `title`, with its `description` underneath. Every `.md` file directly in the library is a book. Other files and folders in it are left out, so a `logs/` folder there is a fine place for transcripts.
-
-Only each book's frontmatter is read. A book whose frontmatter can't be read is still listed, with why, so you can fix it:
-
-```
-deploy    can't read it: frontmatter has no closing ---
-```
-
-If the library is empty, or doesn't exist yet, paulrun says where it looked.
+A book whose frontmatter can't be read is still listed, with why.
 
 ## paulrun backends
 
-Lists the languages paulrun can run, and the package each one comes from.
-
-```sh
-paulrun backends
-```
+Lists the languages paulrun can run, and the package each comes from.
 
 ```
-python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.1.0)
-shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
+$ paulrun backends
+python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.2.0)
+shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 ```
-
-Backends installed from other packages are listed here too.
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | The run finished, or `check` found no errors. A `--dry` run, and a run where every block was skipped, exit 0 too. |
+| `0` | The run finished, or `check` found no errors. |
 | `1` | A block failed, the run was aborted or interrupted, `check` found errors, or the runbook couldn't be read. |
-| `2` | The command was used wrongly, e.g. a runbook that isn't a file or a book in your library. |
+| `2` | The command was used wrongly, e.g. a runbook that doesn't exist. |

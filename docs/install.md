@@ -18,7 +18,7 @@ Once installed, check it's working:
 
 ```sh
 > paulrun --version
-paulrun, version 0.1.0
+paulrun, version 0.2.0
 ```
 
 ## Requirements

@@ -5,27 +5,20 @@ A backend runs `run` blocks for one or more languages. paulrun comes with two, f
 Run `paulrun backends` to see which backends are installed, the languages each one runs, and the package it comes from:
 
 ```
-python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.1.0)
-shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
+python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.2.0)
+shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 ```
 
 ## Built-in backends
 
-### shell
-
-Languages: `sh`, `bash`, `shell`. Needs `bash`.
-
-Each block runs as one `bash` script that stops at the first command that fails, as if it began with `set -eo pipefail`. `check` finds syntax errors with `bash -n`, and adds [shellcheck](install.md#optional-shellcheck) warnings if it's installed. See [Shell blocks](runbook-format.md#shell-blocks).
-
-### python
-
-Languages: `python`, `py`. Needs nothing extra.
-
-Each block runs as its own script, with the command in the runbook's [`python`](runbook-format.md#python-blocks) frontmatter key, or with the Python paulrun runs on. `check` finds syntax errors by compiling each block. See [Python blocks](runbook-format.md#python-blocks).
+| Backend | Languages | Needs | See |
+|---|---|---|---|
+| shell | `sh`, `bash`, `shell` | `bash` | [Shell blocks](runbook-format.md#shell-blocks) |
+| python | `python`, `py` | nothing extra | [Python blocks](runbook-format.md#python-blocks) |
 
 ## Writing a backend
 
-A backend is a plain class with a `name`, the `languages` it runs, and two methods: `validate()` checks a block without running it, and `run()` runs it. It doesn't need a base class; it only has to look like this protocol, from `paulrun.backends`:
+A backend is a plain class with a `name`, the `languages` it runs, and two methods: `validate()` checks a block, and `run()` runs it. It doesn't need a base class, only to match this protocol from `paulrun.backends`:
 
 ```python
 class Backend(Protocol):
@@ -72,7 +65,7 @@ Everything a backend needs is in `paulrun.backends` (`Problem`, `stream` and `In
 
 ### validate()
 
-`paulrun check` calls `validate()` on every block in the backend's languages, and so does `paulrun run`, before anything runs. It returns a list of `Problem`s:
+`paulrun check` and `paulrun run` call `validate()` on every block before anything runs. It returns a list of `Problem`s:
 
 ```python
 @dataclass(frozen=True)
@@ -84,9 +77,9 @@ class Problem:
     warning: bool = False  # warnings are reported but don't stop the runbook running
 ```
 
-- **Lines count from the block's first line**, as 1. paulrun turns them into lines in the runbook, so `check` points at the right place.
-- **An error stops a run** before anything runs. A warning is shown, and the run carries on.
-- **The code is as written**, with `<NAME>` placeholders still in it. Before checking it, swap each one for something your language accepts. The built-in backends use the placeholder's bare name, which is a plain word in shell and a plain name in Python:
+- **Lines count from the block's first line**, as 1. paulrun turns them into lines in the runbook.
+- **An error stops the run**; a warning is only shown.
+- **The code still has its `<NAME>` placeholders.** Swap each for something your language accepts before checking it. The built-in backends use the bare name:
 
     ```python
     from paulrun.inputs import PLACEHOLDER
@@ -94,21 +87,19 @@ class Problem:
     script = PLACEHOLDER.sub(lambda match: match.group(1), code)
     ```
 
-- **Check that what `run()` needs is installed.** `paulrun run` always validates first, so an error here is far friendlier than `run()` failing to start.
+- **Check that what `run()` needs is installed**, so a missing tool is reported before anything runs.
 
 ### run()
 
 `run()` gets:
 
-- `code`: the block with every placeholder replaced by its value. Secrets are never replaced; they're only in `env`.
-- `frontmatter`: the runbook's frontmatter, read-only, for a backend with settings of its own, like the Python backend's `python` key.
-- `env`: the block's complete environment, including every input. Pass it on as it is.
-- `cwd`: the folder paulrun was started from, where the block runs. See [Where blocks run](runbook-format.md#where-blocks-run).
-- `output`: call it with each line the block prints, as soon as it's printed.
+- `code`: the block with its placeholders filled in. Secrets are only in `env`.
+- `frontmatter`: the runbook's frontmatter, read-only, for settings of your own.
+- `env`: the block's complete environment. Pass it on as it is.
+- `cwd`: where the block runs, the folder paulrun was started from.
+- `output`: call it with each line the block prints, as it's printed.
 
-It returns the block's exit code, where `0` means it succeeded and anything else stops the run.
-
-A backend never prints. paulrun shows each line, replaces secrets with `****`, and records it in the transcript, so a backend doesn't need to do any of that itself.
+It returns the block's exit code. A backend never prints: paulrun shows each line, masks secrets and records the transcript.
 
 ### stream()
 
@@ -118,19 +109,17 @@ Most backends run a command, and `stream()` does all of that for you:
 def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output: Callable[[str], None]) -> int:
 ```
 
-It runs `command`, passes each line it prints to `output` as it's printed, and returns its exit code. It's what the built-in backends use, and it gets the details right:
+It runs `command`, passes each line to `output` as it's printed, and returns the exit code. The built-in backends use it, because it gets the details right:
 
-- **stdout and stderr are merged**, so lines are shown in the order they were printed.
-- **The command shares paulrun's terminal**, so it can still ask for a password the way `git`, `ssh` and `gpg` do.
-- **Ctrl-C works.** On the first press, the command gets the chance to stop by itself, and anything it prints on the way out is still shown. A second press kills it, and everything it started. Either way, once it's stopped, `stream()` raises `Interrupted` with its exit code, so the run can record how the block ended.
+- **stdout and stderr are merged**, in the order they were printed.
+- **The command shares paulrun's terminal**, so it can still ask for a password.
+- **Ctrl-C works.** The first press lets the command stop by itself; a second kills it and everything it started. Then `stream()` raises `Interrupted` with the exit code.
 
-A backend that doesn't use `stream()` should do the same: once its block has stopped after Ctrl-C, raise `Interrupted(exit_code)`. paulrun records the block's exit code, then finishes the run as interrupted.
+A backend that doesn't use `stream()` should also raise `Interrupted(exit_code)` once its block has stopped after Ctrl-C.
 
 ## Shipping your own backend
 
-Anyone can publish a backend in their own package. Once it's installed alongside paulrun, it loads exactly like a built-in one.
-
-Here's a complete backend for Node.js, in a package called `paulrun-node`:
+Anyone can publish a backend in their own package, and once it's installed alongside paulrun, it loads like a built-in one. Here's a complete backend for Node.js, in a package called `paulrun-node`:
 
 ```
 paulrun-node/
@@ -184,7 +173,7 @@ class NodeBackend:
         return stream(["node", "-e", code], env=env, cwd=cwd, output=output)
 ```
 
-`pyproject.toml` registers it under the `paulrun.backends` entry point group, which is how paulrun finds it:
+`pyproject.toml` registers it under the `paulrun.backends` entry point group:
 
 ```toml
 [project]
@@ -207,12 +196,12 @@ uv tool install paulrun --with paulrun-node     # once it's on PyPI
 uv tool install paulrun --with ./paulrun-node   # from a local folder, while you work on it
 ```
 
-With `pip`, install it into the same environment as paulrun. Then `paulrun backends` lists it:
+With `pip`, install it into paulrun's environment. Then `paulrun backends` lists it:
 
 ```
 node    js, javascript   paulrun_node:NodeBackend (paulrun-node 0.1.0)
-python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.1.0)
-shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
+python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.2.0)
+shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 ```
 
 and runbooks can use it:
@@ -229,18 +218,18 @@ console.log(`Hello from Node ${process.version}`);
 ```
 ````
 
-To test a backend, create it and call its methods directly, the way paulrun tests its own: call `run()` with `output=lines.append` and check the exit code and the lines, and call `validate()` on a broken block. See [paulrun's backend tests](https://github.com/phalt/paulrun/tree/main/tests/backends).
+To test a backend, call its methods directly: `run()` with `output=lines.append`, then check the exit code and lines, and `validate()` on a broken block. See [paulrun's backend tests](https://github.com/phalt/paulrun/tree/main/tests/backends).
 
 ### Things to know
 
-- **Each language can only have one backend.** If two installed backends claim the same language, paulrun stops with an error naming both. `paulrun backends` shows which languages are taken.
-- **Frontmatter keys of your own get a `check` warning.** A backend can read its own settings from `frontmatter`, but `check` only knows paulrun's keys, so it warns about any other. The warning doesn't stop a run.
+- **Each language can only have one backend.** If two claim the same language, paulrun stops with an error naming both.
+- **Frontmatter keys of your own get a `check` warning**, since `check` only knows paulrun's keys. It doesn't stop a run.
 
 ## Adding a backend to paulrun
 
-A backend for a language lots of people use can ship with paulrun itself. Built-in backends load the same way as external ones, so it's the same code, in a different place:
+A backend for a widely used language can ship with paulrun itself. It's the same code, in a different place:
 
-1. **`paulrun/backends/<name>.py`**, implementing the protocol. [`shell.py`](https://github.com/phalt/paulrun/blob/main/paulrun/backends/shell.py) and [`python.py`](https://github.com/phalt/paulrun/blob/main/paulrun/backends/python.py) are good models: both use `stream()`, and swap placeholders before validating.
+1. **`paulrun/backends/<name>.py`**, implementing the protocol. [`shell.py`](https://github.com/phalt/paulrun/blob/main/paulrun/backends/shell.py) and [`python.py`](https://github.com/phalt/paulrun/blob/main/paulrun/backends/python.py) are good models.
 2. **One entry point line** in paulrun's `pyproject.toml`, next to the built-in ones:
 
     ```toml
@@ -251,8 +240,8 @@ A backend for a language lots of people use can ship with paulrun itself. Built-
 
     Then run `make install`, and `uv run paulrun backends` should list it.
 
-3. **`tests/backends/test_<name>.py`**, which really runs blocks in `tmp_path`, with no mocking. Skip the tests if the language isn't installed, e.g. `pytest.mark.skipif(shutil.which("ruby") is None, reason="ruby isn't installed")`. CI runs on GitHub's `ubuntu-latest`, which already has many languages; if yours isn't one of them, add a step to `.github/workflows/ci.yml` that installs it, so CI runs the tests rather than skipping them.
-4. **A section on this page**, under [Built-in backends](#built-in-backends): its languages, what it needs installed, how it runs a block, and how `check` validates one.
+3. **`tests/backends/test_<name>.py`**, which really runs blocks in `tmp_path`, skipped if the language isn't installed, e.g. `pytest.mark.skipif(shutil.which("ruby") is None, reason="ruby isn't installed")`. If GitHub's `ubuntu-latest` doesn't have the language, add a step to `.github/workflows/ci.yml` that installs it.
+4. **A row in [Built-in backends](#built-in-backends)**, and a section in [the runbook format](runbook-format.md#run-blocks) on how its blocks run.
 5. **A CHANGELOG entry**, in both `CHANGELOG.md` and `docs/CHANGELOG.md`.
 
 [CONTRIBUTING.md](https://github.com/phalt/paulrun/blob/main/CONTRIBUTING.md) has the rest: setting up, and what to run before opening a pull request.
