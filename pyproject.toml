@@ -1,6 +1,6 @@
 [project]
 name = "paulrun"
-version = "0.1.0"
+version = "0.2.0"
 description = "Run hand-written markdown runbooks"
 readme = "README.md"
 authors = [{ name = "Paul Hallett", email = "paulandrewhallett@gmail.com" }]
