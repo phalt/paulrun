@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://phalt.github.io/paulrun/backends/">
       
       
-        <link rel="prev" href="../cli/">
+        <link rel="prev" href="../library/">
       
       
         <link rel="next" href="../CHANGELOG/">
@@ -510,6 +510,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    📚 Your runbook library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -580,34 +608,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Built-in backends">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#shell" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        shell
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#python" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        python
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -778,34 +778,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Built-in backends">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#shell" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        shell
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#python" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        python
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -920,18 +892,36 @@
 <h1 id="backends">🔌 Backends</h1>
 <p>A backend runs <code>run</code> blocks for one or more languages. paulrun comes with two, for shell and Python, and other languages can be added by any package.</p>
 <p>Run <code>paulrun backends</code> to see which backends are installed, the languages each one runs, and the package it comes from:</p>
-<div class="highlight"><pre><span></span><code>python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.1.0)
-shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
+<div class="highlight"><pre><span></span><code>python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.2.0)
+shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 </code></pre></div>
 <h2 id="built-in-backends">Built-in backends</h2>
-<h3 id="shell">shell</h3>
-<p>Languages: <code>sh</code>, <code>bash</code>, <code>shell</code>. Needs <code>bash</code>.</p>
-<p>Each block runs as one <code>bash</code> script that stops at the first command that fails, as if it began with <code>set -eo pipefail</code>. <code>check</code> finds syntax errors with <code>bash -n</code>, and adds <a href="../install/#optional-shellcheck">shellcheck</a> warnings if it's installed. See <a href="../runbook-format/#shell-blocks">Shell blocks</a>.</p>
-<h3 id="python">python</h3>
-<p>Languages: <code>python</code>, <code>py</code>. Needs nothing extra.</p>
-<p>Each block runs as its own script, with the command in the runbook's <a href="../runbook-format/#python-blocks"><code>python</code></a> frontmatter key, or with the Python paulrun runs on. <code>check</code> finds syntax errors by compiling each block. See <a href="../runbook-format/#python-blocks">Python blocks</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Languages</th>
+<th>Needs</th>
+<th>See</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>shell</td>
+<td><code>sh</code>, <code>bash</code>, <code>shell</code></td>
+<td><code>bash</code></td>
+<td><a href="../runbook-format/#shell-blocks">Shell blocks</a></td>
+</tr>
+<tr>
+<td>python</td>
+<td><code>python</code>, <code>py</code></td>
+<td>nothing extra</td>
+<td><a href="../runbook-format/#python-blocks">Python blocks</a></td>
+</tr>
+</tbody>
+</table>
 <h2 id="writing-a-backend">Writing a backend</h2>
-<p>A backend is a plain class with a <code>name</code>, the <code>languages</code> it runs, and two methods: <code>validate()</code> checks a block without running it, and <code>run()</code> runs it. It doesn't need a base class; it only has to look like this protocol, from <code>paulrun.backends</code>:</p>
+<p>A backend is a plain class with a <code>name</code>, the <code>languages</code> it runs, and two methods: <code>validate()</code> checks a block, and <code>run()</code> runs it. It doesn't need a base class, only to match this protocol from <code>paulrun.backends</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Backend</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Runs `run` blocks for one or more languages.</span>
 
@@ -973,7 +963,7 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
 </code></pre></div>
 <p>Everything a backend needs is in <code>paulrun.backends</code> (<code>Problem</code>, <code>stream</code> and <code>Interrupted</code>) and <code>paulrun.inputs</code> (<code>PLACEHOLDER</code>).</p>
 <h3 id="validate">validate()</h3>
-<p><code>paulrun check</code> calls <code>validate()</code> on every block in the backend's languages, and so does <code>paulrun go</code>, before anything runs. It returns a list of <code>Problem</code>s:</p>
+<p><code>paulrun check</code> and <code>paulrun run</code> call <code>validate()</code> on every block before anything runs. It returns a list of <code>Problem</code>s:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Problem</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Something a backend found wrong with a block."""</span>
@@ -983,44 +973,42 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
     <span class="n">warning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># warnings are reported but don't stop the runbook running</span>
 </code></pre></div>
 <ul>
-<li><strong>Lines count from the block's first line</strong>, as 1. paulrun turns them into lines in the runbook, so <code>check</code> points at the right place.</li>
-<li><strong>An error stops <code>go</code></strong> before anything runs. A warning is shown, and the run carries on.</li>
+<li><strong>Lines count from the block's first line</strong>, as 1. paulrun turns them into lines in the runbook.</li>
+<li><strong>An error stops the run</strong>; a warning is only shown.</li>
 <li>
-<p><strong>The code is as written</strong>, with <code>&lt;NAME&gt;</code> placeholders still in it. Before checking it, swap each one for something your language accepts. The built-in backends use the placeholder's bare name, which is a plain word in shell and a plain name in Python:</p>
+<p><strong>The code still has its <code>&lt;NAME&gt;</code> placeholders.</strong> Swap each for something your language accepts before checking it. The built-in backends use the bare name:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">paulrun.inputs</span><span class="w"> </span><span class="kn">import</span> <span class="n">PLACEHOLDER</span>
 
 <span class="n">script</span> <span class="o">=</span> <span class="n">PLACEHOLDER</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="k">lambda</span> <span class="n">match</span><span class="p">:</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">code</span><span class="p">)</span>
 </code></pre></div>
 </li>
 <li>
-<p><strong>Check that what <code>run()</code> needs is installed.</strong> <code>go</code> always validates first, so an error here is far friendlier than <code>run()</code> failing to start.</p>
+<p><strong>Check that what <code>run()</code> needs is installed</strong>, so a missing tool is reported before anything runs.</p>
 </li>
 </ul>
 <h3 id="run">run()</h3>
 <p><code>run()</code> gets:</p>
 <ul>
-<li><code>code</code>: the block with every placeholder replaced by its value. Secrets are never replaced; they're only in <code>env</code>.</li>
-<li><code>frontmatter</code>: the runbook's frontmatter, read-only, for a backend with settings of its own, like the Python backend's <code>python</code> key.</li>
-<li><code>env</code>: the block's complete environment, including every input. Pass it on as it is.</li>
-<li><code>cwd</code>: the folder the runbook is in, where the block runs.</li>
-<li><code>output</code>: call it with each line the block prints, as soon as it's printed.</li>
+<li><code>code</code>: the block with its placeholders filled in. Secrets are only in <code>env</code>.</li>
+<li><code>frontmatter</code>: the runbook's frontmatter, read-only, for settings of your own.</li>
+<li><code>env</code>: the block's complete environment. Pass it on as it is.</li>
+<li><code>cwd</code>: where the block runs, the folder paulrun was started from.</li>
+<li><code>output</code>: call it with each line the block prints, as it's printed.</li>
 </ul>
-<p>It returns the block's exit code, where <code>0</code> means it succeeded and anything else stops the run.</p>
-<p>A backend never prints. paulrun shows each line, replaces secrets with <code>****</code>, and records it in the transcript, so a backend doesn't need to do any of that itself.</p>
+<p>It returns the block's exit code. A backend never prints: paulrun shows each line, masks secrets and records the transcript.</p>
 <h3 id="stream">stream()</h3>
 <p>Most backends run a command, and <code>stream()</code> does all of that for you:</p>
 <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream</span><span class="p">(</span><span class="n">command</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">cwd</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 </code></pre></div>
-<p>It runs <code>command</code>, passes each line it prints to <code>output</code> as it's printed, and returns its exit code. It's what the built-in backends use, and it gets the details right:</p>
+<p>It runs <code>command</code>, passes each line to <code>output</code> as it's printed, and returns the exit code. The built-in backends use it, because it gets the details right:</p>
 <ul>
-<li><strong>stdout and stderr are merged</strong>, so lines are shown in the order they were printed.</li>
-<li><strong>The command shares paulrun's terminal</strong>, so it can still ask for a password the way <code>git</code>, <code>ssh</code> and <code>gpg</code> do.</li>
-<li><strong>Ctrl-C works.</strong> On the first press, the command gets the chance to stop by itself, and anything it prints on the way out is still shown. A second press kills it, and everything it started. Either way, once it's stopped, <code>stream()</code> raises <code>Interrupted</code> with its exit code, so the run can record how the block ended.</li>
+<li><strong>stdout and stderr are merged</strong>, in the order they were printed.</li>
+<li><strong>The command shares paulrun's terminal</strong>, so it can still ask for a password.</li>
+<li><strong>Ctrl-C works.</strong> The first press lets the command stop by itself; a second kills it and everything it started. Then <code>stream()</code> raises <code>Interrupted</code> with the exit code.</li>
 </ul>
-<p>A backend that doesn't use <code>stream()</code> should do the same: once its block has stopped after Ctrl-C, raise <code>Interrupted(exit_code)</code>. paulrun records the block's exit code, then finishes the run as interrupted.</p>
+<p>A backend that doesn't use <code>stream()</code> should also raise <code>Interrupted(exit_code)</code> once its block has stopped after Ctrl-C.</p>
 <h2 id="shipping-your-own-backend">Shipping your own backend</h2>
-<p>Anyone can publish a backend in their own package. Once it's installed alongside paulrun, it loads exactly like a built-in one.</p>
-<p>Here's a complete backend for Node.js, in a package called <code>paulrun-node</code>:</p>
+<p>Anyone can publish a backend in their own package, and once it's installed alongside paulrun, it loads like a built-in one. Here's a complete backend for Node.js, in a package called <code>paulrun-node</code>:</p>
 <div class="highlight"><pre><span></span><code>paulrun-node/
   pyproject.toml
   paulrun_node/
@@ -1068,7 +1056,7 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">stream</span><span class="p">([</span><span class="s2">"node"</span><span class="p">,</span> <span class="s2">"-e"</span><span class="p">,</span> <span class="n">code</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">)</span>
 </code></pre></div>
-<p><code>pyproject.toml</code> registers it under the <code>paulrun.backends</code> entry point group, which is how paulrun finds it:</p>
+<p><code>pyproject.toml</code> registers it under the <code>paulrun.backends</code> entry point group:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[project]</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"paulrun-node"</span>
 <span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"0.1.0"</span>
@@ -1085,10 +1073,10 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>paulrun<span class="w"> </span>--with<span class="w"> </span>paulrun-node<span class="w">     </span><span class="c1"># once it's on PyPI</span>
 uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>paulrun<span class="w"> </span>--with<span class="w"> </span>./paulrun-node<span class="w">   </span><span class="c1"># from a local folder, while you work on it</span>
 </code></pre></div>
-<p>With <code>pip</code>, install it into the same environment as paulrun. Then <code>paulrun backends</code> lists it:</p>
+<p>With <code>pip</code>, install it into paulrun's environment. Then <code>paulrun backends</code> lists it:</p>
 <div class="highlight"><pre><span></span><code>node    js, javascript   paulrun_node:NodeBackend (paulrun-node 0.1.0)
-python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.1.0)
-shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
+python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.2.0)
+shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 </code></pre></div>
 <p>and runbooks can use it:</p>
 <div class="highlight"><pre><span></span><code>---
@@ -1101,16 +1089,16 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
 <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Hello from Node </span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">version</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
 <span class="sb">```</span>
 </code></pre></div>
-<p>To test a backend, create it and call its methods directly, the way paulrun tests its own: call <code>run()</code> with <code>output=lines.append</code> and check the exit code and the lines, and call <code>validate()</code> on a broken block. See <a href="https://github.com/phalt/paulrun/tree/main/tests/backends">paulrun's backend tests</a>.</p>
+<p>To test a backend, call its methods directly: <code>run()</code> with <code>output=lines.append</code>, then check the exit code and lines, and <code>validate()</code> on a broken block. See <a href="https://github.com/phalt/paulrun/tree/main/tests/backends">paulrun's backend tests</a>.</p>
 <h3 id="things-to-know">Things to know</h3>
 <ul>
-<li><strong>Each language can only have one backend.</strong> If two installed backends claim the same language, paulrun stops with an error naming both. <code>paulrun backends</code> shows which languages are taken.</li>
-<li><strong>Frontmatter keys of your own get a <code>check</code> warning.</strong> A backend can read its own settings from <code>frontmatter</code>, but <code>check</code> only knows paulrun's keys, so it warns about any other. The warning doesn't stop a run.</li>
+<li><strong>Each language can only have one backend.</strong> If two claim the same language, paulrun stops with an error naming both.</li>
+<li><strong>Frontmatter keys of your own get a <code>check</code> warning</strong>, since <code>check</code> only knows paulrun's keys. It doesn't stop a run.</li>
 </ul>
 <h2 id="adding-a-backend-to-paulrun">Adding a backend to paulrun</h2>
-<p>A backend for a language lots of people use can ship with paulrun itself. Built-in backends load the same way as external ones, so it's the same code, in a different place:</p>
+<p>A backend for a widely used language can ship with paulrun itself. It's the same code, in a different place:</p>
 <ol>
-<li><strong><code>paulrun/backends/&lt;name&gt;.py</code></strong>, implementing the protocol. <a href="https://github.com/phalt/paulrun/blob/main/paulrun/backends/shell.py"><code>shell.py</code></a> and <a href="https://github.com/phalt/paulrun/blob/main/paulrun/backends/python.py"><code>python.py</code></a> are good models: both use <code>stream()</code>, and swap placeholders before validating.</li>
+<li><strong><code>paulrun/backends/&lt;name&gt;.py</code></strong>, implementing the protocol. <a href="https://github.com/phalt/paulrun/blob/main/paulrun/backends/shell.py"><code>shell.py</code></a> and <a href="https://github.com/phalt/paulrun/blob/main/paulrun/backends/python.py"><code>python.py</code></a> are good models.</li>
 <li>
 <p><strong>One entry point line</strong> in paulrun's <code>pyproject.toml</code>, next to the built-in ones:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[project.entry-points.</span><span class="s2">"paulrun.backends"</span><span class="k">]</span>
@@ -1120,9 +1108,9 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
 <p>Then run <code>make install</code>, and <code>uv run paulrun backends</code> should list it.</p>
 </li>
 <li>
-<p><strong><code>tests/backends/test_&lt;name&gt;.py</code></strong>, which really runs blocks in <code>tmp_path</code>, with no mocking. Skip the tests if the language isn't installed, e.g. <code>pytest.mark.skipif(shutil.which("ruby") is None, reason="ruby isn't installed")</code>. CI runs on GitHub's <code>ubuntu-latest</code>, which already has many languages; if yours isn't one of them, add a step to <code>.github/workflows/ci.yml</code> that installs it, so CI runs the tests rather than skipping them.</p>
+<p><strong><code>tests/backends/test_&lt;name&gt;.py</code></strong>, which really runs blocks in <code>tmp_path</code>, skipped if the language isn't installed, e.g. <code>pytest.mark.skipif(shutil.which("ruby") is None, reason="ruby isn't installed")</code>. If GitHub's <code>ubuntu-latest</code> doesn't have the language, add a step to <code>.github/workflows/ci.yml</code> that installs it.</p>
 </li>
-<li><strong>A section on this page</strong>, under <a href="#built-in-backends">Built-in backends</a>: its languages, what it needs installed, how it runs a block, and how <code>check</code> validates one.</li>
+<li><strong>A row in <a href="#built-in-backends">Built-in backends</a></strong>, and a section in <a href="../runbook-format/#run-blocks">the runbook format</a> on how its blocks run.</li>
 <li><strong>A CHANGELOG entry</strong>, in both <code>CHANGELOG.md</code> and <code>docs/CHANGELOG.md</code>.</li>
 </ol>
 <p><a href="https://github.com/phalt/paulrun/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> has the rest: setting up, and what to run before opening a pull request.</p>
@@ -1155,7 +1143,7 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../cli/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 📟 Command line">
+          <a href="../library/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 📚 Your runbook library">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1165,7 +1153,7 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.1.0)
                 Previous
               </span>
               <div class="md-ellipsis">
-                📟 Command line
+                📚 Your runbook library
               </div>
             </div>
           </a>

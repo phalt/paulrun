@@ -540,10 +540,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#how-inputs-are-collected" class="md-nav__link">
+  <a href="#using-inputs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How inputs are collected
+        Using inputs
       
     </span>
   </a>
@@ -551,10 +551,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#using-inputs" class="md-nav__link">
+  <a href="#defaults" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Using inputs
+        Defaults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choices
       
     </span>
   </a>
@@ -612,28 +623,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#docstring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        docstring
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#confirm" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        confirm
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#run-blocks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -644,6 +633,17 @@
   
     <nav class="md-nav" aria-label="Run blocks">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-blocks-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where blocks run
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#shell-blocks" class="md-nav__link">
@@ -668,10 +668,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#blocks-that-ask-for-input" class="md-nav__link">
+  <a href="#blocks-that-ask-questions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Blocks that ask for input
+        Blocks that ask questions
       
     </span>
   </a>
@@ -734,6 +734,34 @@
     
   
     📟 Command line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    📚 Your runbook library
   
 
     
@@ -859,10 +887,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#how-inputs-are-collected" class="md-nav__link">
+  <a href="#using-inputs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How inputs are collected
+        Using inputs
       
     </span>
   </a>
@@ -870,10 +898,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#using-inputs" class="md-nav__link">
+  <a href="#defaults" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Using inputs
+        Defaults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choices
       
     </span>
   </a>
@@ -931,28 +970,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#docstring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        docstring
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#confirm" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        confirm
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#run-blocks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -963,6 +980,17 @@
   
     <nav class="md-nav" aria-label="Run blocks">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-blocks-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where blocks run
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#shell-blocks" class="md-nav__link">
@@ -987,10 +1015,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#blocks-that-ask-for-input" class="md-nav__link">
+  <a href="#blocks-that-ask-questions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Blocks that ask for input
+        Blocks that ask questions
       
     </span>
   </a>
@@ -1050,10 +1078,10 @@
 
 
 <h1 id="runbook-format">📜 Runbook format</h1>
-<p>A runbook is a markdown file. Frontmatter at the top sets it up, each <code>##</code> heading is a step, and fenced code blocks marked for paulrun are printed, paused on, or run. Everything else is documentation.</p>
-<p>Run <code>paulrun check</code> on a runbook at any time to find out what's wrong with it.</p>
+<p>A runbook is a markdown file. Frontmatter at the top sets it up, each <code>##</code> heading is a step, and code blocks marked for paulrun are shown, paused on, or run. Everything else is documentation.</p>
+<p>Run <code>paulrun check</code> on a runbook to find anything wrong with it.</p>
 <h2 id="frontmatter">Frontmatter</h2>
-<p>YAML between <code>---</code> lines at the very top of the file:</p>
+<p>YAML between <code>---</code> lines at the top of the file:</p>
 <div class="highlight"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Release my-package</span><span class="w">                    </span><span class="c1"># required</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Release a new version.</span><span class="w">          </span><span class="c1"># optional</span>
@@ -1072,110 +1100,120 @@
 <thead>
 <tr>
 <th>Key</th>
-<th>Required</th>
 <th>What it does</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>title</code></td>
-<td>yes</td>
-<td>The runbook's name, shown when it runs.</td>
+<td>The runbook's name, shown when it runs. Required.</td>
 </tr>
 <tr>
 <td><code>description</code></td>
-<td>no</td>
-<td>What the runbook is for. For people reading it; paulrun doesn't show it.</td>
+<td>What it's for, shown by <a href="../cli/#paulrun-library"><code>paulrun library</code></a>.</td>
 </tr>
 <tr>
 <td><code>output_path</code></td>
-<td>no</td>
 <td>Where to keep a <a href="#transcript">transcript</a> of each run.</td>
 </tr>
 <tr>
 <td><code>python</code></td>
-<td>no</td>
 <td>The command that runs <a href="#python-blocks">Python blocks</a>.</td>
 </tr>
 <tr>
 <td><code>inputs</code></td>
-<td>no</td>
-<td>Values paulrun asks for before it starts. See <a href="#inputs">Inputs</a>.</td>
+<td>Values to ask for. See <a href="#inputs">Inputs</a>.</td>
 </tr>
 </tbody>
 </table>
-<p>Every value must be text, except <code>inputs</code>, which is a list. Any other key is reported by <code>check</code> as a warning, so a typo like <code>ouput_path</code> doesn't go unnoticed, but it doesn't stop the runbook.</p>
+<p>Any other key is a <code>check</code> warning, so a typo like <code>ouput_path</code> gets noticed.</p>
 <h2 id="inputs">Inputs</h2>
-<p>Inputs are values a runbook needs each time it runs, such as the version being released.</p>
+<p>Values a runbook needs each time it runs, such as the version being released.</p>
 <table>
 <thead>
 <tr>
 <th>Key</th>
-<th>Required</th>
 <th>What it does</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>name</code></td>
-<td>yes</td>
-<td>The input's name, in UPPER_SNAKE_CASE, e.g. <code>VERSION</code> or <code>PUBLISH_TOKEN</code>.</td>
+<td>Required, in UPPER_SNAKE_CASE, e.g. <code>VERSION</code>.</td>
 </tr>
 <tr>
 <td><code>description</code></td>
-<td>yes</td>
-<td>What to enter. Shown when paulrun asks for it.</td>
+<td>Required. Shown when paulrun asks for it.</td>
 </tr>
 <tr>
 <td><code>pattern</code></td>
-<td>no</td>
 <td>A regular expression the whole value must match, e.g. <code>'^\d+\.\d+\.\d+$'</code>.</td>
 </tr>
 <tr>
 <td><code>secret</code></td>
-<td>no</td>
 <td><code>true</code> for passwords and tokens. See <a href="#secrets">Secrets</a>.</td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>Used if you press enter. See <a href="#defaults">Defaults</a>.</td>
+</tr>
+<tr>
+<td><code>choices</code></td>
+<td>The only values accepted. See <a href="#choices">Choices</a>.</td>
 </tr>
 </tbody>
 </table>
-<p>Each name can only be declared once, in the frontmatter or an <a href="#input-blocks">input block</a>. Other keys on an input are <code>check</code> warnings.</p>
-<h3 id="how-inputs-are-collected">How inputs are collected</h3>
-<p>Frontmatter inputs are all collected before the first step runs, in the order they're declared. <a href="#input-blocks">Input blocks</a> are collected the same way, but later, when the run reaches them.</p>
+<p>paulrun collects every input before the first step:</p>
 <ol>
-<li>If an environment variable with the input's name is set, paulrun uses it without asking. <code>VERSION=1.2.0 paulrun go RELEASING.md</code> releases 1.2.0 with no prompt. An empty variable counts as not set.</li>
-<li>Otherwise paulrun asks for it, showing its name and description.</li>
+<li>If an environment variable with the input's name is set, it's used: <code>VERSION=1.2.0 paulrun RELEASING.md</code> doesn't ask. An empty variable counts as not set.</li>
+<li>Otherwise paulrun asks for it.</li>
 </ol>
-<p>If the input has a <code>pattern</code>, the value must match all of it. A typed answer that doesn't match is refused and asked for again. A value from the environment that doesn't match stops paulrun with an error, before anything runs.</p>
+<p>A typed answer that doesn't fit the input's <code>pattern</code> or <code>choices</code> is asked for again. A value from the environment that doesn't fit stops paulrun before anything runs.</p>
 <h3 id="using-inputs">Using inputs</h3>
-<p>Every input is set as an environment variable in every <code>run</code> block, so a shell block can read <code>$VERSION</code> and a Python block <code>os.environ["VERSION"]</code>.</p>
-<p>An input that isn't secret can also be written as a placeholder, <code>&lt;VERSION&gt;</code>, and paulrun replaces it with the value. Placeholders are replaced in:</p>
-<ul>
-<li><code>run</code> blocks, before they run</li>
-<li><code>docstring</code> and <code>confirm</code> blocks, before they're shown</li>
-<li><code>output_path</code></li>
-</ul>
-<p>Placeholders are never replaced in the rest of the runbook, so headings and prose are shown exactly as written. A placeholder is <code>&lt;</code>, a capital letter, then capital letters, digits or underscores, then <code>&gt;</code>. Anything else in angle brackets, such as <code>&lt;html&gt;</code>, is left alone.</p>
-<p>Using a placeholder that isn't a declared input is a <code>check</code> error, as is declaring an input that nothing uses (a warning). Using an input as <code>$VERSION</code> in a <code>run</code> block counts as using it.</p>
+<p>Every input is an environment variable in every <code>run</code> block: <code>$VERSION</code> in shell, <code>os.environ["VERSION"]</code> in Python.</p>
+<p>An input that isn't secret can also be written as a placeholder, <code>&lt;VERSION&gt;</code>, in <code>run</code>, <code>docstring</code> and <code>confirm</code> blocks and in <code>output_path</code>. paulrun fills it in. The rest of the runbook is never changed.</p>
+<p>A placeholder that isn't a declared input is a <code>check</code> error, and an input nothing uses, as <code>&lt;VERSION&gt;</code> or <code>$VERSION</code>, is a warning.</p>
 <div class="admonition warning">
-<p class="admonition-title">Placeholders are replaced as plain text</p>
-<p>A value is put into a block exactly as entered. If someone enters <code>1.2.0; rm -rf ~</code> for <code>&lt;VERSION&gt;</code>, that's what the block runs. Give inputs that end up in commands a <code>pattern</code>, so only the values you expect get through.</p>
+<p class="admonition-title">Placeholders are filled in as plain text</p>
+<p>If someone enters <code>1.2.0; rm -rf ~</code> for <code>&lt;VERSION&gt;</code>, that's what the block runs. Give inputs used in commands a <code>pattern</code>.</p>
 </div>
+<h3 id="defaults">Defaults</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">inputs</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BRANCH</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">The branch to release from</span>
+<span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>BRANCH (The branch to release from) [main]:
+</code></pre></div>
+<p>Pressing enter takes <code>main</code>. The environment still comes first, and a default must still match the input's <code>pattern</code>.</p>
+<p>Quote a default YAML would read as something other than text, such as <code>default: '1.10'</code>, which would otherwise be the number <code>1.1</code>. A secret can't have a default.</p>
+<h3 id="choices">Choices</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">inputs</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">FE_SET</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Which frontend set to rebuild</span>
+<span class="w">    </span><span class="nt">choices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">comms</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">billing</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">all</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">comms</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>FE_SET (Which frontend set to rebuild) [comms] (comms, billing, all): everything
+FE_SET must be one of: comms, billing, all
+</code></pre></div>
+<p>Type the choice itself, not its number. Choices are compared exactly, so <code>Comms</code> isn't <code>comms</code>. A default must be one of the choices, every choice must match the <code>pattern</code> if there is one, and a secret can't have choices.</p>
 <h3 id="secrets">Secrets</h3>
-<p>An input with <code>secret: true</code> is for something that mustn't be shown or saved, like an API token:</p>
+<p>An input with <code>secret: true</code> is never shown or saved:</p>
 <ul>
 <li>Its prompt hides what's typed.</li>
-<li>It's never replaced as a placeholder. Read it from the environment instead, as <code>$PUBLISH_TOKEN</code>. Writing <code>&lt;PUBLISH_TOKEN&gt;</code> is a <code>check</code> error.</li>
-<li>Its value is replaced with <code>****</code> everywhere paulrun shows or records it: block output, the transcript, and anywhere it appears in the runbook itself.</li>
-<li><code>paulrun go --dry</code> doesn't ask for it at all.</li>
+<li>It's never a placeholder. Read it as <code>$PUBLISH_TOKEN</code>; writing <code>&lt;PUBLISH_TOKEN&gt;</code> is a <code>check</code> error.</li>
+<li>Its value is shown as <code>****</code> in block output and the transcript.</li>
+<li><code>paulrun --dry</code> doesn't ask for it.</li>
 </ul>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>publish<span class="w"> </span>--token<span class="w"> </span><span class="s2">"</span><span class="nv">$PUBLISH_TOKEN</span><span class="s2">"</span>
 </code></pre></div>
 <div class="admonition note">
-<p class="admonition-title">What masking can't catch</p>
-<p>paulrun hides a secret by spotting its exact value, one line at a time. A command that changes the value before printing it, for example by encoding it, or splits it across two lines, can still reveal it. Pass secrets to commands, rather than printing them.</p>
+<p class="admonition-title">Note</p>
+<p>paulrun spots a secret by its exact value, one line at a time. A command that encodes it, or splits it across lines, can still reveal it. Pass secrets to commands rather than printing them.</p>
 </div>
 <h3 id="input-blocks">Input blocks</h3>
-<p>Some values don't exist until part way through a run: the number GitHub gives a pull request you've just opened, or a one-time code from an authenticator app that expires in seconds. An <code>input</code> block asks for one when the run reaches it, rather than before the first step:</p>
+<p>Some values only exist part way through a run, like the number GitHub gives a pull request you've just opened. An <code>input</code> block asks for one when the run reaches it:</p>
 <div class="highlight"><pre><span></span><code><span class="gu">## Open the pull request</span>
 
 <span class="sb">```confirm</span>
@@ -1192,16 +1230,12 @@
 gh<span class="w"> </span>pr<span class="w"> </span>merge<span class="w"> </span>&lt;PR&gt;
 <span class="sb">```</span>
 </code></pre></div>
-<p>An <code>input</code> block takes the same keys as a <a href="#inputs">frontmatter input</a>, written as YAML. It's collected the same way, from the environment if it's set or by asking, with its <code>pattern</code> checked. From then on it's like any other input: set in the environment of every later <code>run</code> block, filled in as a placeholder in later blocks if it isn't secret, and shown as <code>****</code> if it is.</p>
-<p>It pairs well with <code>confirm</code>: do this by hand, then tell paulrun what you got.</p>
-<p>Since its value doesn't exist until the run reaches it:</p>
+<p>It takes the same keys as a frontmatter input, and works the same from then on.</p>
 <ul>
-<li>Using it before the block, as <code>&lt;PR&gt;</code> or <code>$PR</code>, is a <code>check</code> error, and so is using it in <code>output_path</code>.</li>
-<li><code>paulrun go --dry</code> doesn't ask for it. It shows where the run would stop to ask, and later blocks show <code>&lt;PR&gt;</code> as written.</li>
-<li><a href="../cli/#paulrun-inputs"><code>paulrun inputs</code></a> lists it with the step that asks for it.</li>
+<li>Using it before the block, or in <code>output_path</code>, is a <code>check</code> error.</li>
+<li><code>paulrun --dry</code> doesn't ask for it, and shows <code>&lt;PR&gt;</code> as written.</li>
 </ul>
-<p>The text inside an <code>input</code> block is only read as YAML, so a placeholder in its description is just text.</p>
-<p>An OTP is a good example of an input block that should be secret:</p>
+<p>A one-time code is a good use of a secret input block:</p>
 <div class="highlight"><pre><span></span><code><span class="sb">```input</span>
 <span class="s">name: OTP</span>
 <span class="s">description: The code from your authenticator app</span>
@@ -1214,82 +1248,81 @@ npm<span class="w"> </span>publish<span class="w"> </span>--otp<span class="w"> 
 <span class="sb">```</span>
 </code></pre></div>
 <h2 id="steps">Steps</h2>
-<p>Each <code>##</code> heading starts a step, and its text is the step's name. A step holds every block until the next <code>##</code> heading. <code>###</code> and smaller headings are just text inside the current step.</p>
-<p>A <code>run</code>, <code>docstring</code>, <code>confirm</code> or <code>input</code> block before the first <code>##</code> heading doesn't belong to a step. That's a <code>check</code> error, so it can't be skipped without anyone noticing.</p>
+<p>Each <code>##</code> heading starts a step, named by its text. <code>###</code> and smaller headings are just text inside the step.</p>
+<p>A block before the first <code>##</code> heading is a <code>check</code> error.</p>
 <h2 id="blocks">Blocks</h2>
-<p>A fenced code block's first line decides what paulrun does with it. The first word is the language, and a second word of <code>run</code> makes it a block paulrun runs.</p>
+<p>The first word of a code block's opening line is its language. A second word of <code>run</code> makes paulrun run it.</p>
 <table>
 <thead>
 <tr>
-<th>Fence</th>
+<th>Block</th>
 <th>What paulrun does</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>```docstring</code></td>
-<td>Shows the text as it reaches it.</td>
+<td>Shows the text.</td>
 </tr>
 <tr>
 <td><code>```confirm</code></td>
-<td>Shows the text, then waits for you to answer <code>y</code>. Any other answer ends the run.</td>
+<td>Shows the text and waits for <code>y</code>. Any other answer ends the run.</td>
 </tr>
 <tr>
 <td><code>```input</code></td>
-<td>Asks for an input when the run reaches it. See <a href="#input-blocks">Input blocks</a>.</td>
+<td>Asks for an input. See <a href="#input-blocks">Input blocks</a>.</td>
 </tr>
 <tr>
 <td><code>```sh run</code></td>
-<td>Runs the block. See <a href="#run-blocks">Run blocks</a>.</td>
+<td>Runs it. See <a href="#run-blocks">Run blocks</a>.</td>
 </tr>
 <tr>
-<td>Any other fence, e.g. <code>```sh</code> or <code>```python</code></td>
+<td>Anything else, e.g. <code>```sh</code></td>
 <td>Nothing. It's documentation.</td>
 </tr>
 </tbody>
 </table>
-<p>A plain <code>```sh</code> fence is never run, so you can show a command without paulrun running it.</p>
-<h3 id="docstring">docstring</h3>
-<p>Notes to show while the runbook runs, such as what's about to happen:</p>
+<p>So a plain <code>```sh</code> block shows a command without paulrun running it.</p>
 <div class="highlight"><pre><span></span><code><span class="sb">```docstring</span>
 <span class="s">Releasing &lt;VERSION&gt;. This takes a few minutes.</span>
 <span class="sb">```</span>
-</code></pre></div>
-<h3 id="confirm">confirm</h3>
-<p>A step only a person can do, like clicking a button on a website. paulrun shows the text and waits:</p>
-<div class="highlight"><pre><span></span><code><span class="sb">```confirm</span>
+
+<span class="sb">```confirm</span>
 <span class="s">Create a GitHub release from tag &lt;VERSION&gt;, then come back here.</span>
 <span class="sb">```</span>
 </code></pre></div>
-<p>Answer <code>y</code> to carry on. Any other answer, including just pressing enter, ends the run as aborted, and nothing after it runs.</p>
 <h3 id="run-blocks">Run blocks</h3>
-<p>A block marked <code>run</code> is run by the backend for its language. Each block's output is shown as it's printed, and its exit code decides what happens next: <code>0</code> carries on, and anything else stops the run there.</p>
-<p>Every block runs:</p>
+<p>paulrun shows each block's output as it's printed. Exit code <code>0</code> carries on; anything else stops the run.</p>
+<p>Every block runs with paulrun's environment and every input, plus:</p>
 <ul>
-<li>in the folder the runbook is in, wherever you run paulrun from</li>
-<li>with paulrun's environment, plus every input</li>
-<li>with <code>PYTHONUNBUFFERED=1</code>, so Python output isn't held back, and <code>PAGER=cat</code> and <code>GIT_PAGER=cat</code>, so nothing waits in a pager</li>
+<li><code>PAULRUN_RUNBOOK_DIR</code>, the folder the runbook is in</li>
+<li><code>PYTHONUNBUFFERED=1</code>, so Python output isn't held back</li>
+<li><code>PAGER=cat</code> and <code>GIT_PAGER=cat</code>, so nothing waits in a pager</li>
 </ul>
-<p>Run <code>paulrun backends</code> to see which languages you can use. Other languages can be added with <a href="../backends/">backends</a>.</p>
+<p>Run <code>paulrun backends</code> to see which languages you can use, or add your own with <a href="../backends/">backends</a>.</p>
+<h4 id="where-blocks-run">Where blocks run</h4>
+<p>Blocks run in the folder you run paulrun from, not the runbook's folder. So one runbook can work on whichever project you're in:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/Projects/website
+paulrun<span class="w"> </span>~/runbooks/update-deps.md
+</code></pre></div>
+<p>Use <code>$PAULRUN_RUNBOOK_DIR</code> for files kept next to the runbook:</p>
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span><span class="s2">"</span><span class="nv">$PAULRUN_RUNBOOK_DIR</span><span class="s2">/templates/pull-request.md"</span><span class="w"> </span>.github/
+</code></pre></div>
+<p>Each block is its own process, so a <code>cd</code> or <code>export</code> is gone by the next block. Keep commands that need them together.</p>
 <h4 id="shell-blocks">Shell blocks</h4>
-<p>Languages: <code>sh</code>, <code>bash</code>, <code>shell</code>.</p>
-<p>Each block runs as one <code>bash</code> script, so a variable set on one line is still set on the next. It stops at the first command that fails, including one early in a pipe, as if it began with <code>set -eo pipefail</code>.</p>
-<p><code>check</code> finds syntax errors with <code>bash -n</code>, and also uses <a href="../install/#optional-shellcheck">shellcheck</a> for warnings if it's installed.</p>
+<p><code>sh</code>, <code>bash</code> or <code>shell</code>. Each block is one <code>bash</code> script that stops at the first failing command, as if it began with <code>set -eo pipefail</code>. <code>check</code> finds syntax errors, and <a href="../install/#optional-shellcheck">shellcheck</a> warnings if it's installed.</p>
 <h4 id="python-blocks">Python blocks</h4>
-<p>Languages: <code>python</code>, <code>py</code>.</p>
-<p>Each block runs as its own script, so nothing is shared between blocks except the environment. By default it runs with the Python that paulrun runs on, so only the standard library is available. To use another interpreter, or your project's dependencies, set <code>python</code> in the frontmatter:</p>
+<p><code>python</code> or <code>py</code>. Each block is its own script, run with the Python paulrun runs on, so only the standard library is available. To use another interpreter or your project's dependencies, set <code>python</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">python</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uv run python</span>
 </code></pre></div>
-<p><code>python</code> is any command; the block's script is added to the end of it. <code>check</code> reports an error if its first word isn't installed.</p>
-<p><code>check</code> finds syntax errors by compiling each block with paulrun's own Python, so syntax only a newer Python understands isn't caught.</p>
-<h4 id="blocks-that-ask-for-input">Blocks that ask for input</h4>
-<p>Blocks should run without anyone answering questions. A block can still ask on the terminal when it has to, the way <code>git</code>, <code>ssh</code> and <code>gpg</code> ask for a password, and that works normally. But anything it prints is shown line by line, so a question without a newline at the end isn't shown until you've answered it.</p>
-<p>Values the runbook needs every time are better as <a href="#inputs">inputs</a>, and passwords and tokens as <a href="#secrets">secrets</a>.</p>
+<p><code>check</code> compiles each block with paulrun's own Python, so syntax only a newer Python understands isn't caught.</p>
+<h4 id="blocks-that-ask-questions">Blocks that ask questions</h4>
+<p>A block can still ask on the terminal, the way <code>git</code> and <code>ssh</code> ask for a password. But output is shown a line at a time, so a question with no newline after it isn't shown until you answer. Use <a href="#inputs">inputs</a> for values instead.</p>
 <h2 id="transcript">Transcript</h2>
-<p>Set <code>output_path</code>, and paulrun records each run in a plain text file:</p>
+<p>Set <code>output_path</code>, and each run is added to the end of that file, so a failed attempt and the rerun that fixed it are both kept:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">output_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">logs/release-&lt;VERSION&gt;.md</span>
 </code></pre></div>
-<p>The path is relative to the runbook, can use placeholders, and missing folders are created. Each run is added to the end of the file, so a failed attempt and the rerun that fixed it are both kept. A run that's never started, or a <code>--dry</code> run, isn't recorded.</p>
+<p>A relative path is relative to the folder you run paulrun from. Missing folders are created, and <code>--dry</code> runs aren't recorded.</p>
 <div class="highlight"><pre><span></span><code>--- paulrun RELEASING.md @ 2026-10-12T15:11:27+01:00
 --- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
 
@@ -1308,7 +1341,6 @@ skipped (--step)
 
 --- finished: ok (3m12s)
 </code></pre></div>
-<p>Each run starts with a header and the inputs, with secrets as <code>****</code>. Each step has its name, then each block's code, indented four spaces, followed by what it printed and its exit code and time. A <code>confirm</code> records its first line and the answer, an <code>input</code> block records its value where it was given (<code>****</code> for a secret), and a block skipped with <a href="../cli/#-step"><code>--step</code></a> is marked as skipped. <code>docstring</code> blocks aren't recorded.</p>
 <p>The last line says how the run ended:</p>
 <table>
 <thead>
@@ -1324,21 +1356,21 @@ skipped (--step)
 </tr>
 <tr>
 <td><code>--- finished: failed at "&lt;step&gt;" (exit N)</code></td>
-<td>A block in that step exited with N.</td>
+<td>A block exited with N.</td>
 </tr>
 <tr>
 <td><code>--- finished: aborted at "&lt;step&gt;"</code></td>
-<td>A <code>confirm</code> wasn't answered <code>y</code>, or you quit with <code>--step</code>.</td>
+<td>A <code>confirm</code> wasn't answered <code>y</code>, or you quit with <a href="../cli/#-step"><code>--step</code></a>.</td>
 </tr>
 <tr>
 <td><code>--- finished: interrupted at "&lt;step&gt;"</code></td>
-<td>You pressed Ctrl-C. A block that was running gets its exit line first.</td>
+<td>You pressed Ctrl-C.</td>
 </tr>
 </tbody>
 </table>
 <h2 id="known-limits">Known limits</h2>
 <ul>
-<li><strong>bash on macOS</strong> is version 3.2, and <code>check</code> can't find an unclosed heredoc (<code>cat &lt;&lt;EOF</code> with no <code>EOF</code>) with it. Newer versions of bash can.</li>
+<li><strong>bash on macOS</strong> is version 3.2, which can't spot an unclosed heredoc (<code>cat &lt;&lt;EOF</code> with no <code>EOF</code>).</li>
 <li><strong>Windows</strong> isn't supported.</li>
 </ul>
 

@@ -506,6 +506,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    📚 Your runbook library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../backends/" class="md-nav__link">
         
   
@@ -601,6 +629,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.0
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-runbook-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A runbook library
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#010" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -646,6 +702,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.0
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-runbook-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A runbook library
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#010" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -677,6 +761,23 @@
 
 
 <h1 id="change-log">Change log</h1>
+<h2 id="020">0.2.0</h2>
+<h3 id="a-runbook-library">A runbook library</h3>
+<ul>
+<li>keep runbooks you use across projects in <code>~/runbooks</code>, or wherever <code>PAULRUN_LIBRARY</code> says. Then run one by name from anywhere, e.g. <code>paulrun rebuild-frontend</code>. <code>run</code>, <code>check</code> and <code>inputs</code> all take a book's name as well as a path, and a file where you are is always used before a book with the same name. <code>paulrun library</code> lists the books in your library, with each one's title and description. <code>paulrun run</code>, with no runbook, lists them by number and runs the one you pick.</li>
+<li>
+<p>A new docs page, <a href="https://phalt.github.io/paulrun/library/">Your runbook library</a>, with a worked example of a book that rebuilds a frontend under nvm.</p>
+</li>
+<li>
+<p><strong>Breaking:</strong> <code>paulrun go</code> is now <code>paulrun run</code>, and you don't need to type it: <code>paulrun RELEASING.md</code> runs <code>RELEASING.md</code>. Anything after <code>paulrun</code> that isn't a command is a runbook to run, so <code>paulrun go</code> is no longer a command. <code>paulrun</code> on its own still shows help.</p>
+</li>
+<li><strong>Breaking:</strong> blocks now run in the folder you run paulrun from, not the folder the runbook is in. A relative <code>output_path</code> is now relative to that folder too. A runbook kept at the root of its project, run from there, works as before. One run as <code>paulrun path/to/RUNBOOK.md</code> from another folder now works on that other folder and writes its transcript there. This includes blocks run by external backends, whose <code>cwd</code> is now the folder paulrun was started from.</li>
+<li>Blocks get <code>PAULRUN_RUNBOOK_DIR</code>, the folder the runbook is in, so a runbook can still use files kept next to it.</li>
+<li>Running a runbook shows the folder blocks will run in, as <code>directory:</code> straight after the title, so you can check it before answering <code>Start?</code>. <code>--dry</code> shows it too.</li>
+<li><code>paulrun library</code>, the book picker and <code>paulrun inputs</code> are in colour in a terminal: names you type are bold cyan, details are dim, and secrets and problems stand out. Piped output has no colour, as before.</li>
+<li>Inputs can have a <code>default</code>, shown at the prompt and used when you press enter. The environment still comes first. <code>check</code> reports a default that isn't text, doesn't match the input's <code>pattern</code>, or is on a secret.</li>
+<li>Inputs can have <code>choices</code>: the only values accepted, listed at the prompt. You type the choice itself, and a value from the environment has to be one of them too. <code>check</code> reports choices that aren't a list of text, a choice the <code>pattern</code> refuses, a default that isn't a choice, and choices on a secret.</li>
+</ul>
 <h2 id="010">0.1.0</h2>
 <p>Initial release. paulrun runs hand-written markdown runbooks.</p>
 <ul>

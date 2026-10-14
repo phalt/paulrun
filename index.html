@@ -428,6 +428,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#your-runbook-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your runbook library
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#why-use-paulrun" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -597,6 +608,34 @@
   
   
     <li class="md-nav__item">
+      <a href="library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    📚 Your runbook library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="backends/" class="md-nav__link">
         
   
@@ -701,6 +740,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#your-runbook-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your runbook library
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#why-use-paulrun" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -789,11 +839,12 @@ git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </
 </code></pre></div>
 <p>Check it, then run it:</p>
 <div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>check<span class="w"> </span>RELEASING.md
-paulrun<span class="w"> </span>go<span class="w"> </span>RELEASING.md
+paulrun<span class="w"> </span>RELEASING.md
 </code></pre></div>
 <p>paulrun asks for the version, shows you the plan, and runs each step in order, streaming every command's output as it goes. It stops at the first command that fails, and waits for you at the GitHub step, since that one is done by hand:</p>
 <div class="highlight"><pre><span></span><code>VERSION (The version to release, e.g. 1.2.0): 1.2.0
 Release my-package
+directory: /home/you/Projects/my-package
 inputs: VERSION=1.2.0
   1. Run the tests
   2. Tag the release
@@ -820,15 +871,26 @@ finished: ok (12.8s)
 transcript: logs/release-1.2.0.md
 </code></pre></div>
 <p>Every run is also recorded in <code>logs/release-1.2.0.md</code>, so you can see afterwards exactly what ran and what it printed.</p>
+<h2 id="your-runbook-library">Your runbook library</h2>
+<p>Keep runbooks you use across projects in <code>~/runbooks</code>, and run them by name from anywhere:</p>
+<div class="highlight"><pre><span></span><code>$ paulrun library
+library: /home/you/runbooks
+rebuild-frontend     Rebuild the frontend
+update-project-deps  Update a project's dependencies
+
+$ cd ~/Projects/website
+$ paulrun rebuild-frontend
+</code></pre></div>
+<p>A book runs in the folder you're in, so one book works for every project. See <a href="library/">Your runbook library</a>.</p>
 <h2 id="why-use-paulrun">Why use paulrun?</h2>
 <p>Release steps get forgotten. Writing them down helps; making the written-down version run itself fixes it.</p>
 <ul>
 <li><strong>It's just markdown</strong> - A runbook reads like documentation, renders on GitHub, and works fine without paulrun.</li>
-<li><strong>Check before you run</strong> - <code>paulrun check</code> catches undeclared placeholders, broken frontmatter and shell or Python syntax errors before anything runs.</li>
-<li><strong>See what would happen</strong> - <code>paulrun go --dry</code> shows every command with its inputs filled in, and runs nothing.</li>
-<li><strong>Inputs and secrets</strong> - Ask for values once, check them against a pattern, and keep secrets out of the screen and the log.</li>
+<li><strong>Check before you run</strong> - <code>paulrun check</code> finds broken frontmatter, undeclared placeholders and syntax errors.</li>
+<li><strong>See what would happen</strong> - <code>paulrun --dry RELEASING.md</code> shows every command with its inputs filled in, and runs nothing.</li>
+<li><strong>Inputs and secrets</strong> - Ask for values once, check them against a pattern, and keep secrets off the screen and out of the log.</li>
 <li><strong>Manual steps too</strong> - <code>confirm</code> blocks pause for the things only a person can do.</li>
-<li><strong>A record of every run</strong> - An optional transcript keeps every command, its output and how the run finished.</li>
+<li><strong>A record of every run</strong> - An optional transcript keeps every command, its output and how it finished.</li>
 <li><strong>More than shell</strong> - Shell and Python blocks are built in, and other languages can be added as backends.</li>
 </ul>
 <h2 id="next-steps">Next steps</h2>
@@ -836,6 +898,7 @@ transcript: logs/release-1.2.0.md
 <li><a href="install/">Install paulrun</a></li>
 <li><a href="runbook-format/">The runbook format</a>: everything a runbook can contain</li>
 <li><a href="cli/">The command line</a>: every command, flag and exit code</li>
+<li><a href="library/">Your runbook library</a>: runbooks you keep for yourself, and run from anywhere</li>
 <li><a href="backends/">Backends</a>: the languages paulrun runs, and adding your own</li>
 </ul>
 

@@ -2,26 +2,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://phalt.github.io/paulrun/</loc>
-         <lastmod>2026-10-13</lastmod>
+         <lastmod>2026-10-14</lastmod>
     </url>
     <url>
          <loc>https://phalt.github.io/paulrun/CHANGELOG/</loc>
-         <lastmod>2026-10-13</lastmod>
+         <lastmod>2026-10-14</lastmod>
     </url>
     <url>
          <loc>https://phalt.github.io/paulrun/backends/</loc>
-         <lastmod>2026-10-13</lastmod>
+         <lastmod>2026-10-14</lastmod>
     </url>
     <url>
          <loc>https://phalt.github.io/paulrun/cli/</loc>
-         <lastmod>2026-10-13</lastmod>
+         <lastmod>2026-10-14</lastmod>
     </url>
     <url>
          <loc>https://phalt.github.io/paulrun/install/</loc>
-         <lastmod>2026-10-13</lastmod>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+         <loc>https://phalt.github.io/paulrun/library/</loc>
+         <lastmod>2026-10-14</lastmod>
     </url>
     <url>
          <loc>https://phalt.github.io/paulrun/runbook-format/</loc>
-         <lastmod>2026-10-13</lastmod>
+         <lastmod>2026-10-14</lastmod>
     </url>
 </urlset>
