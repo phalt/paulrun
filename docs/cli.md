@@ -101,6 +101,21 @@ Only `y` answers `Start?` and `Continue?` with a yes. Anything else, including j
 
 If the runbook has an [`output_path`](runbook-format.md#transcript), the run is recorded there, and the last line says where.
 
+### Picking a book
+
+With no runbook, `paulrun run` lists the books in your [runbook library](#naming-a-runbook) and asks which one to run:
+
+```
+$ paulrun run
+  1. rebuild-frontend     Rebuild the frontend
+  2. update-project-deps  Update a project's dependencies
+Run which? 1
+```
+
+Answer with a book's number, and it runs exactly as if you'd typed its name. `--dry` and `--step` work too: `paulrun run --dry` picks a book, then shows what it would do. Any other answer gets the question again. Press enter without answering, or Ctrl-C, to stop without running anything.
+
+`paulrun` on its own shows help rather than the picker, so you need the `run`.
+
 ### --dry
 
 Shows what the runbook would do, without doing any of it.

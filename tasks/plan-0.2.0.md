@@ -72,11 +72,11 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 - [x] Task 4: Find books in the library by name for `go`, `check` and `inputs`
 - [x] Task 5: `paulrun library`
 - [x] Task 5b: `run` replaces `go`, and runbooks run with no command (added 2026-10-14)
-- [ ] Task 6: Pick a book from the library for `paulrun run` with no runbook
+- [x] Task 6: Pick a book from the library for `paulrun run` with no runbook
 
 ### Checkpoint 2: Runbook library works
-- [ ] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun <name> --dry` and `paulrun run` (the picker) all work from another folder
-- [ ] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only)
+- [x] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun <name> --dry` and `paulrun run` (the picker) all work from another folder
+- [x] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only; approved 2026-10-14)
 
 ### Phase 3: Input defaults and choices
 - [ ] Task 7: `default` on inputs

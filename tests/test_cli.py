@@ -413,7 +413,8 @@ def test_run_never_looks_in_the_library_for_a_path(runner, monkeypatch):
     result = runner.invoke(cli.cli, ["run", "docs/say-where.md"])
 
     assert result.exit_code == 2
-    assert "Error: Invalid value for 'RUNBOOK': no such file: docs/say-where.md\n" in result.output
+    # Click names run's optional RUNBOOK '[RUNBOOK]', so only the message after it is checked.
+    assert "': no such file: docs/say-where.md\n" in result.output
 
 
 @pytest.mark.parametrize("command", ["run", "check", "inputs"])
@@ -422,8 +423,9 @@ def test_a_name_that_is_not_here_or_in_the_library_is_a_usage_error(command, run
     result = runner.invoke(cli.cli, [command, "rebuild-frontend"])
 
     assert result.exit_code == 2
+    # Click names run's optional RUNBOOK '[RUNBOOK]', so only the message after it is checked.
     assert (
-        "Error: Invalid value for 'RUNBOOK': no runbook 'rebuild-frontend': no such file here, "
+        "': no runbook 'rebuild-frontend': no such file here, "
         f"and no rebuild-frontend.md in the library at {empty_library}\n"
     ) in result.output
 
@@ -1228,6 +1230,129 @@ def test_help_lists_library_command(runner):
     result = runner.invoke(cli.cli, ["--help"])
 
     assert "\n  library " in result.output
+
+
+def test_run_with_no_runbook_picks_a_book_from_the_library_and_runs_it(runner, monkeypatch, started_in):
+    """paulrun run lists the library's books by number, and runs the one picked, where paulrun was started."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["run"], input="1\ny\n")
+
+    assert result.exit_code == 0, result.output
+    lines = result.output.splitlines()
+    assert lines[:3] == [
+        "  1. say-where            Say where",
+        "  2. update-project-deps  Update a project's dependencies",
+        "Run which? 1",
+    ]
+    assert lines[3] == "Say where"
+    assert str(started_in.resolve()) in lines
+    assert lines[-1].startswith("finished: ok")
+
+
+@pytest.mark.parametrize("arguments", [["run", "--dry"], ["--dry"]], ids=["run --dry", "--dry alone"])
+def test_the_picker_works_under_dry(arguments, runner, monkeypatch):
+    """--dry applies to the book picked, with or without run."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("BRANCH", "update-deps")
+
+    result = runner.invoke(cli.cli, arguments, input="2\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Run which? 2" in result.output.splitlines()
+    assert '    echo "git switch -c update-deps"' in result.output.splitlines()
+    assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
+
+
+def test_the_picker_works_under_step(runner, monkeypatch):
+    """--step applies to the book picked: it asks before each run block."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["run", "--step"], input="1\ny\ns\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Run this block? [y]es / [s]kip / [q]uit s" in result.output.splitlines()
+    assert "skipped (--step)" in result.output.splitlines()
+
+
+@pytest.mark.parametrize("answer", ["0", "3", "two", "say-where", "-1"])
+def test_the_picker_asks_again_after_an_answer_that_is_not_a_listed_number(answer, runner, monkeypatch):
+    """Only a number from the list picks a book; anything else, even a book's name, gets the question again."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["run", "--dry"], input=f"{answer}\n1\n")
+
+    assert result.exit_code == 0, result.output
+    assert result.output.count("Run which?") == 2
+    assert f"Run which? {answer}\nPick a number from 1 to 2.\nRun which? 1\n" in result.output
+    assert "Say where" in result.output.splitlines()
+
+
+def test_a_blank_answer_to_the_picker_runs_nothing(runner, monkeypatch, tmp_path, started_in):
+    """Pressing enter at the picker ends without running anything or writing a transcript, and exits 1."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "record.md").write_text(
+        "---\ntitle: Record\noutput_path: logs/run.md\n---\n\n## S\n\n```sh run\ntouch ran\n```\n"
+    )
+
+    result = runner.invoke(cli.cli, ["run"], input="\n")
+
+    assert result.exit_code == 1
+    assert result.output == "  1. record  Record\nRun which? \n"
+    assert sorted(path.name for path in started_in.iterdir()) == []
+
+
+def test_ctrl_c_at_the_picker_runs_nothing(runner, monkeypatch, started_in):
+    """Ctrl-C at the picker ends as quietly as a blank answer, without a traceback."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    def ctrl_c(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(click.termui, "visible_prompt_func", ctrl_c)
+
+    result = runner.invoke(cli.cli, ["run"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert sorted(path.name for path in started_in.iterdir()) == []
+
+
+def test_the_picker_with_an_empty_library_is_an_error(runner, empty_library):
+    """There's nothing to pick, so paulrun run says where it looked, and exits 1."""
+    result = runner.invoke(cli.cli, ["run"])
+
+    assert result.exit_code == 1
+    assert result.output == (
+        f"Error: no books in the library at {empty_library} to pick from. "
+        "Give a runbook to run, or set PAULRUN_LIBRARY to where yours are.\n"
+    )
+
+
+def test_the_picker_lists_a_book_that_cannot_be_read_and_reports_it_if_picked(runner, monkeypatch, tmp_path):
+    """A book with broken frontmatter is listed with why, like in paulrun library, and picking it is a clean error."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "unclosed.md").write_text("---\ntitle: Unclosed\n\n## Step\n")
+
+    result = runner.invoke(cli.cli, ["run"], input="1\n")
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "  1. unclosed  can't read it: frontmatter has no closing ---\n"
+        "Run which? 1\n"
+        "Error: frontmatter has no closing ---\n"
+    )
+
+
+def test_check_and_inputs_still_need_a_runbook(runner, monkeypatch):
+    """Only run has a picker."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    for command in ("check", "inputs"):
+        result = runner.invoke(cli.cli, [command])
+
+        assert result.exit_code == 2
+        assert "Missing argument 'RUNBOOK'" in result.output
 
 
 class EchoBackend:

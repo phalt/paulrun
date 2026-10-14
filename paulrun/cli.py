@@ -61,16 +61,18 @@ class RunbookArgument(click.ParamType):
 
 
 @cli.command("run")
-@click.argument("runbook", type=RunbookArgument())
+@click.argument("runbook", type=RunbookArgument(), required=False)
 @click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
 @click.option("--step", is_flag=True, help="Ask before each run block whether to run it, skip it or quit.")
-def run_runbook(runbook: Path, dry: bool, step: bool) -> None:
+def run_runbook(runbook: Path | None, dry: bool, step: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
     RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
-    paulrun RUNBOOK, with no command, does the same.
+    With no RUNBOOK, pick a book from the library. paulrun RUNBOOK, with no command, does the same.
     """
     console = Console(highlight=False)
+    if runbook is None:
+        runbook = _pick(console)
     parsed, backends, report = _validated(runbook)
     _print_report(console, runbook, report, summary_if_ok=False)
     if not report.ok:
@@ -95,6 +97,35 @@ def run_runbook(runbook: Path, dry: bool, step: bool) -> None:
         console.out(f"transcript: {_shown_from(transcript.path, cwd)}")
     if result.status not in ("ok", "dry"):
         sys.exit(1)
+
+
+def _pick(console: Console) -> Path:
+    """List the library's books by number and ask which to run, until the answer is one of the numbers.
+
+    A blank answer or Ctrl-C runs nothing and exits 1, like answering no to Start?.
+    """
+    where = library.location(os.environ)
+    books = library.books(where)
+    if not books:
+        raise click.ClickException(
+            f"no books in the library at {where} to pick from. "
+            f"Give a runbook to run, or set {library.LIBRARY_VARIABLE} to where yours are."
+        )
+    width = max(len(book.name) for book in books)
+    numbers = len(str(len(books)))
+    for number, book in enumerate(books, start=1):
+        # console.out, because a title such as [bold]Deploy[/bold] would be read as markup.
+        console.out(f"  {number:>{numbers}}. {_book_line(book, width)}")
+    while True:
+        try:
+            answer = _prompt("Run which?", default="", show_default=False, prompt_suffix=" ").strip()
+        except KeyboardInterrupt:
+            sys.exit(1)
+        if not answer:
+            sys.exit(1)
+        if answer.isdigit() and 1 <= int(answer) <= len(books):
+            return books[int(answer) - 1].path
+        console.out(f"Pick a number from 1 to {len(books)}.", style="red")
 
 
 def _shown_from(path: Path, cwd: Path) -> Path:
@@ -162,13 +193,18 @@ def list_library() -> None:
     width = max(len(book.name) for book in books)
     for book in books:
         # console.out, because a title such as [bold]Deploy[/bold] would be read as markup.
-        heading = f"can't read it: {book.problem}" if book.problem is not None else book.title
-        console.out(f"{book.name:<{width}}  {heading}" if heading is not None else book.name)
+        console.out(_book_line(book, width))
         if book.description is not None:
             console.out(f"{'':<{width}}  {book.description}")
         # Command names win, so paulrun <name> wouldn't run this book.
         if book.name in cli.commands:
             console.out(f"{'':<{width}}  run it with paulrun run {book.name}, since paulrun {book.name} is a command")
+
+
+def _book_line(book: library.Book, width: int) -> str:
+    """A book's name, padded to width, then its title, or why it can't be read. Just the name if it has neither."""
+    heading = f"can't read it: {book.problem}" if book.problem is not None else book.title
+    return f"{book.name:<{width}}  {heading}" if heading else book.name
 
 
 def _input_blocks(path: Path) -> list[tuple[Input, str | None]]:

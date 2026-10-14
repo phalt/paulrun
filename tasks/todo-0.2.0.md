@@ -206,13 +206,13 @@ Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul
 - Document the picker in `docs/cli.md`.
 
 **Acceptance criteria:**
-- [ ] Picking a number runs that book, including under `--dry` and `--step`
-- [ ] An answer that isn't a listed number is asked again; a blank answer or Ctrl-C exits 1, runs nothing and writes no transcript
-- [ ] `paulrun run` with an empty library exits 1, saying where the library is
+- [x] Picking a number runs that book, including under `--dry` and `--step`
+- [x] An answer that isn't a listed number is asked again; a blank answer or Ctrl-C exits 1, runs nothing and writes no transcript
+- [x] `paulrun run` with an empty library exits 1, saying where the library is
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_cli.py`
-- [ ] Manual check: `PAULRUN_LIBRARY=tests/library uv run paulrun run --dry`, then pick a book
+- [x] Tests pass: `uv run pytest tests/test_cli.py`
+- [x] Manual check: `PAULRUN_LIBRARY=tests/library uv run paulrun run --dry`, then pick a book
 
 **Dependencies:** Task 5b
 
@@ -224,8 +224,8 @@ Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul
 **Estimated scope:** Small
 
 ### Checkpoint 2: Runbook library works
-- [ ] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun <name> --dry` and `paulrun run` (the picker) all work from another folder
-- [ ] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only)
+- [x] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun <name> --dry` and `paulrun run` (the picker) all work from another folder
+- [x] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only; approved 2026-10-14)
 
 ---
 
