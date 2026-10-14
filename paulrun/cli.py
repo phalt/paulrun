@@ -125,6 +125,29 @@ def inputs(runbook: Path) -> None:
             console.out(f"{'':<{width}}  {detail}")
 
 
+@cli.command("library")
+def list_library() -> None:
+    """List the books in your runbook library, with each one's title and description.
+
+    The library is ~/runbooks, or $PAULRUN_LIBRARY. Run a book from it by name, e.g. paulrun go deploy.
+    """
+    console = Console(highlight=False)
+    where = library.location(os.environ)
+    books = library.books(where)
+    if not books:
+        console.out(f"no books in the library at {where}")
+        console.out(f"Add runbooks there, or set {library.LIBRARY_VARIABLE} to where yours are.")
+        return
+    console.out(f"library: {where}")
+    width = max(len(book.name) for book in books)
+    for book in books:
+        # console.out, because a title such as [bold]Deploy[/bold] would be read as markup.
+        heading = f"can't read it: {book.problem}" if book.problem is not None else book.title
+        console.out(f"{book.name:<{width}}  {heading}" if heading is not None else book.name)
+        if book.description is not None:
+            console.out(f"{'':<{width}}  {book.description}")
+
+
 def _input_blocks(path: Path) -> list[tuple[Input, str | None]]:
     """The inputs a runbook's input blocks declare, with the step each is in. Nothing if the body can't be read."""
     try:

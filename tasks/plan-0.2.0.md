@@ -6,7 +6,7 @@ Tasks: [tasks/todo-0.2.0.md](todo-0.2.0.md)
 
 ## Overview
 
-Build paulrun 0.2.0 as the spec describes. Runbooks can be kept in a runbook library (`~/runbooks`, or `$PAULRUN_LIBRARY`), and each book in it runs by name from anywhere. Blocks and transcripts go in the folder paulrun was started from. `paulrun library` lists the books, and `paulrun go` with no name picks one from the library. Inputs get `default` and `choices`.
+Build paulrun 0.2.0 as the spec describes. Runbooks can be kept in a runbook library (`~/runbooks`, or `$PAULRUN_LIBRARY`), and each book in it runs by name from anywhere. Blocks and transcripts go in the folder paulrun was started from. `paulrun library` lists the books, and `paulrun run` with no name picks one from the library. `run` replaces `go`, and is optional: `paulrun RUNBOOK` runs it. Inputs get `default` and `choices`.
 
 The order is:
 
@@ -45,7 +45,9 @@ blocks run in the starting folder + PAULRUN_RUNBOOK_DIR (1)
           │
           └── `paulrun library` (5)
                  │
-                 └── picker for `paulrun go` (6)
+                 └── `run` replaces `go`, and is optional (5b)
+                        │
+                        └── picker for `paulrun run` (6)
                         │
                         └── runbook library docs page (9)   [also needs 3]
 
@@ -68,11 +70,12 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 
 ### Phase 2: The runbook library
 - [x] Task 4: Find books in the library by name for `go`, `check` and `inputs`
-- [ ] Task 5: `paulrun library`
-- [ ] Task 6: Pick a book from the library for `paulrun go` with no runbook
+- [x] Task 5: `paulrun library`
+- [ ] Task 5b: `run` replaces `go`, and runbooks run with no command (added 2026-10-14)
+- [ ] Task 6: Pick a book from the library for `paulrun run` with no runbook
 
 ### Checkpoint 2: Runbook library works
-- [ ] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun go <name> --dry` and `paulrun go` (the picker) all work from another folder
+- [ ] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun <name> --dry` and `paulrun run` (the picker) all work from another folder
 - [ ] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only)
 
 ### Phase 3: Input defaults and choices
@@ -89,7 +92,7 @@ Full task bodies (acceptance criteria, verification, files) are in [todo-0.2.0.m
 ### Checkpoint 4: Ready to release (Paul only)
 - [ ] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
 - [ ] `uv run mkdocs build --strict` passes
-- [ ] Paul releases paulrun 0.2.0 with an unchanged `paulrun go PUBLISHING.md`
+- [ ] Paul releases paulrun 0.2.0 with an unchanged `PUBLISHING.md`, run as `paulrun PUBLISHING.md`
 - [ ] Docs deployed to `phalt.github.io/paulrun`
 
 Agents never publish to PyPI or deploy docs (SPEC.md Boundaries).
@@ -114,6 +117,8 @@ Tasks 7 and 8 touch `inputs.py`, `runbook.py` and `validate.py`, which Tasks 1-6
 | Paul's real library at `~/runbooks` changes test results once it exists | Medium | Task 4's autouse fixture points `PAULRUN_LIBRARY` at an empty temporary folder for every test |
 | A bare name matches a file in the starting folder (e.g. a `deploy` script) and shadows the `deploy` book in the library | Low | The spec decides this: paths win. Documented in `docs/cli.md`, and the run overview's title shows which runbook was picked |
 | YAML types `default: 1.10` as a float and `default: yes` as a bool | Low | `check` errors on a non-string default and says to quote it (Task 7) |
+| A misspelt command (`paulrun chekc deploy`) is read as a runbook called `chekc` | Low | It ends in the not-found usage error, which names `chekc`, so the typo shows. Click's "did you mean" for commands is lost; accepted as the price of an optional `run` |
+| Removing `go` breaks anything that types it: muscle memory, notes, the 0.1.0 release transcripts | Medium | Paul chose a clean break over an alias (2026-10-14). The CHANGELOG's Breaking line says so, and `paulrun go x` gives a clear not-found error rather than doing something else |
 | External backends now get the starting folder as `cwd` instead of the runbook's folder | Low | The protocol signature doesn't change. The CHANGELOG's breaking-change line covers backends too |
 
 ## Open questions

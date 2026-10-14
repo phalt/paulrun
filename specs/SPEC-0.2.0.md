@@ -15,13 +15,14 @@ paulrun becomes Paul's personal procedure runner. His runbooks are kept in a **r
 
 ### User stories
 
-- As Paul, I keep `rebuild-frontend.md` in my library at `~/runbooks`, `cd` into the work repo, run `paulrun go rebuild-frontend`, and the frontend is rebuilt there.
-- As Paul, I run `paulrun go update-project-deps` in three different projects, and each run works on the project I'm in.
+- As Paul, I keep `rebuild-frontend.md` in my library at `~/runbooks`, `cd` into the work repo, run `paulrun rebuild-frontend`, and the frontend is rebuilt there.
+- As Paul, I run `paulrun update-project-deps` in three different projects, and each run works on the project I'm in.
 - As Paul, I run `paulrun library` to see which books are in my library and what each one does.
-- As Paul, I run `paulrun go` with no name, pick a book from a numbered list of my library, and it runs.
+- As Paul, I run `paulrun run` with no name, pick a book from a numbered list of my library, and it runs.
 - As Paul, I give an input a `default` and press enter instead of typing the usual value.
 - As Paul, I give an input `choices`, and paulrun only accepts one of them.
-- As Paul, I still release paulrun with `paulrun go PUBLISHING.md` from the repo root, exactly as before.
+- As Paul, I still release paulrun from the repo root with `PUBLISHING.md` unchanged, now as `paulrun PUBLISHING.md`.
+- As Paul, I type `paulrun <runbook>` and it runs, the way I'd type the name of any script; `paulrun run <runbook>` says the same thing in full.
 
 ## Decisions
 
@@ -30,11 +31,15 @@ paulrun becomes Paul's personal procedure runner. His runbooks are kept in a **r
 3. **The runbook library** is the folder `~/runbooks`, or `$PAULRUN_LIBRARY` when it's set and not empty. `~` in the variable's value is expanded. There's no config file, and there's only one library.
 4. **The library is flat.** Every `*.md` file directly inside it is a book, and its name is the file name without `.md`. Subfolders and other files are ignored, so `~/runbooks/logs/` is a safe place for transcripts.
 5. **Paths win over names.** If the argument is a file that exists, that file is the runbook, as in 0.1.0. Otherwise, if it has no `/`, it's looked up in the library as `<name>.md`. A trailing `.md` is allowed, so `rebuild-frontend` and `rebuild-frontend.md` find the same runbook. An argument containing `/` is only ever a path.
-6. No new runtime dependencies.
+6. **`run` replaces `go`, and is optional.** `paulrun run RUNBOOK` runs a runbook, and so does `paulrun RUNBOOK`: anything that isn't a command name is taken as a runbook to run. `go` is removed, with no alias. Bare `paulrun` still shows help.
+7. **Command names win over book names.** `paulrun check` is always the `check` command, even if there's a `check.md` book. `paulrun run check` reaches the book.
+8. No new runtime dependencies.
 
-Decisions 1 and 2 are a breaking change for anyone who runs `paulrun go path/to/RUNBOOK.md` from another folder. The CHANGELOG says so plainly.
+Decisions 1 and 2 are a breaking change for anyone who runs a runbook by its path from another folder. Decision 6 is a breaking change for everyone who types `paulrun go`. The CHANGELOG says both plainly.
 
 The library wording, `paulrun library` (was `paulrun books`) and `PAULRUN_LIBRARY` (was `PAULRUN_RUNBOOKS`) were changed by Paul on 2026-10-13, after approval and before Task 4.
+
+Decisions 6 and 7 (`run` replacing `go`, and running a runbook with no command) were added by Paul on 2026-10-14, after Task 5 (plan Task 5b).
 
 ## Runbook format changes
 
@@ -78,15 +83,23 @@ inputs:
 ## Commands (CLI)
 
 ```
-paulrun go [RUNBOOK] [--dry] [--step]   # RUNBOOK is a path or a book's name; no RUNBOOK picks from the library
+paulrun RUNBOOK [--dry] [--step]        # the same as paulrun run RUNBOOK
+paulrun run [RUNBOOK] [--dry] [--step]  # replaces go; RUNBOOK is a path or a book's name; no RUNBOOK picks from the library
 paulrun check RUNBOOK                   # RUNBOOK is a path or a book's name
 paulrun inputs RUNBOOK                  # RUNBOOK is a path or a book's name; now shows default and choices
 paulrun library                         # new: list the books in the runbook library
 paulrun backends
 paulrun --version
+paulrun                                 # with nothing else, shows help, as before
 ```
 
-**Name lookup** (`go`, `check`, `inputs`) follows Decision 5. When nothing is found, the error names both places looked in, e.g. `no runbook 'rebuild-frontend': no such file here, and no rebuild-frontend.md in the library at /Users/paul/runbooks`. That's a usage error, exit 2, the same as a missing file in 0.1.0.
+**Running without `run`:** when the first argument isn't a command name or `--help`/`--version`, paulrun runs it as if `run` came first. Options work either side of it, so `paulrun deploy --dry` and `paulrun --dry deploy` are the same. `paulrun --help` shows the usage as `paulrun [OPTIONS] RUNBOOK | COMMAND [ARGS]...`, and lists `run` with the other commands.
+
+- Name lookup, errors and exit codes are exactly those of `paulrun run`. E.g. a name that's neither a file nor a book is a usage error, exit 2.
+- A misspelt command, e.g. `paulrun chekc deploy`, is read as a runbook called `chekc`. That's the cost of making `run` optional. The not-found error names the runbook it looked for, so the typo is visible.
+- `paulrun library` marks a book whose name is also a command, e.g. `check  (run it with paulrun run check)`, since `paulrun check` won't run it.
+
+**Name lookup** (`run`, `check`, `inputs`) follows Decision 5. When nothing is found, the error names both places looked in, e.g. `no runbook 'rebuild-frontend': no such file here, and no rebuild-frontend.md in the library at /Users/paul/runbooks`. That's a usage error, exit 2, the same as a missing file in 0.1.0.
 
 **`paulrun library`** prints where the library is, then one entry per book sorted by name, laid out like `paulrun inputs`:
 
@@ -103,13 +116,13 @@ update-project-deps  Update a project's dependencies
 - A book whose frontmatter can't be read is still listed, with the reason, and the listing carries on.
 - An empty or missing library prints `no books in the library at <folder>`, with a hint about `PAULRUN_LIBRARY`, and exits 0.
 
-**The picker:** `paulrun go` with no RUNBOOK lists the library's books numbered, `  1. rebuild-frontend  Rebuild the frontend`, and asks `Run which?`.
+**The picker:** `paulrun run` with no RUNBOOK lists the library's books numbered, `  1. rebuild-frontend  Rebuild the frontend`, and asks `Run which?`.
 
-- Answering a number carries on exactly like `paulrun go <name>`: check, inputs, overview, `Start? [y/N]`. `--dry` and `--step` apply.
+- Answering a number carries on exactly like `paulrun run <name>`: check, inputs, overview, `Start? [y/N]`. `--dry` and `--step` apply.
 - Anything that isn't a listed number is asked again.
 - Pressing enter with no answer ends without running anything, exit 1, the same as answering no to `Start?`. So does Ctrl-C. No transcript is written either way.
 - With no books in the library, it's an error, exit 1, saying where the library is.
-- Only `go` has a picker. `check` and `inputs` still need a RUNBOOK.
+- Only `run` has a picker. `check` and `inputs` still need a RUNBOOK. Bare `paulrun` shows help, not the picker.
 
 **`paulrun inputs`** adds `default: comms` and `choices: comms, billing, all` detail lines, beside the existing `pattern:` and `secret` ones.
 
@@ -131,7 +144,8 @@ Every feature is documented in the same change that builds it (SPEC.md Boundarie
   - a "Where blocks run" section
   - transcript paths now relative to where paulrun was started
 - **`docs/cli.md`:**
-  - name lookup for `go`, `check` and `inputs`
+  - `run` in place of `go`, and running a runbook with no command
+  - name lookup for `run`, `check` and `inputs`
   - the picker
   - a `paulrun library` section
   - `PAULRUN_LIBRARY`
@@ -145,7 +159,7 @@ Only what's new or changes:
 ```
 paulrun/
   library.py       # new: where the library is, finding a book by name, listing its books
-  cli.py           # go/check/inputs take a name, go's picker, the library command
+  cli.py           # run (was go), running with no command, run/check/inputs take a name, the picker, the library command
   inputs.py        # default and choices in Input and collect
   runbook.py       # parse default and choices
   validate.py      # default and choices checks
@@ -217,7 +231,7 @@ As SPEC.md, plus:
 
 ## Success criteria
 
-- [ ] With `PAULRUN_LIBRARY` set to a folder, `paulrun go <name>`, `paulrun check <name>` and `paulrun inputs <name>` use the book `<folder>/<name>.md`, with or without a trailing `.md`
+- [ ] With `PAULRUN_LIBRARY` set to a folder, `paulrun run <name>`, `paulrun check <name>` and `paulrun inputs <name>` use the book `<folder>/<name>.md`, with or without a trailing `.md`
 - [ ] Without `PAULRUN_LIBRARY`, or with it empty, the library is `~/runbooks`
 - [ ] An existing file is used before a book of the same name; an argument with a `/` is never looked up in the library
 - [ ] A name that isn't found exits 2, naming both places looked in
@@ -226,7 +240,7 @@ As SPEC.md, plus:
 - [ ] A relative `output_path` is written under the starting folder; an absolute one is unchanged
 - [ ] The overview, and `--dry`, show `directory: <starting folder>`
 - [ ] `paulrun library` lists each book's name, title and description in name order, still lists one with unreadable frontmatter, ignores subfolders and non-`.md` files, and says so when there are none
-- [ ] `paulrun go` with no RUNBOOK runs the book picked by number, works with `--dry` and `--step`, and asks again after an answer that isn't a listed number. A blank answer or Ctrl-C runs nothing, writes no transcript and exits 1
+- [ ] `paulrun run` with no RUNBOOK runs the book picked by number, works with `--dry` and `--step`, and asks again after an answer that isn't a listed number. A blank answer or Ctrl-C runs nothing, writes no transcript and exits 1
 - [ ] Enter at a prompt with a `default` takes the default; the environment overrides it
 - [ ] An answer that isn't one of the `choices` is asked again; an environment value that isn't one fails before anything runs
 - [ ] `check` errors on:
@@ -240,7 +254,9 @@ As SPEC.md, plus:
 - [ ] The docs tests check the new examples
 - [ ] No new runtime dependencies
 - [ ] Paul runs his own frontend rebuild book from his library in the work repo, and it completes
-- [ ] paulrun 0.2.0 is released with an unchanged `paulrun go PUBLISHING.md`
+- [ ] `paulrun RUNBOOK` runs exactly as `paulrun run RUNBOOK` does, with options before or after it; `paulrun go` is no longer a command; bare `paulrun` shows help
+- [ ] A command name is never read as a runbook, and `paulrun library` marks a book whose name is a command
+- [ ] paulrun 0.2.0 is released with an unchanged `PUBLISHING.md`, run as `paulrun PUBLISHING.md`
 
 ## Open questions
 

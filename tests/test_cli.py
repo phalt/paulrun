@@ -1047,6 +1047,90 @@ def test_help_lists_inputs_command(runner):
     assert "\n  inputs " in result.output
 
 
+def test_library_lists_each_book_with_its_title_and_description(runner, monkeypatch):
+    """library says where the library is, then each book's name and title, with its description underneath."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        f"""\
+        library: {LIBRARY}
+        say-where            Say where
+                             Show where a book from the library runs, and where it's kept.
+        update-project-deps  Update a project's dependencies
+                             Upgrade every dependency in the project you're in, then run its tests.
+        """
+    )
+
+
+def test_library_lists_books_without_a_title_or_that_cannot_be_read(runner, tmp_path, monkeypatch):
+    """A book with no title shows its name alone, and one that can't be read is listed with why, not left out."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\n---\n")
+    (tmp_path / "notes.md").write_text("# Notes\n")
+    (tmp_path / "unclosed.md").write_text("---\ntitle: Unclosed\n\n## Step\n")
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent(
+        f"""\
+        library: {tmp_path}
+        deploy    Deploy
+        notes
+        unclosed  can't read it: frontmatter has no closing ---
+        """
+    )
+
+
+def test_library_lists_only_markdown_files_directly_in_the_library(runner, tmp_path, monkeypatch):
+    """Transcripts in a logs/ folder, and other files, aren't books."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\n---\n")
+    (tmp_path / "logs").mkdir()
+    (tmp_path / "logs" / "deploy-1.2.0.md").write_text("--- paulrun deploy.md @ 2026-10-13T10:00:00+01:00\n")
+    (tmp_path / "deploy.sh").write_text("echo hi\n")
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert result.output == f"library: {tmp_path}\ndeploy  Deploy\n"
+
+
+@pytest.mark.parametrize("exists", [True, False], ids=["empty", "missing"])
+def test_library_says_when_there_are_no_books(exists, runner, tmp_path, monkeypatch):
+    """An empty or missing library isn't an error. It says where paulrun looked, and how to look somewhere else."""
+    where = tmp_path / "runbooks"
+    if exists:
+        where.mkdir()
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(where))
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert result.exit_code == 0
+    assert result.output == (
+        f"no books in the library at {where}\nAdd runbooks there, or set PAULRUN_LIBRARY to where yours are.\n"
+    )
+
+
+def test_library_prints_titles_and_descriptions_verbatim(runner, tmp_path, monkeypatch):
+    """A title or description is shown as written, even if it looks like rich markup."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "odd.md").write_text("---\ntitle: '[bold]Odd[/bold] :rocket:'\ndescription: '[red]x[/red]'\n---\n")
+
+    result = runner.invoke(cli.cli, ["library"])
+
+    assert result.output == f"library: {tmp_path}\nodd  [bold]Odd[/bold] :rocket:\n     [red]x[/red]\n"
+
+
+def test_help_lists_library_command(runner):
+    """--help lists the library command."""
+    result = runner.invoke(cli.cli, ["--help"])
+
+    assert "\n  library " in result.output
+
+
 class EchoBackend:
     """An external backend, defined here as if it shipped in another package.
 

@@ -141,13 +141,13 @@ Every task also clears the standing bar:
 **Description:** `library.books(library)` reads each `*.md` directly inside the library, frontmatter only, into a `Book` in name order: name, path, title, description, or the error that stopped its frontmatter being read. `paulrun library` prints `library: <where it is>`, then each book in the layout the spec gives, aligned like `paulrun inputs`. An empty or missing library prints `no books in the library at <library>` with a hint about `PAULRUN_LIBRARY`, and exits 0. Add a `paulrun library` section to `docs/cli.md`.
 
 **Acceptance criteria:**
-- [ ] Lists each book's name and title, with its description underneath when it has one, in name order; a book with no title shows its name alone
-- [ ] A book with unreadable frontmatter is still listed, with the reason; a book with a broken body is listed normally; subfolders and non-`.md` files are ignored
-- [ ] An empty or missing library says so and exits 0
+- [x] Lists each book's name and title, with its description underneath when it has one, in name order; a book with no title shows its name alone
+- [x] A book with unreadable frontmatter is still listed, with the reason; a book with a broken body is listed normally; subfolders and non-`.md` files are ignored
+- [x] An empty or missing library says so and exits 0
 
 **Verification:**
-- [ ] Tests pass: `uv run pytest tests/test_library.py tests/test_cli.py`
-- [ ] Manual check: `PAULRUN_LIBRARY=tests/library uv run paulrun library`
+- [x] Tests pass: `uv run pytest tests/test_library.py tests/test_cli.py`
+- [x] Manual check: `PAULRUN_LIBRARY=tests/library uv run paulrun library`
 
 **Dependencies:** Task 4
 
@@ -155,16 +155,50 @@ Every task also clears the standing bar:
 - `paulrun/library.py`
 - `paulrun/cli.py`
 - `tests/test_library.py`, `tests/test_cli.py`
-- `tests/library/*` (a book with broken frontmatter, a subfolder, a non-`.md` file)
+- `tests/library/*` stays a clean example library that passes `check`. The broken-frontmatter book, subfolder and non-`.md` file are made in `tmp_path` by the CLI tests instead
 - `docs/cli.md`, `CHANGELOG.md`, `docs/CHANGELOG.md`
 
 **Estimated scope:** Small
 
-## Task 6: Pick a book from the library for `paulrun go` with no runbook
+## Task 5b: `run` replaces `go`, and runbooks run with no command
 
-**Description:** `RUNBOOK` becomes optional for `go`.
-- With none given, `go` lists the library's books numbered, `  1. <name>  <title>`, and asks `Run which?`.
-- A listed number carries on exactly like `paulrun go <name>`, with `--dry` and `--step` applied.
+Added 2026-10-14, after Task 5, as part of 0.2.0. A CLI change, approved by Paul (spec Decisions 6 and 7).
+
+**Description:** `paulrun run RUNBOOK` replaces `paulrun go RUNBOOK`, and `paulrun RUNBOOK` does the same with no command at all.
+- Rename the `go` command to `run`. `go` is removed, with no alias.
+- The `paulrun` group takes a runbook in place of a command. When the first argument isn't a command name, `--help` or `--version`, it's run as if `run` came first, so options work on either side: `paulrun deploy --dry` and `paulrun --dry deploy`.
+- Bare `paulrun` still shows help. Usage reads `paulrun [OPTIONS] RUNBOOK | COMMAND [ARGS]...`.
+- Command names win: `paulrun check` is always the command. `paulrun library` marks a book whose name is a command, with how to run it (`paulrun run check`).
+- Change every `paulrun go` to `paulrun RUNBOOK` (or `paulrun run` where it reads better) in the code, tests, fixture runbooks, examples, `PUBLISHING.md`, README, docs and CONTRIBUTING. The 0.1.0 files (`specs/SPEC.md`, `tasks/plan.md`, `tasks/todo.md`) and the 0.1.0 CHANGELOG entry stay as they were, since they record 0.1.0.
+- CHANGELOG: a **Breaking** line saying `go` is now `run`, and that `paulrun RUNBOOK` works on its own.
+
+**Acceptance criteria:**
+- [ ] `paulrun RUNBOOK` and `paulrun run RUNBOOK` give the same output and exit code, for a file and for a book, with `--dry` and `--step` before or after the runbook
+- [ ] `paulrun go ...` is a usage error (it's read as a runbook called `go`, which doesn't exist); bare `paulrun` and `paulrun --help` show help listing `run`; `paulrun --version` still works
+- [ ] A command name is never read as a runbook, and `paulrun library` marks a book that shares a command's name
+- [ ] No `paulrun go` is left in the code, tests, fixtures, examples, `PUBLISHING.md`, README, docs or CONTRIBUTING, apart from the 0.1.0 CHANGELOG entry
+
+**Verification:**
+- [ ] Tests pass: `make test`
+- [ ] Build succeeds: `uv run mkdocs build --strict`
+- [ ] Manual check: `VERSION=9.9.9 uv run paulrun PUBLISHING.md --dry` from the repo root, and `PAULRUN_LIBRARY=tests/library uv run paulrun say-where` from `/tmp`
+
+**Dependencies:** Task 5
+
+**Files likely touched:**
+- `paulrun/cli.py`
+- `tests/test_cli.py`, `tests/test_docs.py`, `tests/test_examples.py`, `tests/test_interrupt.py`
+- `tests/runbooks/*.md`, `tests/library/*.md`, `examples/*.md`, `PUBLISHING.md`
+- `README.md`, `CONTRIBUTING.md`, `docs/cli.md`, `docs/index.md`, `docs/runbook-format.md`, `docs/backends.md`, `CHANGELOG.md`, `docs/CHANGELOG.md`
+
+**Estimated scope:** Large in files, small in code. Almost every file is a mechanical `paulrun go` rename; the only new logic is the group taking a runbook in place of a command.
+
+## Task 6: Pick a book from the library for `paulrun run` with no runbook
+
+**Description:** `RUNBOOK` becomes optional for `run`.
+- With none given, `run` lists the library's books numbered, `  1. <name>  <title>`, and asks `Run which?`.
+- A listed number carries on exactly like `paulrun run <name>`, with `--dry` and `--step` applied.
+- Bare `paulrun`, with no command, still shows help (spec Decision 6).
 - Anything else is asked again.
 - A blank answer or Ctrl-C runs nothing, writes no transcript and exits 1.
 - An empty library is an error, exit 1, saying where the library is.
@@ -174,13 +208,13 @@ Every task also clears the standing bar:
 **Acceptance criteria:**
 - [ ] Picking a number runs that book, including under `--dry` and `--step`
 - [ ] An answer that isn't a listed number is asked again; a blank answer or Ctrl-C exits 1, runs nothing and writes no transcript
-- [ ] `paulrun go` with an empty library exits 1, saying where the library is
+- [ ] `paulrun run` with an empty library exits 1, saying where the library is
 
 **Verification:**
 - [ ] Tests pass: `uv run pytest tests/test_cli.py`
-- [ ] Manual check: `PAULRUN_LIBRARY=tests/library uv run paulrun go --dry`, then pick a book
+- [ ] Manual check: `PAULRUN_LIBRARY=tests/library uv run paulrun run --dry`, then pick a book
 
-**Dependencies:** Task 5
+**Dependencies:** Task 5b
 
 **Files likely touched:**
 - `paulrun/cli.py`
@@ -190,7 +224,7 @@ Every task also clears the standing bar:
 **Estimated scope:** Small
 
 ### Checkpoint 2: Runbook library works
-- [ ] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun go <name> --dry` and `paulrun go` (the picker) all work from another folder
+- [ ] With `PAULRUN_LIBRARY=tests/library`, `paulrun library`, `paulrun <name> --dry` and `paulrun run` (the picker) all work from another folder
 - [ ] Paul tries his own `rebuild-frontend` book from his library in the work repo (Paul only)
 
 ---
@@ -218,7 +252,7 @@ Every task also clears the standing bar:
 
 **Verification:**
 - [ ] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runbook.py tests/test_validate.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun go tests/runbooks/default-example.md`, pressing enter at the prompt
+- [ ] Manual check: `uv run paulrun tests/runbooks/default-example.md`, pressing enter at the prompt
 
 **Dependencies:** None (independent of Tasks 1-6)
 
@@ -252,7 +286,7 @@ Every task also clears the standing bar:
 
 **Verification:**
 - [ ] Tests pass: `uv run pytest tests/test_inputs.py tests/test_runbook.py tests/test_validate.py tests/test_cli.py`
-- [ ] Manual check: `uv run paulrun go tests/runbooks/choices-example.md`, typing a wrong answer first
+- [ ] Manual check: `uv run paulrun tests/runbooks/choices-example.md`, typing a wrong answer first
 
 **Dependencies:** Task 7
 
@@ -311,5 +345,5 @@ The README and `docs/index.md` get a short "Your runbook library" section, and t
 ### Checkpoint 4: Ready to release (Paul only)
 - [ ] `CHANGELOG.md`'s `## 0.2.0` section leads with the runbook library, then the breaking change, and covers every feature
 - [ ] `uv run mkdocs build --strict` passes
-- [ ] Paul releases paulrun 0.2.0 with an unchanged `paulrun go PUBLISHING.md`
+- [ ] Paul releases paulrun 0.2.0 with an unchanged `PUBLISHING.md`, run as `paulrun PUBLISHING.md`
 - [ ] Docs deployed to `phalt.github.io/paulrun`

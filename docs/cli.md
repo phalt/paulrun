@@ -4,6 +4,7 @@
 paulrun go RUNBOOK [--dry] [--step]   # run a runbook
 paulrun check RUNBOOK                 # find problems without running anything
 paulrun inputs RUNBOOK                # list the inputs a runbook needs
+paulrun library                       # list the books in your runbook library
 paulrun backends                      # list the languages paulrun can run
 paulrun --version
 ```
@@ -22,6 +23,8 @@ Your runbook library is a folder of runbooks you keep for yourself, rather than 
 ```sh
 export PAULRUN_LIBRARY=~/work-runbooks
 ```
+
+Run [`paulrun library`](#paulrun-library) to see which books are in it.
 
 paulrun works out which runbook you mean like this:
 
@@ -232,6 +235,31 @@ OTP      The code from your authenticator app
 Frontmatter inputs come first. Inputs from [`input` blocks](runbook-format.md#input-blocks) come after, each with the step that asks for it.
 
 If the rest of the runbook is broken, the frontmatter inputs are still listed; input blocks need the rest of the runbook to be readable. Inputs that are missing a name or description aren't listed; `paulrun check` reports those.
+
+## paulrun library
+
+Lists the books in your [runbook library](#naming-a-runbook), so you can find the one you need.
+
+```sh
+paulrun library
+```
+
+```
+library: /home/you/runbooks
+rebuild-frontend     Rebuild the frontend
+                     Clean install the frontend's dependencies, then rebuild it.
+update-project-deps  Update a project's dependencies
+```
+
+Each book is listed by the name you run it with, then its `title`, with its `description` underneath. Every `.md` file directly in the library is a book. Other files and folders in it are left out, so a `logs/` folder there is a fine place for transcripts.
+
+Only each book's frontmatter is read. A book whose frontmatter can't be read is still listed, with why, so you can fix it:
+
+```
+deploy    can't read it: frontmatter has no closing ---
+```
+
+If the library is empty, or doesn't exist yet, paulrun says where it looked.
 
 ## paulrun backends
 

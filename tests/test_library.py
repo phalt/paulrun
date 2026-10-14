@@ -1,5 +1,6 @@
-"""Tests for the runbook library: where it is, and finding a book in it by name."""
+"""Tests for the runbook library: where it is, finding a book in it by name, and listing its books."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -110,3 +111,65 @@ def test_find_never_looks_outside_the_library_for_a_book(tmp_path):
     (tmp_path / "library").mkdir()
 
     assert library.find("..", tmp_path / "project", tmp_path / "library") is None
+
+
+def test_books_reads_each_books_name_title_and_description_in_name_order(tmp_path):
+    """Each book is named for its file, and described by its frontmatter."""
+    write(tmp_path / "update-deps.md", "---\ntitle: Update dependencies\ndescription: Upgrade, then test.\n---\n")
+    write(tmp_path / "deploy.md", "---\ntitle: Deploy\n---\n")
+
+    assert library.books(tmp_path) == [
+        library.Book("deploy", tmp_path / "deploy.md", "Deploy", None),
+        library.Book("update-deps", tmp_path / "update-deps.md", "Update dependencies", "Upgrade, then test."),
+    ]
+
+
+def test_books_reads_only_the_frontmatter(tmp_path):
+    """A book whose body is broken, or isn't even UTF-8, is still listed by its frontmatter."""
+    write(tmp_path / "broken-body.md", "---\ntitle: Broken body\n---\n\n## Step\n").open("ab").write(b"\xff\xfe\n")
+
+    assert library.books(tmp_path) == [library.Book("broken-body", tmp_path / "broken-body.md", "Broken body", None)]
+
+
+def test_books_keeps_a_book_whose_frontmatter_cannot_be_read_with_the_reason(tmp_path):
+    """A book with broken frontmatter is listed with why it can't be read, so it isn't silently missing."""
+    write(tmp_path / "unclosed.md", "---\ntitle: Unclosed\n\n## Step\n")
+
+    assert library.books(tmp_path) == [
+        library.Book("unclosed", tmp_path / "unclosed.md", None, None, problem="frontmatter has no closing ---")
+    ]
+
+
+def test_books_keeps_a_book_it_cannot_open_with_the_reason(tmp_path):
+    """A book paulrun can't open, e.g. one it isn't allowed to read, is listed with the reason too."""
+    locked = write(tmp_path / "locked.md")
+    locked.chmod(0)
+    if os.access(locked, os.R_OK):  # e.g. running as root, which can read anything
+        pytest.skip("files can't be made unreadable here")
+
+    [book] = library.books(tmp_path)
+
+    assert book.name == "locked"
+    assert book.problem == "Permission denied"
+
+
+def test_books_leaves_out_titles_and_descriptions_that_are_not_strings(tmp_path):
+    """A title or description of the wrong type isn't shown; check reports it."""
+    write(tmp_path / "odd.md", "---\ntitle: [a, list]\ndescription: 3\n---\n")
+
+    assert library.books(tmp_path) == [library.Book("odd", tmp_path / "odd.md", None, None)]
+
+
+def test_books_ignores_subfolders_and_files_that_are_not_markdown(tmp_path):
+    """Only .md files directly in the library are books, so ~/runbooks/logs/ can hold transcripts."""
+    write(tmp_path / "deploy.md")
+    write(tmp_path / "logs" / "release-1.2.0.md")
+    write(tmp_path / "notes.txt")
+    (tmp_path / "folder.md").mkdir()
+
+    assert [book.name for book in library.books(tmp_path)] == ["deploy"]
+
+
+def test_books_is_empty_for_a_library_that_does_not_exist(tmp_path):
+    """No library yet just means no books."""
+    assert library.books(tmp_path / "runbooks") == []
