@@ -28,6 +28,7 @@ python = "paulrun.backends.python:PythonBackend"
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.15",
     "ipython>=9.17.1",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.7",
@@ -76,3 +77,99 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+# ---------------------------------------------------------------------------
+# Import Linter: architectural contracts. Run with `make lint-imports`.
+#
+# The contracts describe the structure we want, and the code already matches it,
+# so there are no exceptions. If one breaks, change the import, not the contract.
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "paulrun"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "layers"
+name = "Module layers, from cli down to inputs"
+type = "layers"
+layers = [
+    "paulrun.cli",
+    "paulrun.transcript",
+    "paulrun.runner | paulrun.validate | paulrun.library",
+    "paulrun.backends | paulrun.runbook",
+    "paulrun.inputs | paulrun.settings",
+]
+broken_contract_guidance = """
+paulrun.cli wires everything together and is the only module that knows about the others.
+Lower layers must not import higher ones: the runner reports what happens as events, and
+callers (the CLI, the transcript) decide what to do with them. Modules in the same layer are
+independent; anything two of them share belongs in a lower layer.
+"""
+
+[[tool.importlinter.contracts]]
+id = "backends-are-plugins"
+name = "Built-in backends are only loaded through their entry points"
+type = "protected"
+protected_modules = [
+    "paulrun.backends.shell",
+    "paulrun.backends.python",
+]
+allowed_importers = []
+broken_contract_guidance = """
+Built-in backends are registered in [project.entry-points."paulrun.backends"] and loaded the
+same way as backends from other packages. Importing one directly would give it a path that
+external backends don't have.
+"""
+
+[[tool.importlinter.contracts]]
+id = "backends-independent"
+name = "Backends are independent of each other"
+type = "independence"
+modules = [
+    "paulrun.backends.shell",
+    "paulrun.backends.python",
+]
+broken_contract_guidance = """
+Each backend uses only the public backend API (paulrun.backends and paulrun.inputs). Put
+anything two backends share in paulrun.backends, where external backends can use it too.
+"""
+
+[[tool.importlinter.contracts]]
+id = "cli-owns-terminal"
+name = "Only the CLI uses click and rich"
+type = "forbidden"
+source_modules = [
+    "paulrun.transcript",
+    "paulrun.runner",
+    "paulrun.validate",
+    "paulrun.library",
+    "paulrun.backends",
+    "paulrun.runbook",
+    "paulrun.inputs",
+    "paulrun.settings",
+]
+forbidden_modules = [
+    "click",
+    "rich",
+]
+broken_contract_guidance = """
+paulrun owns the terminal through paulrun.cli. Other modules return values, raise errors or
+report events (backends call `output`, the runner uses its Prompter), and the CLI shows them.
+"""
+
+[[tool.importlinter.contracts]]
+id = "runbook-owns-markdown"
+name = "Only paulrun.runbook parses Markdown"
+type = "protected"
+protected_modules = ["markdown_it"]
+allowed_importers = ["paulrun.runbook"]
+broken_contract_guidance = """
+paulrun.runbook turns Markdown into Runbook, Step and Block. Everything else works with those,
+so the parser can change without affecting the rest of paulrun.
+"""
+
+[[tool.importlinter.contracts]]
+id = "no-cycles"
+name = "No import cycles"
+type = "acyclic_siblings"
+ancestors = ["paulrun"]
