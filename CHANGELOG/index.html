@@ -629,6 +629,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#030" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.3.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#020" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -702,6 +713,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#030" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.3.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#020" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -761,6 +783,12 @@
 
 
 <h1 id="change-log">Change log</h1>
+<h2 id="030">0.3.0</h2>
+<ul>
+<li>A runbook can set <code>step: true</code> in its frontmatter to always run as if <code>--step</code> was given, asking before each <code>run</code> block. <code>--no-step</code> runs it straight through. <code>check</code> reports a <code>step</code> that isn't <code>true</code> or <code>false</code>.</li>
+<li>The book picker, <code>paulrun run</code> with no runbook, now takes <code>q</code> to quit, and says so: <code>Run which? (q to quit)</code>.</li>
+<li>A block skipped under <code>--step</code> is now shown, and recorded in the transcript, as <code>skipped</code> rather than <code>skipped (--step)</code>, since <code>step: true</code> skips blocks too.</li>
+</ul>
 <h2 id="020">0.2.0</h2>
 <h3 id="a-runbook-library">A runbook library</h3>
 <ul>

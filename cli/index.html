@@ -944,12 +944,12 @@
 
 
 <h1 id="command-line">📟 Command line</h1>
-<div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="o">]</span><span class="w">      </span><span class="c1"># run a runbook</span>
-paulrun<span class="w"> </span>run<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="o">]</span><span class="w">  </span><span class="c1"># the same, in full</span>
-paulrun<span class="w"> </span>check<span class="w"> </span>RUNBOOK<span class="w">                 </span><span class="c1"># find problems without running anything</span>
-paulrun<span class="w"> </span>inputs<span class="w"> </span>RUNBOOK<span class="w">                </span><span class="c1"># list the inputs a runbook needs</span>
-paulrun<span class="w"> </span>library<span class="w">                       </span><span class="c1"># list the books in your runbook library</span>
-paulrun<span class="w"> </span>backends<span class="w">                      </span><span class="c1"># list the languages paulrun can run</span>
+<div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="w"> </span><span class="p">|</span><span class="w"> </span>--no-step<span class="o">]</span><span class="w">      </span><span class="c1"># run a runbook</span>
+paulrun<span class="w"> </span>run<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="w"> </span><span class="p">|</span><span class="w"> </span>--no-step<span class="o">]</span><span class="w">  </span><span class="c1"># the same, in full</span>
+paulrun<span class="w"> </span>check<span class="w"> </span>RUNBOOK<span class="w">                             </span><span class="c1"># find problems without running anything</span>
+paulrun<span class="w"> </span>inputs<span class="w"> </span>RUNBOOK<span class="w">                            </span><span class="c1"># list the inputs a runbook needs</span>
+paulrun<span class="w"> </span>library<span class="w">                                   </span><span class="c1"># list the books in your runbook library</span>
+paulrun<span class="w"> </span>backends<span class="w">                                  </span><span class="c1"># list the languages paulrun can run</span>
 paulrun<span class="w"> </span>--version
 </code></pre></div>
 <p><code>paulrun</code> on its own shows this list.</p>
@@ -1019,9 +1019,9 @@ finished: failed at "Build" (exit 2)
 <div class="highlight"><pre><span></span><code>$ paulrun run
   1. rebuild-frontend     Rebuild the frontend
   2. update-project-deps  Update a project's dependencies
-Run which? 1
+Run which? (q to quit) 1
 </code></pre></div>
-<p>Answer with a number. <code>--dry</code> and <code>--step</code> work too. Press enter, or Ctrl-C, to stop without running anything.</p>
+<p>Answer with a number. <code>--dry</code> and <code>--step</code> work too. Answer <code>q</code>, or press enter, to stop without running anything.</p>
 <h3 id="-dry">--dry</h3>
 <p>Shows what the runbook would do, without running anything.</p>
 <div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>--dry<span class="w"> </span>RELEASING.md
@@ -1065,11 +1065,12 @@ exit 0 (0.0s)
 === Publish ===
     echo "Publishing"
 Run this block? [y]es / [s]kip / [q]uit s
-skipped (--step)
+skipped
 
 finished: ok (0.0s)
 </code></pre></div>
 <p><code>y</code> runs the block, <code>s</code> skips it, and <code>q</code> ends the run as aborted. With <code>--dry</code>, <code>--step</code> does nothing, since nothing runs.</p>
+<p>A runbook that should always be run this way can set <a href="../runbook-format/#frontmatter"><code>step: true</code></a> in its frontmatter, so you don't need to remember <code>--step</code>. To run one of those straight through, pass <code>--no-step</code>.</p>
 <h3 id="pressing-ctrl-c">Pressing Ctrl-C</h3>
 <ul>
 <li>A running block gets the Ctrl-C too, and paulrun waits for it to stop.</li>

@@ -1087,6 +1087,7 @@
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Release a new version.</span><span class="w">          </span><span class="c1"># optional</span>
 <span class="nt">output_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">logs/release-&lt;VERSION&gt;.md</span><span class="w">       </span><span class="c1"># optional</span>
 <span class="nt">python</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uv run python</span><span class="w">                        </span><span class="c1"># optional</span>
+<span class="nt">step</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                                   </span><span class="c1"># optional, default false</span>
 <span class="nt">inputs</span><span class="p">:</span><span class="w">                                      </span><span class="c1"># optional</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VERSION</span><span class="w">                            </span><span class="c1"># required</span>
 <span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">The version to release, e.g. 1.2.0</span><span class="w">   </span><span class="c1"># required</span>
@@ -1119,6 +1120,10 @@
 <tr>
 <td><code>python</code></td>
 <td>The command that runs <a href="#python-blocks">Python blocks</a>.</td>
+</tr>
+<tr>
+<td><code>step</code></td>
+<td><code>true</code> to ask before each <code>run</code> block, as <a href="../cli/#-step"><code>--step</code></a> does, without having to pass it. <code>--no-step</code> turns it off for one run.</td>
 </tr>
 <tr>
 <td><code>inputs</code></td>
@@ -1337,7 +1342,7 @@ confirm: Create a GitHub release from tag 1.2.0. -&gt; yes
 === Publish to PyPI ===
 input: OTP=****
     uv publish --token "$PUBLISH_TOKEN"
-skipped (--step)
+skipped
 
 --- finished: ok (3m12s)
 </code></pre></div>
