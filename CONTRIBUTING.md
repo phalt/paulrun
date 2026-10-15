@@ -125,6 +125,14 @@ Check the types:
 make ty
 ```
 
+Check the import contracts:
+
+```sh
+make lint-imports
+```
+
+[Import Linter](https://import-linter.readthedocs.io/) checks that modules only import in the directions we want: `paulrun.cli` sits on top and wires everything together, the runner and validator never import the CLI or each other, backends are only loaded through their entry points, and only the CLI uses `click` and `rich`. The contracts, and the reasons for them, are under `[tool.importlinter]` in `pyproject.toml`. If one breaks, change the import rather than the contract.
+
 Run the tests:
 
 ```sh

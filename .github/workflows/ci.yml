@@ -54,6 +54,9 @@ jobs:
       - name: Type check with ty
         run: |
           uv run ty check
+      - name: Check import contracts
+        run: |
+          make lint-imports
       - name: Test with pytest
         run: |
           uv run pytest -vv --cov=paulrun --cov-branch --cov-report=term-missing --cov-config=pyproject.toml
