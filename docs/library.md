@@ -49,7 +49,7 @@ Or run `paulrun run` with no runbook, and pick one by number:
 $ paulrun run
   1. rebuild-frontend     Rebuild the frontend
   2. update-project-deps  Update a project's dependencies
-Run which? 1
+Run which? (q to quit) 1
 ```
 
 ## Example: rebuilding a frontend under nvm

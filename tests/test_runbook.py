@@ -480,7 +480,20 @@ def test_parse_without_frontmatter_has_no_core_keys(tmp_path):
     parsed = runbook.parse(path)
 
     assert (parsed.title, parsed.description, parsed.output_path, parsed.python) == (None, None, None, None)
+    assert parsed.step is False
     assert parsed.inputs == ()
+
+
+@pytest.mark.parametrize(
+    "value, step",
+    [("true", True), ("false", False), ("always", True), ("0", False)],
+    ids=["true", "false", "truthy, which check reports", "falsy, which check reports"],
+)
+def test_parse_reads_step(value, step, tmp_path):
+    """step is read as true or false. Anything else steps if it's truthy, so it can only make a run ask more."""
+    path = write_runbook(tmp_path, f"---\ntitle: T\nstep: {value}\n---\n")
+
+    assert runbook.parse(path).step is step
 
 
 def test_parse_core_key_that_is_not_a_string_is_none(tmp_path):

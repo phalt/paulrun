@@ -41,6 +41,7 @@ class Runbook:
     description: str | None
     output_path: str | None
     python: str | None
+    step: bool  # ask before each run block, as --step does
     inputs: tuple[Input, ...]
     preamble: tuple[Block, ...]  # blocks before the first step, which validation rejects
     steps: tuple[Step, ...]
@@ -74,6 +75,8 @@ def parse(path: Path) -> Runbook:
         description=_string(frontmatter.get("description")),
         output_path=_string(frontmatter.get("output_path")),
         python=_string(frontmatter.get("python")),
+        # Anything truthy steps, so a malformed value can only make a run ask more, never less.
+        step=bool(frontmatter.get("step", False)),
         inputs=parse_inputs(frontmatter.get("inputs")),
         preamble=tuple(preamble),
         steps=tuple(Step(name=name, line=line, blocks=tuple(blocks)) for name, line, blocks in steps),

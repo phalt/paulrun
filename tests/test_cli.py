@@ -932,7 +932,7 @@ def test_run_step_runs_skips_and_quits_block_by_block(runner, started_in):
         === Publish ===
             echo "Publishing"
         Run this block? [y]es / [s]kip / [q]uit s
-        skipped (--step)
+        skipped
 
         === Announce ===
             echo "Announcing"
@@ -948,7 +948,7 @@ def test_run_step_finishes_ok_when_blocks_are_only_skipped(runner):
     result = runner.invoke(cli.cli, ["run", "--step", str(RUNBOOKS / "step-example.md")], input="y\ns\ns\ns\n")
 
     assert result.exit_code == 0
-    assert result.output.count("skipped (--step)") == 3
+    assert result.output.splitlines().count("skipped") == 3
     assert "Building" not in result.output.splitlines()
 
 
@@ -970,11 +970,87 @@ def test_run_dry_step_behaves_exactly_like_dry(runner, dry_runbook):
     assert sorted(path.name for path in dry_runbook.parent.iterdir()) == ["dry-run-example.md"]
 
 
+def test_run_steps_through_a_runbook_with_step_in_its_frontmatter(runner, started_in):
+    """step: true asks before each run block without --step being given, the same as --step."""
+    path = RUNBOOKS / "step-frontmatter-example.md"
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\ns\ny\n")
+    with_flag = runner.invoke(cli.cli, ["run", "--step", str(path)], input="y\ns\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert result.output == with_flag.output
+    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
+        """\
+        Step frontmatter example
+        directory: DIR
+          1. Migrate the database
+          2. Restart the service
+        2 run blocks
+        Start? [y/N] y
+
+        === Migrate the database ===
+            echo "Migrating"
+        Run this block? [y]es / [s]kip / [q]uit s
+        skipped
+
+        === Restart the service ===
+            echo "Restarting"
+        Run this block? [y]es / [s]kip / [q]uit y
+        Restarting
+        exit 0 (Xs)
+
+        finished: ok (Xs)
+        """
+    )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["run", "--no-step", "step-frontmatter-example"],
+        ["--no-step", "step-frontmatter-example"],
+        ["step-frontmatter-example", "--no-step"],
+    ],
+    ids=["with run", "option before", "option after"],
+)
+def test_no_step_runs_a_runbook_with_step_in_its_frontmatter_straight_through(arguments, runner, monkeypatch):
+    """--no-step overrides step: true, so every block runs without being asked about, wherever the option goes."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(RUNBOOKS))
+
+    result = runner.invoke(cli.cli, arguments, input="y\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Run this block?" not in result.output
+    assert {"Migrating", "Restarting"} <= set(result.output.splitlines())
+    assert result.output.splitlines()[-1].startswith("finished: ok")
+
+
+def test_no_step_does_nothing_to_a_runbook_without_step(runner):
+    """--no-step is how every runbook without step: true already runs."""
+    path = str(RUNBOOKS / "two_steps.md")
+
+    plain = runner.invoke(cli.cli, ["run", path], input="y\n")
+    no_step = runner.invoke(cli.cli, ["run", "--no-step", path], input="y\n")
+
+    assert no_step.exit_code == 0, no_step.output
+    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", no_step.output) == re.sub(r"\(\d+\.\ds\)", "(Xs)", plain.output)
+
+
+def test_dry_ignores_step_in_the_frontmatter(runner):
+    """Nothing runs under --dry, so step: true asks nothing, as --step does."""
+    result = runner.invoke(cli.cli, ["run", "--dry", str(RUNBOOKS / "step-frontmatter-example.md")])
+
+    assert result.exit_code == 0, result.output
+    assert "Run this block?" not in result.output
+    assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
+
+
 def test_run_help_describes_step(runner):
-    """run --help lists --step."""
+    """run --help lists --step and --no-step, and says --no-step overrides the frontmatter."""
     result = runner.invoke(cli.cli, ["run", "--help"])
 
-    assert "--step" in result.output
+    assert "--step / --no-step" in result.output
+    assert "step: true" in result.output
 
 
 def test_run_help_describes_dry(runner):
@@ -1395,7 +1471,7 @@ def test_library_never_reads_a_title_as_markup_in_colour(runner, in_colour, tmp_
 
 
 def test_the_picker_colours_numbers_names_and_the_question(runner, in_colour, monkeypatch):
-    """The numbers are dim, the names bold cyan, and the question bold, like paulrun's other questions.
+    """The numbers are dim, the names bold cyan, and the question bold, with how to quit dim after it.
 
     color=True, since Click takes the colour out of a prompt that isn't going to a terminal.
     """
@@ -1404,7 +1480,7 @@ def test_the_picker_colours_numbers_names_and_the_question(runner, in_colour, mo
     result = runner.invoke(cli.cli, ["run"], input="\n", color=True)
 
     assert styled(result.output, "bold cyan") == ["say-where", "update-project-deps"]
-    assert styled(result.output, "dim") == ["  1.", "  2."]
+    assert styled(result.output, "dim") == ["  1.", "  2.", "(q to quit)"]
     assert "\x1b[1mRun which?\x1b[0m" in result.output
 
 
@@ -1457,7 +1533,7 @@ def test_run_with_no_runbook_picks_a_book_from_the_library_and_runs_it(runner, m
     assert lines[:3] == [
         "  1. say-where            Say where",
         "  2. update-project-deps  Update a project's dependencies",
-        "Run which? 1",
+        "Run which? (q to quit) 1",
     ]
     assert lines[3] == "Say where"
     assert str(started_in.resolve()) in lines
@@ -1473,7 +1549,7 @@ def test_the_picker_works_under_dry(arguments, runner, monkeypatch):
     result = runner.invoke(cli.cli, arguments, input="2\n")
 
     assert result.exit_code == 0, result.output
-    assert "Run which? 2" in result.output.splitlines()
+    assert "Run which? (q to quit) 2" in result.output.splitlines()
     assert '    echo "git switch -c update-deps"' in result.output.splitlines()
     assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
 
@@ -1486,7 +1562,7 @@ def test_the_picker_works_under_step(runner, monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert "Run this block? [y]es / [s]kip / [q]uit s" in result.output.splitlines()
-    assert "skipped (--step)" in result.output.splitlines()
+    assert "skipped" in result.output.splitlines()
 
 
 @pytest.mark.parametrize("answer", ["0", "3", "two", "say-where", "-1"])
@@ -1498,21 +1574,37 @@ def test_the_picker_asks_again_after_an_answer_that_is_not_a_listed_number(answe
 
     assert result.exit_code == 0, result.output
     assert result.output.count("Run which?") == 2
-    assert f"Run which? {answer}\nPick a number from 1 to 2.\nRun which? 1\n" in result.output
+    assert result.output.splitlines()[2:5] == [
+        f"Run which? (q to quit) {answer}",
+        "Pick a number from 1 to 2, or q to quit.",
+        "Run which? (q to quit) 1",
+    ]
     assert "Say where" in result.output.splitlines()
 
 
-def test_a_blank_answer_to_the_picker_runs_nothing(runner, monkeypatch, tmp_path, started_in):
-    """Pressing enter at the picker ends without running anything or writing a transcript, and exits 1."""
+@pytest.mark.parametrize("answer", ["", "q"], ids=["blank", "q"])
+def test_q_or_a_blank_answer_to_the_picker_runs_nothing(answer, runner, monkeypatch, tmp_path, started_in):
+    """q, or pressing enter, at the picker ends without running anything or writing a transcript, and exits 1."""
     monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
     (tmp_path / "record.md").write_text(
         "---\ntitle: Record\noutput_path: logs/run.md\n---\n\n## S\n\n```sh run\ntouch ran\n```\n"
     )
 
-    result = runner.invoke(cli.cli, ["run"], input="\n")
+    result = runner.invoke(cli.cli, ["run"], input=f"{answer}\n")
 
     assert result.exit_code == 1
-    assert result.output == "  1. record  Record\nRun which? \n"
+    assert result.output == f"  1. record  Record\nRun which? (q to quit) {answer}\n"
+    assert sorted(path.name for path in started_in.iterdir()) == []
+
+
+def test_q_at_the_picker_quits_even_with_a_book_called_q(runner, monkeypatch, tmp_path, started_in):
+    """Books are picked by number, so q always quits, even when there's a q.md in the library."""
+    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    (tmp_path / "q.md").write_text("---\ntitle: Q\n---\n\n## S\n\n```sh run\ntouch ran\n```\n")
+
+    result = runner.invoke(cli.cli, ["run"], input="q\n")
+
+    assert result.exit_code == 1
     assert sorted(path.name for path in started_in.iterdir()) == []
 
 
@@ -1553,7 +1645,7 @@ def test_the_picker_lists_a_book_that_cannot_be_read_and_reports_it_if_picked(ru
     assert result.exit_code == 1
     assert result.output == (
         "  1. unclosed  can't read it: frontmatter has no closing ---\n"
-        "Run which? 1\n"
+        "Run which? (q to quit) 1\n"
         "Error: frontmatter has no closing ---\n"
     )
 
@@ -1702,7 +1794,7 @@ def test_run_step_records_skipped_blocks_in_the_transcript(runner, transcript_ru
 
     assert result.exit_code == 0
     text = (started_in / "logs" / "release-1.2.0.md").read_text()
-    assert '=== Publish ===\n    echo "Publishing 1.2.0 with $PUBLISH_TOKEN"\nskipped (--step)\n' in text
+    assert '=== Publish ===\n    echo "Publishing 1.2.0 with $PUBLISH_TOKEN"\nskipped\n' in text
     assert "Building 1.2.0\n" in text
     assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
 

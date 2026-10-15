@@ -222,7 +222,7 @@ def test_transcript_records_skipped_blocks_and_a_quit(tmp_path):
 
             === One ===
                 echo one
-            skipped (--step)
+            skipped
 
             === Two ===
                 echo two

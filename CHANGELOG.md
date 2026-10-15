@@ -1,5 +1,11 @@
 # Change log
 
+## 0.3.0
+
+- A runbook can set `step: true` in its frontmatter to always run as if `--step` was given, asking before each `run` block. `--no-step` runs it straight through. `check` reports a `step` that isn't `true` or `false`.
+- The book picker, `paulrun run` with no runbook, now takes `q` to quit, and says so: `Run which? (q to quit)`.
+- A block skipped under `--step` is now shown, and recorded in the transcript, as `skipped` rather than `skipped (--step)`, since `step: true` skips blocks too.
+
 ## 0.2.0
 
 ### A runbook library

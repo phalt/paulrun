@@ -14,6 +14,7 @@ title: Release my-package                    # required
 description: Release a new version.          # optional
 output_path: logs/release-<VERSION>.md       # optional
 python: uv run python                        # optional
+step: true                                   # optional, default false
 inputs:                                      # optional
   - name: VERSION                            # required
     description: The version to release, e.g. 1.2.0   # required
@@ -30,6 +31,7 @@ inputs:                                      # optional
 | `description` | What it's for, shown by [`paulrun library`](cli.md#paulrun-library). |
 | `output_path` | Where to keep a [transcript](#transcript) of each run. |
 | `python` | The command that runs [Python blocks](#python-blocks). |
+| `step` | `true` to ask before each `run` block, as [`--step`](cli.md#-step) does, without having to pass it. `--no-step` turns it off for one run. |
 | `inputs` | Values to ask for. See [Inputs](#inputs). |
 
 Any other key is a `check` warning, so a typo like `ouput_path` gets noticed.
@@ -259,7 +261,7 @@ confirm: Create a GitHub release from tag 1.2.0. -> yes
 === Publish to PyPI ===
 input: OTP=****
     uv publish --token "$PUBLISH_TOKEN"
-skipped (--step)
+skipped
 
 --- finished: ok (3m12s)
 ```

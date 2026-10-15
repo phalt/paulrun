@@ -64,8 +64,13 @@ class RunbookArgument(click.ParamType):
 @cli.command("run")
 @click.argument("runbook", type=RunbookArgument(), required=False)
 @click.option("--dry", is_flag=True, help="Show every block with inputs filled in, without running anything.")
-@click.option("--step", is_flag=True, help="Ask before each run block whether to run it, skip it or quit.")
-def run_runbook(runbook: Path | None, dry: bool, step: bool) -> None:
+@click.option(
+    "--step/--no-step",
+    default=None,
+    help="Ask before each run block whether to run it, skip it or quit. "
+    "--no-step runs straight through, even if the runbook sets step: true.",
+)
+def run_runbook(runbook: Path | None, dry: bool, step: bool | None) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
     RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
@@ -88,9 +93,13 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool) -> None:
         if transcript is not None:
             transcript(event)
 
+    # --step or --no-step wins; with neither, the runbook's step key decides.
+    step_by_step = parsed.step if step is None else step
     try:
         with transcript or nullcontext():
-            result = runner.run(parsed, backends, sink, ClickPrompter(console), cwd=cwd, dry=dry, step_by_step=step)
+            result = runner.run(
+                parsed, backends, sink, ClickPrompter(console), cwd=cwd, dry=dry, step_by_step=step_by_step
+            )
     except (runner.RunnerError, InputError, TranscriptError) as e:
         raise click.ClickException(str(e)) from e
     if transcript is not None and transcript.written:
@@ -103,7 +112,7 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool) -> None:
 def _pick(console: Console) -> Path:
     """List the library's books by number and ask which to run, until the answer is one of the numbers.
 
-    A blank answer or Ctrl-C runs nothing and exits 1, like answering no to Start?.
+    q, a blank answer or Ctrl-C runs nothing and exits 1, like answering no to Start?.
     """
     where = library.location(os.environ)
     books = library.books(where)
@@ -116,17 +125,17 @@ def _pick(console: Console) -> Path:
     numbers = len(str(len(books)))
     for number, book in enumerate(books, start=1):
         _line(console, Text.assemble((f"  {number:>{numbers}}.", "dim"), " ", _book_line(book, width)))
-    question = _styled(console, Text("Run which?", style="bold"))
+    question = _styled(console, Text.assemble(("Run which?", "bold"), " ", ("(q to quit)", "dim")))
     while True:
         try:
             answer = _prompt(question, default="", show_default=False, prompt_suffix=" ").strip()
         except KeyboardInterrupt:
             sys.exit(1)
-        if not answer:
+        if answer in ("", "q"):
             sys.exit(1)
         if answer.isdigit() and 1 <= int(answer) <= len(books):
             return books[int(answer) - 1].path
-        console.out(f"Pick a number from 1 to {len(books)}.", style="red")
+        console.out(f"Pick a number from 1 to {len(books)}, or q to quit.", style="red")
 
 
 def _shown_from(path: Path, cwd: Path) -> Path:
@@ -361,7 +370,7 @@ def _print_event(console: Console, event: runner.Event, *, dry: bool = False) ->
             for line in runner.code_lines(code):
                 console.out(line, style="cyan")
         case runner.BlockSkipped():
-            console.out("skipped (--step)", style="yellow")
+            console.out("skipped", style="yellow")
         case runner.OutputLine(text=text):
             console.out(text)
         case runner.BlockFinished(exit_code=exit_code, duration=duration):

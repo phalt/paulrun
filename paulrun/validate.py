@@ -11,7 +11,7 @@ from paulrun.backends import Backend
 from paulrun.inputs import PLACEHOLDER
 from paulrun.runbook import Block, Runbook
 
-CORE_KEYS = ("title", "description", "output_path", "python", "inputs")
+CORE_KEYS = ("title", "description", "output_path", "python", "step", "inputs")
 INPUT_KEYS = ("name", "description", "pattern", "secret", "default", "choices")
 _UPPER_SNAKE_CASE = re.compile(r"[A-Z][A-Z0-9_]*")
 
@@ -77,6 +77,8 @@ def _frontmatter(runbook: Runbook) -> Iterator[Finding]:
     for key in ("title", "description", "output_path", "python"):
         if key in frontmatter and not isinstance(frontmatter[key], str):
             yield Finding(lines.get(key, 1), f"{key} must be a string")
+    if "step" in frontmatter and not isinstance(frontmatter["step"], bool):
+        yield Finding(lines.get("step", 1), "step must be true or false")
     if "inputs" in frontmatter and not isinstance(frontmatter["inputs"], list):
         yield Finding(lines.get("inputs", 1), "inputs must be a list")
     for key in frontmatter:

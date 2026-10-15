@@ -86,7 +86,7 @@ class Transcript:
             case runner.BlockFinished(exit_code=exit_code, duration=duration):
                 self._write(f"exit {exit_code} ({runner.format_duration(duration)})")
             case runner.BlockSkipped():
-                self._write("skipped (--step)")
+                self._write("skipped")
             case runner.ConfirmAnswered(text=text, yes=yes):
                 self._write(f"confirm: {_first_line(text)} -> {'yes' if yes else 'no'}")
             case runner.InputCollected(name=name, value=value):

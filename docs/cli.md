@@ -1,12 +1,12 @@
 # 📟 Command line
 
 ```sh
-paulrun RUNBOOK [--dry] [--step]      # run a runbook
-paulrun run RUNBOOK [--dry] [--step]  # the same, in full
-paulrun check RUNBOOK                 # find problems without running anything
-paulrun inputs RUNBOOK                # list the inputs a runbook needs
-paulrun library                       # list the books in your runbook library
-paulrun backends                      # list the languages paulrun can run
+paulrun RUNBOOK [--dry] [--step | --no-step]      # run a runbook
+paulrun run RUNBOOK [--dry] [--step | --no-step]  # the same, in full
+paulrun check RUNBOOK                             # find problems without running anything
+paulrun inputs RUNBOOK                            # list the inputs a runbook needs
+paulrun library                                   # list the books in your runbook library
+paulrun backends                                  # list the languages paulrun can run
 paulrun --version
 ```
 
@@ -97,10 +97,10 @@ With no runbook, `paulrun run` asks which book from your library to run:
 $ paulrun run
   1. rebuild-frontend     Rebuild the frontend
   2. update-project-deps  Update a project's dependencies
-Run which? 1
+Run which? (q to quit) 1
 ```
 
-Answer with a number. `--dry` and `--step` work too. Press enter, or Ctrl-C, to stop without running anything.
+Answer with a number. `--dry` and `--step` work too. Answer `q`, or press enter, to stop without running anything.
 
 ### --dry
 
@@ -155,12 +155,14 @@ exit 0 (0.0s)
 === Publish ===
     echo "Publishing"
 Run this block? [y]es / [s]kip / [q]uit s
-skipped (--step)
+skipped
 
 finished: ok (0.0s)
 ```
 
 `y` runs the block, `s` skips it, and `q` ends the run as aborted. With `--dry`, `--step` does nothing, since nothing runs.
+
+A runbook that should always be run this way can set [`step: true`](runbook-format.md#frontmatter) in its frontmatter, so you don't need to remember `--step`. To run one of those straight through, pass `--no-step`.
 
 ### Pressing Ctrl-C
 
