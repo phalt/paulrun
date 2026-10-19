@@ -117,6 +117,18 @@ def test_help_lists_run_command_and_says_a_runbook_can_go_first(runner):
     assert "\n  run " in result.output
 
 
+def test_help_shows_the_header_version_and_links(runner):
+    """--help opens with the paulrun header, unwrapped, then the version and links to the docs and the project."""
+    result = runner.invoke(cli.cli, ["--help"])
+
+    assert result.exit_code == 0
+    for line in cli.PAULRUN_HEADER.splitlines():
+        assert f"\n  {line}\n" in result.output
+    assert f"🔢 Version {importlib.metadata.version('paulrun')}" in result.output
+    assert "📚 Read the docs: https://phalt.github.io/paulrun/" in result.output
+    assert "🐙 Contribute on GitHub: https://github.com/phalt/paulrun" in result.output
+
+
 def test_paulrun_with_nothing_else_shows_help(runner):
     """Bare paulrun shows help, as it always has, rather than running or picking anything."""
     result = runner.invoke(cli.cli, [])

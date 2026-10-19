@@ -34,13 +34,34 @@ class RunsByDefault(click.Group):
         return super().parse_args(ctx, args)
 
 
-@click.group("paulrun", cls=RunsByDefault, subcommand_metavar="RUNBOOK | COMMAND [ARGS]...")
+PAULRUN_HEADER = r"""
+   ___            _
+  / _ \__ _ _   _| |_ __ _   _ _ __
+ / /_)/ _` | | | | | '__| | | | '_ \
+/ ___/ (_| | |_| | | |  | |_| | | | |
+\/    \__,_|\__,_|_|_|   \__,_|_| |_|
+""".strip("\n")
+
+# \b stops Click rewrapping the header, which would break it apart. The paragraphs after it wrap as normal.
+HELP = f"""\b
+{PAULRUN_HEADER}
+
+🏃‍♂️‍➡️📕 paulrun runs hand-written markdown runbooks.
+
+🔢 Version {settings.VERSION}
+
+📚 Read the docs: https://phalt.github.io/paulrun/
+
+🐙 Contribute on GitHub: https://github.com/phalt/paulrun
+
+paulrun RUNBOOK executes a runbook.
+"""
+
+
+@click.group("paulrun", cls=RunsByDefault, subcommand_metavar="RUNBOOK | COMMAND [ARGS]...", help=HELP)
 @click.version_option(settings.VERSION)
 def cli() -> None:
-    """Run hand-written markdown runbooks.
-
-    paulrun RUNBOOK executes a runbook.
-    """
+    pass
 
 
 class RunbookArgument(click.ParamType):
