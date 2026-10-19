@@ -1,5 +1,9 @@
 # Change log
 
+## 0.4.0
+
+- Add a cool logo to the cli output
+
 ## 0.3.0
 
 - A runbook can set `step: true` in its frontmatter to always run as if `--step` was given, asking before each `run` block. `--no-step` runs it straight through. `check` reports a `step` that isn't `true` or `false`.
