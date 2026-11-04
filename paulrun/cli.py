@@ -444,11 +444,12 @@ class _Printer:
             case runner.BlockSkipped():
                 self.in_block = False
                 self._line(("  └ ", FRAME), ("↷ skipped", "yellow"))
-            case runner.OutputLine(text=text):
+            case runner.OutputLine(text=text, stderr=stderr):
                 if self.show_code and not self.in_output:
                     self._line(("  ├ output", FRAME))
                 self.in_output = True
-                self._line(("  │", FRAME), (f" {text}" if text else "", ""))
+                # Only the bar is red for stderr, so the line stays as readable as any other.
+                self._line(("  │", "red" if stderr else FRAME), (f" {text}" if text else "", ""))
             case runner.BlockFinished(exit_code=exit_code, duration=duration):
                 self.in_block = False
                 mark, style = ("✓", "green") if exit_code == 0 else ("✗", "red")

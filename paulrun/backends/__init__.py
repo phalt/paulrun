@@ -1,5 +1,7 @@
 import importlib.metadata
+import inspect
 import os
+import selectors
 import signal
 import subprocess
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -18,6 +20,16 @@ class Problem:
     message: str
     line: int | None = None  # line in the block, counting its first line as 1; None if it's about the whole block
     warning: bool = False  # warnings are reported but don't stop the runbook running
+
+
+class Output(Protocol):
+    """Where a backend sends each line a block prints, without its newline, as soon as it's printed.
+
+    stderr is True for a line the block wrote to stderr. A backend that calls output(line) still works; its
+    lines are shown as stdout.
+    """
+
+    def __call__(self, line: str, *, stderr: bool = False) -> None: ...
 
 
 class Backend(Protocol):
@@ -50,11 +62,12 @@ class Backend(Protocol):
         frontmatter: Mapping[str, Any],
         env: Mapping[str, str],
         cwd: Path,
-        output: Callable[[str], None],
+        output: Output,
     ) -> int:
         """Run a block and return its exit code, where 0 means it succeeded.
 
-        Call output with each line the block prints, without its newline, as soon as it's printed.
+        Call output with each line the block prints, without its newline, as soon as it's printed, and
+        stderr=True for a line it wrote to stderr.
         Don't print anything directly; paulrun owns the terminal. frontmatter is the runbook's
         frontmatter, read-only. env is the block's complete environment and cwd is where it runs.
         """
@@ -68,40 +81,93 @@ class Interrupted(KeyboardInterrupt):
         self.exit_code = exit_code
 
 
-def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output: Callable[[str], None]) -> int:
+def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output: Callable[..., None]) -> int:
     """Run command, passing each line it prints to output as it's printed, and return its exit code.
 
-    stdout and stderr are merged, so lines keep the order they were printed in. The command shares
-    paulrun's terminal, so it can still ask for a password on it, as git, ssh and gpg do. This is how
-    the built-in backends run blocks, and other backends can use it too.
+    If output takes a stderr keyword, as the output paulrun gives a backend does, each line written to stderr is
+    passed with stderr=True. stdout and stderr are read apart then, so two lines written to them at almost the
+    same moment can arrive in either order. Otherwise they're merged, so lines keep the order they were printed
+    in. The command shares paulrun's terminal, so it can still ask for a password on it, as git, ssh and gpg do.
+    This is how the built-in backends run blocks, and other backends can use it too.
 
     Ctrl-C reaches the command as well as paulrun. On the first press, paulrun waits for the command to
     stop, still passing on what it prints. A second press kills it and everything it started, and stops
     reading, so nothing can keep paulrun waiting. Either way, once the command has exited, Interrupted
     is raised with its exit code.
     """
+    marks_stderr = _takes_stderr(output)
+    stderr = subprocess.PIPE if marks_stderr else subprocess.STDOUT
     interrupted = False
-    with subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
-        assert process.stdout is not None  # set because stdout is a pipe
-        while True:
-            try:
-                # Read bytes so only newlines split lines; text mode would also split on carriage returns.
-                for raw in process.stdout:
-                    output(raw.decode("utf-8", errors="replace").removesuffix("\n"))
-                break
-            except KeyboardInterrupt:
-                if not interrupted:
-                    # The terminal sent Ctrl-C to the command too, so let it stop in its own way.
-                    interrupted = True
-                    continue
-                _kill_tree(process.pid)
-                # Stop reading, so nothing still holding the output open can keep paulrun waiting.
-                process.stdout.close()
-                break
+    with subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=stderr) as process:
+        pipes = {process.stdout: False, process.stderr: True} if marks_stderr else {process.stdout: False}
+        with selectors.DefaultSelector() as selector:
+            for pipe, is_stderr in pipes.items():
+                assert pipe is not None  # set because it's a pipe
+                selector.register(pipe, selectors.EVENT_READ, _Lines(output, is_stderr if marks_stderr else None))
+            while True:
+                try:
+                    _read_all(selector)
+                    break
+                except KeyboardInterrupt:
+                    if not interrupted:
+                        # The terminal sent Ctrl-C to the command too, so let it stop in its own way.
+                        interrupted = True
+                        continue
+                    _kill_tree(process.pid)
+                    # Stop reading, so nothing still holding the output open can keep paulrun waiting.
+                    break
         process.wait()
     if interrupted:
         raise Interrupted(process.returncode)
     return process.returncode
+
+
+def _takes_stderr(output: Callable[..., None]) -> bool:
+    """Whether output can be called with stderr=, so stderr lines can be marked rather than merged."""
+    try:
+        parameters = inspect.signature(output).parameters
+    except (TypeError, ValueError):  # builtins such as list.append may have no signature to read
+        return False
+    return "stderr" in parameters
+
+
+@dataclass
+class _Lines:
+    """Splits what one pipe gives into lines, passing each to output. Only newlines end a line."""
+
+    output: Callable[..., None]
+    stderr: bool | None  # None: output doesn't take stderr, so it's called with the line alone
+    partial: bytes = b""
+
+    def feed(self, data: bytes) -> None:
+        *lines, self.partial = (self.partial + data).split(b"\n")
+        for line in lines:
+            self._send(line)
+
+    def finish(self) -> None:
+        """The pipe has closed: pass on a last line that had no newline."""
+        if self.partial:
+            self._send(self.partial)
+            self.partial = b""
+
+    def _send(self, line: bytes) -> None:
+        text = line.decode("utf-8", errors="replace")
+        if self.stderr is None:
+            self.output(text)
+        else:
+            self.output(text, stderr=self.stderr)
+
+
+def _read_all(selector: selectors.BaseSelector) -> None:
+    """Read every registered pipe until each has closed, passing on lines as they arrive."""
+    while selector.get_map():
+        for key, _ in selector.select():
+            data = os.read(key.fd, 65536)
+            if data:
+                key.data.feed(data)
+            else:
+                key.data.finish()
+                selector.unregister(key.fileobj)
 
 
 def _kill_tree(pid: int) -> None:

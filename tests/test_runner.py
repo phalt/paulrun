@@ -87,6 +87,31 @@ def output(events: list[runner.Event]) -> list[str]:
     return [event.text for event in events if isinstance(event, runner.OutputLine)]
 
 
+def test_run_marks_the_lines_a_block_writes_to_stderr(tmp_path):
+    """Each line a block writes to stderr is an OutputLine with stderr set, masked like any other."""
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: T
+        ---
+
+        ## Both
+
+        ```python run
+        import sys
+        print("out", flush=True)
+        print("err", file=sys.stderr)
+        ```
+        """,
+    )
+
+    events, _ = run(path)
+
+    lines = [(event.text, event.stderr) for event in events if isinstance(event, runner.OutputLine)]
+    assert lines == [("out", False), ("err", True)]
+
+
 def test_run_sends_events_for_each_step_and_block_in_order(tmp_path):
     """The overview comes first, then each step starts and each of its blocks starts, prints and finishes."""
     path = write_runbook(

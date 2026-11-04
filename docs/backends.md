@@ -51,17 +51,18 @@ class Backend(Protocol):
         frontmatter: Mapping[str, Any],
         env: Mapping[str, str],
         cwd: Path,
-        output: Callable[[str], None],
+        output: Output,
     ) -> int:
         """Run a block and return its exit code, where 0 means it succeeded.
 
-        Call output with each line the block prints, without its newline, as soon as it's printed.
+        Call output with each line the block prints, without its newline, as soon as it's printed, and
+        stderr=True for a line it wrote to stderr.
         Don't print anything directly; paulrun owns the terminal. frontmatter is the runbook's
         frontmatter, read-only. env is the block's complete environment and cwd is where it runs.
         """
 ```
 
-Everything a backend needs is in `paulrun.backends` (`Problem`, `stream` and `Interrupted`) and `paulrun.inputs` (`PLACEHOLDER`).
+Everything a backend needs is in `paulrun.backends` (`Problem`, `Output`, `stream` and `Interrupted`) and `paulrun.inputs` (`PLACEHOLDER`).
 
 ### validate()
 
@@ -97,7 +98,7 @@ class Problem:
 - `frontmatter`: the runbook's frontmatter, read-only, for settings of your own.
 - `env`: the block's complete environment. Pass it on as it is.
 - `cwd`: where the block runs, the folder paulrun was started from.
-- `output`: call it with each line the block prints, as it's printed.
+- `output`: call it with each line the block prints, as it's printed. Pass `stderr=True` for a line the block wrote to stderr, and paulrun marks it with a red `│`. `output(line)` alone is fine too: the line is shown like stdout.
 
 It returns the block's exit code. A backend never prints: paulrun shows each line, masks secrets and records the transcript.
 
@@ -106,12 +107,12 @@ It returns the block's exit code. A backend never prints: paulrun shows each lin
 Most backends run a command, and `stream()` does all of that for you:
 
 ```python
-def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output: Callable[[str], None]) -> int:
+def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output: Callable[..., None]) -> int:
 ```
 
 It runs `command`, passes each line to `output` as it's printed, and returns the exit code. The built-in backends use it, because it gets the details right:
 
-- **stdout and stderr are merged**, in the order they were printed.
+- **stderr is marked.** Each line the command writes to stderr goes to `output` with `stderr=True`. stdout and stderr are read separately, so two lines written to them at almost the same moment can arrive in either order. Given an `output` that only takes the line, `stream()` merges them instead, in the order they were printed.
 - **The command shares paulrun's terminal**, so it can still ask for a password.
 - **Ctrl-C works.** The first press lets the command stop by itself; a second kills it and everything it started. Then `stream()` raises `Interrupted` with the exit code.
 
@@ -218,7 +219,7 @@ console.log(`Hello from Node ${process.version}`);
 ```
 ````
 
-To test a backend, call its methods directly: `run()` with `output=lines.append`, then check the exit code and lines, and `validate()` on a broken block. See [paulrun's backend tests](https://github.com/phalt/paulrun/tree/main/tests/backends).
+To test a backend, call its methods directly: `run()` with `output=lines.append`, then check the exit code and lines (or `output=lambda line, stderr=False: lines.append((line, stderr))` to check which stream each came from), and `validate()` on a broken block. See [paulrun's backend tests](https://github.com/phalt/paulrun/tree/main/tests/backends).
 
 ### Things to know
 

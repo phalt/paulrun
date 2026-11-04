@@ -16,6 +16,7 @@ import pytest
 from click.testing import CliRunner
 
 from paulrun import backends, cli
+from paulrun import runner as runner_module
 from paulrun.backends import BackendError, Problem
 from tests.output import finished, normalized, printed, title
 
@@ -46,11 +47,6 @@ def write_runbook(tmp_path: Path, text: str) -> Path:
     path = tmp_path / "runbook.md"
     path.write_text(text)
     return path
-
-
-def with_directory(output: str, directory: Path) -> str:
-    """run's output with the directory line's path as DIR, since it's a different temporary directory each time."""
-    return output.replace(f"\ndirectory: {directory}\n", "\ndirectory: DIR\n", 1)
 
 
 @pytest.fixture
@@ -312,6 +308,19 @@ def test_run_hides_code_unless_asked_to_show_it(runner, tmp_path):
         "\n  ┌ sh · 10:02:13.482\n  │ echo hello\n  │\n  │ echo world\n  ├ output\n  │ hello\n  │ world\n"
         "  └ ✓ exit 0 · Xs\n"
     ) in normalized(shown.output)
+
+
+def test_run_marks_stderr_with_a_red_bar_and_leaves_the_line_plain():
+    """In colour, a line a block wrote to stderr has a red │, and the line itself is the normal colour."""
+    console = cli.Console(force_terminal=True, color_system="standard", width=80, record=True)
+    printer = cli._Printer(console)
+
+    printer(runner_module.OutputLine("fine"))
+    printer(runner_module.OutputLine("broken", stderr=True))
+
+    out, err = console.export_text(styles=True).splitlines()
+    assert out == "\x1b[2m  │\x1b[0m fine"
+    assert err == "\x1b[31m  │\x1b[0m broken"
 
 
 def test_run_shows_a_blank_line_of_output_as_a_bare_bar(runner, tmp_path):
@@ -1121,7 +1130,7 @@ def test_no_step_does_nothing_to_a_runbook_without_step(runner):
     no_step = runner.invoke(cli.cli, ["run", "--no-step", path], input="y\n")
 
     assert no_step.exit_code == 0, no_step.output
-    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", no_step.output) == re.sub(r"\(\d+\.\ds\)", "(Xs)", plain.output)
+    assert normalized(no_step.output) == normalized(plain.output)
 
 
 def test_dry_ignores_step_in_the_frontmatter(runner):

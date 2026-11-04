@@ -57,17 +57,24 @@ STREAM_DRIVER = textwrap.dedent(
 )
 
 
-def run_stream(command: list[str], tmp_path: Path, *, presses: int) -> list[str]:
+# STREAM_DRIVER with an output that takes stderr, so stream reads stdout and stderr apart.
+STDERR_DRIVER = STREAM_DRIVER.replace(
+    'output=lambda line: print("line:", line, flush=True)',
+    'output=lambda line, stderr=False: print("stderr:" if stderr else "line:", line, flush=True)',
+)
+
+
+def run_stream(command: list[str], tmp_path: Path, *, presses: int, driver: str = STREAM_DRIVER) -> list[str]:
     """Stream command with Ctrl-C pressed the given number of times once it's started. Returns the driver's lines."""
     started = tmp_path / "started"
-    driver = start_in_own_group(
-        [sys.executable, "-c", STREAM_DRIVER, *command], cwd=tmp_path, stdout=subprocess.PIPE, text=True
+    driver_process = start_in_own_group(
+        [sys.executable, "-c", driver, *command], cwd=tmp_path, stdout=subprocess.PIPE, text=True
     )
     wait_for(started)
     for _ in range(presses):
-        press_ctrl_c(driver)
+        press_ctrl_c(driver_process)
         time.sleep(0.3)
-    output, _ = driver.communicate(timeout=10)
+    output, _ = driver_process.communicate(timeout=10)
     return output.splitlines()
 
 
@@ -79,6 +86,68 @@ def test_stream_returns_the_exit_code_and_passes_each_line():
 
     assert lines == ["one", "two"]
     assert code == 4
+
+
+def test_stream_marks_what_the_command_writes_to_stderr():
+    """An output that takes stderr gets each stderr line with stderr=True, and stdout lines without it."""
+    lines: list[tuple[str, bool]] = []
+
+    def output(line: str, *, stderr: bool = False) -> None:
+        lines.append((line, stderr))
+
+    script = "echo out; sleep 0.1; echo err >&2; sleep 0.1; printf 'last'"
+    code = stream(["bash", "-c", script], env=os.environ, cwd=Path.cwd(), output=output)
+
+    assert lines == [("out", False), ("err", True), ("last", False)]
+    assert code == 0
+
+
+def test_stream_keeps_a_line_split_across_reads_whole():
+    """A line written in parts, with pauses between, is still passed on as one line."""
+    lines: list[tuple[str, bool]] = []
+
+    script = "printf 'hal'; sleep 0.1; printf 'f\\n'; printf 'b' >&2; sleep 0.1; echo 'oth' >&2"
+    stream(
+        ["bash", "-c", script],
+        env=os.environ,
+        cwd=Path.cwd(),
+        output=lambda line, stderr=False: lines.append((line, stderr)),
+    )
+
+    assert lines == [("half", False), ("both", True)]
+
+
+def test_stream_merges_stderr_into_an_output_that_does_not_take_it():
+    """An output that only takes a line, as backends written before stderr was marked do, gets both streams."""
+    lines: list[str] = []
+
+    stream(["bash", "-c", "echo out; echo err >&2"], env=os.environ, cwd=Path.cwd(), output=lines.append)
+
+    assert lines == ["out", "err"]
+
+
+def test_stream_merges_stderr_into_an_output_whose_signature_cannot_be_read():
+    """If stream can't tell whether output takes stderr, it plays safe and calls it with the line alone."""
+    lines: list[str] = []
+
+    class Unreadable:
+        __signature__ = "not a signature"  # inspect.signature refuses this with TypeError
+
+        def __call__(self, line: str) -> None:
+            lines.append(line)
+
+    stream(["bash", "-c", "echo out; echo err >&2"], env=os.environ, cwd=Path.cwd(), output=Unreadable())
+
+    assert lines == ["out", "err"]
+
+
+def test_ctrl_c_with_stderr_marked_still_lets_the_block_finish(tmp_path):
+    """Reading stdout and stderr apart, Ctrl-C works as it does with them merged."""
+    script = "trap 'echo \"cleaning up\" >&2; exit 130' INT; echo before; touch started; while :; do sleep 0.05; done"
+
+    lines = run_stream(["bash", "-c", script], tmp_path, presses=1, driver=STDERR_DRIVER)
+
+    assert lines == ["line: before", "stderr: cleaning up", "interrupted, exit 130"]
 
 
 def test_ctrl_c_lets_the_block_finish_stopping_and_keeps_its_output(tmp_path):
