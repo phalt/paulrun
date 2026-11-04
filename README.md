@@ -10,7 +10,7 @@ A runbook is just a normal markdown file that a person can read and write, but i
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
 ![PyPI - License](https://img.shields.io/pypi/l/paulrun)
 
-![exampleimage](./example.png)
+![paulrun running a runbook, in a dark and a light terminal](docs/example.png)
 
 ## Example runbook
 
