@@ -2,13 +2,15 @@
 
 ## What is paulrun?
 
-paulrun runs hand-written markdown runbooks.
+paulrun executes the code blocks in your markdown file, turning them into runbooks.
 
-A runbook is a normal markdown file that a person can read and follow without paulrun. Mark a code block `run`, and paulrun runs it for you. Everything else stays documentation.
+A runbook is just a normal markdown file that a person can read and write, but if your annotate a code block `run`, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.
 
 [![Package version](https://img.shields.io/pypi/v/paulrun?color=%2334D058&label=latest%20version)](https://pypi.org/project/paulrun)
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
 ![PyPI - License](https://img.shields.io/pypi/l/paulrun)
+
+![exampleimage](./example.png)
 
 ## Example runbook
 
