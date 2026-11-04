@@ -19,15 +19,14 @@ def started_in(tmp_path_factory, monkeypatch) -> Path:
     return directory
 
 
-# The time every LOG line shows in tests, as cli.log_start writes it.
-LOG_AT = datetime(2026, 11, 4, 10, 2, 13, 482915, tzinfo=timezone(timedelta(hours=1)))
-LOG_LINE = cli.log_start(LOG_AT)
+# The time every block's bracket shows in tests: 10:02:13.482.
+NOW = datetime(2026, 11, 4, 10, 2, 13, 482915, tzinfo=timezone(timedelta(hours=1)))
 
 
 @pytest.fixture(autouse=True)
-def fixed_log_time(monkeypatch) -> None:
-    """Stop the clock for the LOG lines, so tests can match output exactly."""
-    monkeypatch.setattr(cli, "_now", lambda: LOG_AT)
+def fixed_block_time(monkeypatch) -> None:
+    """Stop the clock for the time each block's bracket shows, so tests can match output exactly."""
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
 
 
 @pytest.fixture(autouse=True)

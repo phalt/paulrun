@@ -424,6 +424,27 @@ def test_transcript_records_an_interrupted_run(tmp_path):
     )
 
 
+def test_transcript_records_stderr_lines_like_any_other(tmp_path):
+    """A line from stderr is in the transcript as it was printed, in its place, with nothing to mark it."""
+    output = tmp_path / "transcript.md"
+    transcript = Transcript(output, "PUBLISHING.md", clock=lambda: STARTED)
+    step = parse(write_runbook(tmp_path, "## Both\n\n```sh run\nfalse\n```\n")).steps[0]
+    [block] = step.blocks
+
+    with transcript:
+        for event in [
+            runner.Overview("T", (step,), 1, (), tmp_path),
+            runner.StepStarted(step),
+            runner.BlockStarted(block, "false\n"),
+            runner.OutputLine("out"),
+            runner.OutputLine("err", stderr=True),
+            runner.BlockFinished(block, 1, 0.1),
+        ]:
+            transcript(event)
+
+    assert output.read_text().endswith("=== Both ===\n    false\nout\nerr\nexit 1 (0.1s)\n")
+
+
 def test_transcript_records_each_input_block_where_it_was_asked(tmp_path, monkeypatch):
     """An input block's value is recorded where it was given, with a secret as ****."""
     monkeypatch.delenv("PR", raising=False)

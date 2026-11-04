@@ -1,12 +1,12 @@
 # 📟 Command line
 
 ```sh
-paulrun RUNBOOK [--dry] [--step | --no-step]      # run a runbook
-paulrun run RUNBOOK [--dry] [--step | --no-step]  # the same, in full
-paulrun check RUNBOOK                             # find problems without running anything
-paulrun inputs RUNBOOK                            # list the inputs a runbook needs
-paulrun library                                   # list the books in your runbook library
-paulrun backends                                  # list the languages paulrun can run
+paulrun RUNBOOK [--dry] [--step | --no-step] [--show-code]      # run a runbook
+paulrun run RUNBOOK [--dry] [--step | --no-step] [--show-code]  # the same, in full
+paulrun check RUNBOOK                                           # find problems without running anything
+paulrun inputs RUNBOOK                                          # list the inputs a runbook needs
+paulrun library                                                 # list the books in your runbook library
+paulrun backends                                                # list the languages paulrun can run
 paulrun --version
 ```
 
@@ -42,60 +42,75 @@ You don't need to type `run`: anything after `paulrun` that isn't a command is a
 1. **Checks the runbook**, as [`paulrun check`](#paulrun-check) does. Errors stop it here.
 2. **Collects the inputs**. See [Inputs](runbook-format.md#inputs).
 3. **Shows the plan** and asks `Start? [y/N]`.
-4. **Runs each step in order**, streaming each block's output as it's printed.
+4. **Runs each step in order**, streaming each block's output as it's printed. Each block shows its language and when it started, then what it printed, then its exit code and how long it took. A line it wrote to stderr has a red `│`.
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
-Release my-package
-directory: /home/you/Projects/my-package
-inputs: VERSION=1.2.0
-  1. Run the tests
-  2. Tag the release
-  3. Publish on GitHub
-2 run blocks
+╭─ Release my-package ─────────────────────╮
+│ directory  /home/you/Projects/my-package │
+│ inputs     VERSION=1.2.0                 │
+│ steps      1. Run the tests              │
+│            2. Tag the release            │
+│            3. Publish on GitHub          │
+│ blocks     2 run blocks                  │
+╰──────────────────────────────────────────╯
 Start? [y/N] y
 
-=== Run the tests ===
-    make test
+1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
+  ┌ sh · 10:02:13.482
+  │ ...
+  └ ✓ exit 0 · 4.2s
 
-exit 0 (4.2s)
+2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Tag the release ===
-    git tag 1.2.0
+  ┌ sh · 10:02:17.705
+  └ ✓ exit 0 · 0.1s
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
-
-exit 0 (0.1s)
-
-=== Publish on GitHub ===
-Create a GitHub release from tag 1.2.0.
+3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╭─ confirm ───────────────────────────────╮
+│ Create a GitHub release from tag 1.2.0. │
+╰─────────────────────────────────────────╯
 Continue? [y/N] y
 
-finished: ok (12.8s)
+╭───────────────────────╮
+│ ✓ finished ok · 12.8s │
+╰───────────────────────╯
 transcript: logs/release-1.2.0.md
 ```
 
-`directory:` is where blocks will run. See [Where blocks run](runbook-format.md#where-blocks-run).
+`directory` is where blocks will run. See [Where blocks run](runbook-format.md#where-blocks-run).
 
 The run stops at the first block that fails:
 
 ```
-=== Build ===
-    echo "Building"
-    exit 2
-Building
-exit 2 (0.0s)
+1/1  Build ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-finished: failed at "Build" (exit 2)
+  ┌ sh · 10:02:13.482
+  │ Building
+  │ make: *** [build] Error 2
+  └ ✗ exit 2 · 0.0s
+
+╭─────────────────────────────────────╮
+│ ✗ failed at "Build" (exit 2) · 0.0s │
+╰─────────────────────────────────────╯
 ```
 
 Only `y` answers `Start?` and `Continue?` with yes. Anything else, including enter, ends the run as aborted.
+
+### --show-code
+
+Shows each block's code above what it printed:
+
+```
+  ┌ sh · 10:02:13.482
+  │ echo "Building"
+  ├ output
+  │ Building
+  └ ✓ exit 0 · 0.0s
+```
+
+`--dry` always shows the code.
 
 ### Picking a book
 
@@ -124,25 +139,36 @@ paulrun --dry RELEASING.md
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
-Release my-package
-directory: /home/you/Projects/my-package
-inputs: VERSION=1.2.0
-  1. Run the tests
-  2. Tag the release
-  3. Publish on GitHub
-2 run blocks
+╭─ Release my-package ─────────────────────╮
+│ directory  /home/you/Projects/my-package │
+│ inputs     VERSION=1.2.0                 │
+│ steps      1. Run the tests              │
+│            2. Tag the release            │
+│            3. Publish on GitHub          │
+│ blocks     2 run blocks                  │
+╰──────────────────────────────────────────╯
 dry run: nothing will be run
 
-=== Run the tests ===
-    make test
+1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Tag the release ===
-    git tag 1.2.0
+  ┌ sh
+  │ make test
+  └ not run
 
-=== Publish on GitHub ===
-Create a GitHub release from tag 1.2.0.
+2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-finished: dry run, nothing was run
+  ┌ sh
+  │ git tag 1.2.0
+  └ not run
+
+3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╭─ confirm ───────────────────────────────╮
+│ Create a GitHub release from tag 1.2.0. │
+╰─────────────────────────────────────────╯
+
+╭──────────────────────────╮
+│ dry run, nothing was run │
+╰──────────────────────────╯
 ```
 
 ### --step
@@ -154,27 +180,25 @@ paulrun --step RELEASING.md
 ```
 
 ```
-=== Build ===
-    echo "Building"
+1/2  Build ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Run this block? [y]es / [s]kip / [q]uit y
+  ┌ sh · 10:02:13.482
+  ├ Run this block? [y]es / [s]kip / [q]uit y
+  │ Building
+  └ ✓ exit 0 · 0.0s
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-Building
-========
+2/2  Publish ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-exit 0 (0.0s)
+  ┌ sh · 10:02:13.486
+  ├ Run this block? [y]es / [s]kip / [q]uit s
+  └ ↷ skipped
 
-=== Publish ===
-    echo "Publishing"
-
-Run this block? [y]es / [s]kip / [q]uit s
-skipped
-
-finished: ok (0.0s)
+╭──────────────────────╮
+│ ✓ finished ok · 0.0s │
+╰──────────────────────╯
 ```
 
-`y` runs the block, `s` skips it, and `q` ends the run as aborted. With `--dry`, `--step` does nothing, since nothing runs.
+`y` runs the block, `s` skips it, and `q` ends the run as aborted. The code isn't shown unless you add `--show-code`. With `--dry`, `--step` does nothing, since nothing runs.
 
 A runbook that should always be run this way can set [`step: true`](runbook-format.md#frontmatter) in its frontmatter, so you don't need to remember `--step`. To run one of those straight through, pass `--no-step`.
 
@@ -182,7 +206,7 @@ A runbook that should always be run this way can set [`step: true`](runbook-form
 
 - A running block gets the Ctrl-C too, and paulrun waits for it to stop.
 - If a block ignores it, press Ctrl-C again to stop the block and everything it started.
-- The run ends as `finished: interrupted at "<step>"`.
+- The run ends as `✗ interrupted at "<step>"`.
 
 ## paulrun check
 

@@ -74,6 +74,7 @@ class BlockSkipped:
 @dataclass(frozen=True)
 class OutputLine:
     text: str  # one line the block printed, without its newline
+    stderr: bool = False  # whether the block wrote it to stderr
 
 
 @dataclass(frozen=True)
@@ -260,7 +261,7 @@ def _step(
                 frontmatter=runbook.frontmatter,
                 env=env,
                 cwd=cwd,
-                output=lambda line: sink(OutputLine(mask(line, secrets))),
+                output=lambda line, *, stderr=False: sink(OutputLine(mask(line, secrets), stderr)),
             )
         except Interrupted as interrupted:
             # The block has stopped. Record how it ended before the run finishes as interrupted.

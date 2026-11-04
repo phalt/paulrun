@@ -16,7 +16,9 @@ import pytest
 from click.testing import CliRunner
 
 from paulrun import backends, cli
+from paulrun import runner as runner_module
 from paulrun.backends import BackendError, Problem
+from tests.output import finished, normalized, printed, title
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
 LIBRARY = Path(__file__).parent / "library"
@@ -45,11 +47,6 @@ def write_runbook(tmp_path: Path, text: str) -> Path:
     path = tmp_path / "runbook.md"
     path.write_text(text)
     return path
-
-
-def with_directory(output: str, directory: Path) -> str:
-    """run's output with the directory line's path as DIR, since it's a different temporary directory each time."""
-    return output.replace(f"\ndirectory: {directory}\n", "\ndirectory: DIR\n", 1)
 
 
 @pytest.fixture
@@ -146,8 +143,8 @@ def test_a_runbook_runs_the_same_with_or_without_the_run_command(runner, started
     with_run = runner.invoke(cli.cli, ["run", "two_steps.md"], input="y\n")
 
     assert without_run.exit_code == with_run.exit_code == 0, without_run.output
-    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", without_run.output) == re.sub(r"\(\d+\.\ds\)", "(Xs)", with_run.output)
-    assert without_run.output.startswith("Two steps\n")
+    assert normalized(without_run.output) == normalized(with_run.output)
+    assert title(without_run.output) == "Two steps"
 
 
 @pytest.mark.parametrize(
@@ -162,7 +159,7 @@ def test_options_work_on_either_side_of_a_runbook_given_without_run(arguments, r
     result = runner.invoke(cli.cli, arguments)
 
     assert result.exit_code == 0, result.output
-    assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
+    assert finished(result.output) == "dry run, nothing was run"
 
 
 def test_a_runbook_given_without_run_has_the_same_errors(runner, empty_library):
@@ -208,7 +205,7 @@ def test_run_reaches_a_book_named_like_a_command(runner, monkeypatch, tmp_path):
     result = runner.invoke(cli.cli, ["run", "check"], input="y\n")
 
     assert result.exit_code == 0, result.output
-    assert "the book ran" in result.output.splitlines()
+    assert "the book ran" in printed(result.output)
 
 
 def test_run_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path, started_in):
@@ -219,11 +216,12 @@ def test_run_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path
         result = runner.invoke(cli.cli, arguments, input="y\n")
 
         assert result.exit_code == 0
-        assert result.output.splitlines()[:2] == ["Test", f"directory: {started_in}"]
+        assert title(result.output) == "Test"
+        assert result.output.splitlines()[1] == f"│ directory  {started_in} │"
 
 
 def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
-    """run prints each step's name, each block's code, its output and exit code, then how the run finished."""
+    """run boxes the overview, rules off each step, brackets each block's output and result, and boxes how it ended."""
     path = write_runbook(
         tmp_path,
         """\
@@ -245,36 +243,32 @@ def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
-    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
+    assert normalized(result.output) == textwrap.dedent(
         """\
-        Test
-        directory: DIR
-          1. Greet
-          2. Again
-        2 run blocks
+        ╭─ Test ─╮
+        │ directory  DIR │
+        │ steps      1. Greet │
+        │            2. Again │
+        │ blocks     2 run blocks │
+        ╰─╯
         Start? [y/N] y
 
-        === Greet ===
-            echo hello
-            echo world
+        1/2  Greet ━
 
-        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
-        hello
-        world
-        ========
+          ┌ sh · 10:02:13.482
+          │ hello
+          │ world
+          └ ✓ exit 0 · Xs
 
-        exit 0 (Xs)
+        2/2  Again ━
 
-        === Again ===
-            echo again
+          ┌ sh · 10:02:13.482
+          │ again
+          └ ✓ exit 0 · Xs
 
-        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
-        again
-        ========
-
-        exit 0 (Xs)
-
-        finished: ok (Xs)
+        ╭─╮
+        │ ✓ finished ok · Xs │
+        ╰─╯
         """
     )
 
@@ -284,21 +278,58 @@ def test_run_runs_blocks_in_the_directory_it_is_started_from(runner, started_in)
     result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "two_steps.md")], input="y\n")
 
     assert result.exit_code == 0
-    lines = result.output.splitlines()
+    lines = printed(result.output)
     assert ["1", "2", "3"] == [line for line in lines if line in {"1", "2", "3"}]
     assert str(started_in.resolve()) in lines
     assert f"runbook: {RUNBOOKS.resolve()}" in lines
 
 
-def test_run_fences_off_output_only_when_a_block_prints_something(runner, tmp_path):
-    """A block that prints nothing gets no LOG section, just a blank line before its exit code."""
+def test_run_closes_the_bracket_of_a_block_that_prints_nothing_straight_away(runner, tmp_path):
+    """A block that prints nothing is just its heading and its result."""
     path = write_runbook(tmp_path, "## Quiet\n\n```sh run\ntrue\n```\n")
 
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
-    assert "=== LOG:" not in result.output
-    assert re.search(r"^    true\n\nexit 0 \(\d+\.\ds\)$", result.output, re.MULTILINE)
+    assert "\n  ┌ sh · 10:02:13.482\n  └ ✓ exit 0 · Xs\n" in normalized(result.output)
+
+
+def test_run_hides_code_unless_asked_to_show_it(runner, tmp_path):
+    """Code is left out by default. --show-code puts it in the bracket, in front of the output."""
+    path = write_runbook(tmp_path, "## Greet\n\n```sh run\necho hello\n\necho world\n```\n")
+
+    hidden = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
+    shown = runner.invoke(cli.cli, ["run", "--show-code", str(path)], input="y\n")
+
+    assert hidden.exit_code == shown.exit_code == 0
+    assert "\n  ┌ sh · 10:02:13.482\n  │ hello\n  │ world\n  └ ✓ exit 0 · Xs\n" in normalized(hidden.output)
+    # A blank line of code is a bare │, so nothing ends in whitespace.
+    assert (
+        "\n  ┌ sh · 10:02:13.482\n  │ echo hello\n  │\n  │ echo world\n  ├ output\n  │ hello\n  │ world\n"
+        "  └ ✓ exit 0 · Xs\n"
+    ) in normalized(shown.output)
+
+
+def test_run_marks_stderr_with_a_red_bar_and_leaves_the_line_plain():
+    """In colour, a line a block wrote to stderr has a red │, and the line itself is the normal colour."""
+    console = cli.Console(force_terminal=True, color_system="standard", width=80, record=True)
+    printer = cli._Printer(console)
+
+    printer(runner_module.OutputLine("fine"))
+    printer(runner_module.OutputLine("broken", stderr=True))
+
+    out, err = console.export_text(styles=True).splitlines()
+    assert out == "\x1b[2m  │\x1b[0m fine"
+    assert err == "\x1b[31m  │\x1b[0m broken"
+
+
+def test_run_shows_a_blank_line_of_output_as_a_bare_bar(runner, tmp_path):
+    """A blank line a block prints keeps its place, without trailing whitespace."""
+    path = write_runbook(tmp_path, "## Gap\n\n```sh run\necho a\necho\necho b\n```\n")
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
+
+    assert "\n  │ a\n  │\n  │ b\n" in result.output
 
 
 def test_run_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
@@ -329,10 +360,10 @@ def test_run_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
-    assert "passing" in result.output.splitlines()
-    assert re.search(r"^exit 3 \(\d+\.\ds\)$", result.output, re.MULTILINE)
-    assert result.output.endswith('\nfinished: failed at "Fails" (exit 3)\n')
-    assert "=== Never reached ===" not in result.output
+    assert "passing" in printed(result.output)
+    assert "\n  └ ✗ exit 3 · Xs\n" in normalized(result.output)
+    assert finished(normalized(result.output)) == '✗ failed at "Fails" (exit 3) · Xs'
+    assert "3/3  Never reached" not in result.output
     assert "unreachable" not in result.output
 
 
@@ -350,10 +381,10 @@ def test_run_prints_output_and_code_verbatim(runner, tmp_path):
         """,
     )
 
-    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", "--show-code", str(path)], input="y\n")
 
-    lines = result.output.splitlines()
-    assert "    echo '[bold]markup[/bold] :smile:'" in lines
+    lines = printed(result.output)
+    assert "echo '[bold]markup[/bold] :smile:'" in lines
     assert "[bold]markup[/bold] :smile:" in lines
     assert "0" * 200 in lines
 
@@ -368,7 +399,7 @@ def test_run_streams_output_line_by_line_through_a_pipe():
         process.stdin.write("y\n")
         process.stdin.close()
         for line in process.stdout:
-            arrivals.setdefault(line.removesuffix("\n"), time.monotonic())
+            arrivals.setdefault(line.removesuffix("\n").removeprefix("  │ "), time.monotonic())
 
     assert process.returncode == 0
     assert arrivals["3"] - arrivals["1"] >= 0.3
@@ -389,8 +420,8 @@ def test_run_runs_a_book_from_the_library_by_name_where_it_was_started(name, run
     result = runner.invoke(cli.cli, ["run", name], input="y\n")
 
     assert result.exit_code == 0, result.output
-    lines = result.output.splitlines()
-    assert lines[0] == "Say where"
+    assert title(result.output) == "Say where"
+    lines = printed(result.output)
     assert str(started_in.resolve()) in lines
     assert f"kept in: {LIBRARY.resolve()}" in lines
 
@@ -435,7 +466,7 @@ def test_run_runs_a_file_here_before_a_book_with_the_same_name(runner, monkeypat
     result = runner.invoke(cli.cli, ["run", "say-where.md"], input="y\n")
 
     assert result.exit_code == 0, result.output
-    assert "the local one" in result.output.splitlines()
+    assert "the local one" in printed(result.output)
 
 
 def test_run_never_looks_in_the_library_for_a_path(runner, monkeypatch):
@@ -520,8 +551,8 @@ def test_run_prints_warnings_and_carries_on(runner, tmp_path):
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
-    assert result.output.startswith(f"{path}:3: warning: unknown frontmatter key 'extra'\n\n1 warning\nWarns\n")
-    assert "ran" in result.output.splitlines()
+    assert result.output.startswith(f"{path}:3: warning: unknown frontmatter key 'extra'\n\n1 warning\n╭─ Warns ")
+    assert "ran" in printed(result.output)
 
 
 def test_check_passes_a_valid_runbook(runner):
@@ -645,16 +676,16 @@ def test_run_reports_backends_that_cannot_load(runner, tmp_path, monkeypatch):
 
 def test_run_prompts_for_inputs_and_uses_the_answers(runner, inputs_runbook):
     """Inputs not in the environment are asked for by name and description, then used by the blocks."""
-    result = runner.invoke(cli.cli, ["run", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
+    result = runner.invoke(cli.cli, ["run", "--show-code", str(inputs_runbook)], input="1.2.0\ns3cret\ny\n")
 
     assert result.exit_code == 0
     assert result.output.startswith(
         "VERSION (The version being released, e.g. 1.2.0): 1.2.0\nPUBLISH_TOKEN (Token for the package index): \n"
     )
-    lines = result.output.splitlines()
-    assert '    echo "Tagging 1.2.0"' in lines
+    lines = printed(result.output)
+    assert 'echo "Tagging 1.2.0"' in lines
     assert "Tagging 1.2.0" in lines
-    assert '    echo "Publishing 1.2.0 with $PUBLISH_TOKEN"' in lines
+    assert 'echo "Publishing 1.2.0 with $PUBLISH_TOKEN"' in lines
     assert "Publishing 1.2.0 with ****" in lines
 
 
@@ -667,7 +698,7 @@ def test_run_shows_an_inputs_default_and_takes_it_when_enter_is_pressed(runner, 
 
     assert result.exit_code == 0, result.output
     assert result.output.startswith("BRANCH (The branch to release from) [main]: \n")
-    assert "Releasing 1.2.0 from main" in result.output.splitlines()
+    assert "Releasing 1.2.0 from main" in printed(result.output)
 
 
 def test_run_uses_an_answer_typed_over_the_default(runner, monkeypatch):
@@ -678,7 +709,7 @@ def test_run_uses_an_answer_typed_over_the_default(runner, monkeypatch):
     result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "default-example.md")], input="release\ny\n")
 
     assert result.exit_code == 0, result.output
-    assert "Releasing 1.2.0 from release" in result.output.splitlines()
+    assert "Releasing 1.2.0 from release" in printed(result.output)
 
 
 def test_run_uses_the_environment_over_a_default_without_asking(runner, monkeypatch):
@@ -690,7 +721,7 @@ def test_run_uses_the_environment_over_a_default_without_asking(runner, monkeypa
 
     assert result.exit_code == 0, result.output
     assert "BRANCH (" not in result.output
-    assert "Releasing 1.2.0 from release" in result.output.splitlines()
+    assert "Releasing 1.2.0 from release" in printed(result.output)
 
 
 def test_run_shows_a_default_in_an_input_block_prompt(runner, tmp_path):
@@ -705,7 +736,7 @@ def test_run_shows_a_default_in_an_input_block_prompt(runner, tmp_path):
 
     assert result.exit_code == 0, result.output
     assert "BASE (The branch to merge into) [main]: " in result.output
-    assert "merging into main" in result.output.splitlines()
+    assert "merging into main" in printed(result.output)
 
 
 def test_run_lists_an_inputs_choices_and_asks_again_for_an_answer_outside_them(runner, monkeypatch):
@@ -720,7 +751,7 @@ def test_run_lists_an_inputs_choices_and_asks_again_for_an_answer_outside_them(r
         "FE_SET must be one of: comms, billing, all\n"
         "FE_SET (Which frontend set to rebuild) [comms] (comms, billing, all): billing\n"
     )
-    assert "Rebuilding the billing frontend" in result.output.splitlines()
+    assert "Rebuilding the billing frontend" in printed(result.output)
 
 
 def test_run_takes_a_default_that_is_one_of_the_choices(runner, monkeypatch):
@@ -730,7 +761,7 @@ def test_run_takes_a_default_that_is_one_of_the_choices(runner, monkeypatch):
     result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "choices-example.md")], input="\ny\n")
 
     assert result.exit_code == 0, result.output
-    assert "Rebuilding the comms frontend" in result.output.splitlines()
+    assert "Rebuilding the comms frontend" in printed(result.output)
 
 
 def test_run_stops_for_an_environment_value_that_is_not_one_of_the_choices(runner, monkeypatch, started_in):
@@ -755,7 +786,7 @@ def test_run_lists_choices_for_an_input_block(runner, tmp_path):
 
     assert result.exit_code == 0, result.output
     assert "ENV (Where to deploy) (staging, prod): qa\nENV must be one of: staging, prod\n" in result.output
-    assert "deploying to prod" in result.output.splitlines()
+    assert "deploying to prod" in printed(result.output)
 
 
 def test_run_never_shows_a_secret_typed_at_its_prompt(runner, inputs_runbook):
@@ -776,7 +807,7 @@ def test_run_uses_inputs_from_the_environment_without_prompting(runner, inputs_r
     assert result.exit_code == 0
     assert "VERSION (" not in result.output
     assert "PUBLISH_TOKEN (" not in result.output
-    assert "Publishing 1.2.0 with ****" in result.output.splitlines()
+    assert "Publishing 1.2.0 with ****" in printed(result.output)
 
 
 def test_run_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs_runbook):
@@ -789,7 +820,7 @@ def test_run_asks_again_when_an_answer_does_not_match_the_pattern(runner, inputs
         "VERSION must match ^\\d+\\.\\d+\\.\\d+$\n"
         "VERSION (The version being released, e.g. 1.2.0): 1.2.0\n"
     )
-    assert "Publishing 1.2.0 with ****" in result.output.splitlines()
+    assert "Publishing 1.2.0 with ****" in printed(result.output)
 
 
 def test_run_reports_an_environment_value_that_does_not_match_the_pattern(runner, inputs_runbook, monkeypatch):
@@ -807,38 +838,37 @@ def test_run_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, st
     result = runner.invoke(cli.cli, ["run", str(confirm_runbook)], input="y\ny\n")
 
     assert result.exit_code == 0
-    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
+    assert normalized(result.output) == textwrap.dedent(
         """\
-        Docstring and confirm example
-        directory: DIR
-        inputs: VERSION=1.2.0
-          1. Build
-          2. Release on GitHub
-        2 run blocks
+        ╭─ Docstring and confirm example ─╮
+        │ directory  DIR │
+        │ inputs     VERSION=1.2.0 │
+        │ steps      1. Build │
+        │            2. Release on GitHub │
+        │ blocks     2 run blocks │
+        ╰─╯
         Start? [y/N] y
 
-        === Build ===
-        Building 1.2.0. This only echoes; nothing is built.
-            echo "Built 1.2.0"
+        1/2  Build ━
+          Building 1.2.0. This only echoes; nothing is built.
 
-        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
-        Built 1.2.0
-        ========
+          ┌ sh · 10:02:13.482
+          │ Built 1.2.0
+          └ ✓ exit 0 · Xs
 
-        exit 0 (Xs)
-
-        === Release on GitHub ===
-        Create a GitHub release for tag 1.2.0 and publish it.
+        2/2  Release on GitHub ━
+        ╭─ confirm ─╮
+        │ Create a GitHub release for tag 1.2.0 and publish it. │
+        ╰─╯
         Continue? [y/N] y
-            echo "Released 1.2.0"
 
-        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
-        Released 1.2.0
-        ========
+          ┌ sh · 10:02:13.482
+          │ Released 1.2.0
+          └ ✓ exit 0 · Xs
 
-        exit 0 (Xs)
-
-        finished: ok (Xs)
+        ╭─╮
+        │ ✓ finished ok · Xs │
+        ╰─╯
         """
     )
 
@@ -849,9 +879,11 @@ def test_run_aborts_at_a_confirm_not_answered_y(runner, confirm_runbook, answer)
     result = runner.invoke(cli.cli, ["run", str(confirm_runbook)], input=f"y\n{answer}\n")
 
     assert result.exit_code == 1
-    assert "Built 1.2.0" in result.output.splitlines()
-    assert "Released 1.2.0" not in result.output.splitlines()
-    assert result.output.endswith(f'Continue? [y/N] {answer}\n\nfinished: aborted at "Release on GitHub"\n')
+    assert "Built 1.2.0" in printed(result.output)
+    assert "Released 1.2.0" not in printed(result.output)
+    assert normalized(result.output).endswith(
+        f'Continue? [y/N] {answer}\n\n╭─╮\n│ ✗ aborted at "Release on GitHub" │\n╰─╯\n'
+    )
 
 
 @pytest.mark.parametrize("answer", ["n", "", "yes"])
@@ -861,7 +893,7 @@ def test_run_runs_nothing_when_the_start_prompt_is_not_answered_y(runner, confir
 
     assert result.exit_code == 1
     assert "===" not in result.output
-    assert result.output.endswith(f"Start? [y/N] {answer}\n\nfinished: aborted before starting\n")
+    assert normalized(result.output).endswith(f"Start? [y/N] {answer}\n\n╭─╮\n│ ✗ aborted before starting │\n╰─╯\n")
 
 
 def test_run_overview_counts_one_run_block_in_the_singular(runner, tmp_path, started_in):
@@ -870,7 +902,9 @@ def test_run_overview_counts_one_run_block_in_the_singular(runner, tmp_path, sta
 
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
-    assert result.output.startswith(f"One\ndirectory: {started_in}\n  1. Only\n1 run block\nStart? [y/N] y\n")
+    assert normalized(result.output).startswith(
+        "╭─ One ─╮\n│ directory  DIR │\n│ steps      1. Only │\n│ blocks     1 run block │\n╰─╯\nStart? [y/N] y\n"
+    )
 
 
 def test_run_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
@@ -893,8 +927,8 @@ def test_run_prints_docstring_and_confirm_text_verbatim(runner, tmp_path):
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\ny\n")
 
     lines = result.output.splitlines()
-    assert "Run [bold]make[/bold] :smile:" in lines
-    assert "Check [red]this[/red] :+1:" in lines
+    assert "  Run [bold]make[/bold] :smile:" in lines
+    assert "│ Check [red]this[/red] :+1: │" in lines
 
 
 def test_run_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbook, started_in):
@@ -902,25 +936,36 @@ def test_run_dry_prints_every_block_filled_in_and_runs_nothing(runner, dry_runbo
     result = runner.invoke(cli.cli, ["run", "--dry", str(dry_runbook)], input="1.2.0\n")
 
     assert result.exit_code == 0
-    assert with_directory(result.output, started_in) == textwrap.dedent(
+    assert normalized(result.output) == textwrap.dedent(
         """\
         VERSION (The version being released, e.g. 1.2.0): 1.2.0
-        Dry run example
-        directory: DIR
-        inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
-          1. Build
-          2. Publish
-        2 run blocks
+        ╭─ Dry run example ─╮
+        │ directory  DIR │
+        │ inputs     VERSION=1.2.0 PUBLISH_TOKEN=**** │
+        │ steps      1. Build │
+        │            2. Publish │
+        │ blocks     2 run blocks │
+        ╰─╯
         dry run: nothing will be run
 
-        === Build ===
-            echo "1.2.0" > built-1.2.0.txt
+        1/2  Build ━
 
-        === Publish ===
-        Check built-1.2.0.txt before publishing.
-            echo "published with $PUBLISH_TOKEN" > published-1.2.0.txt
+          ┌ sh
+          │ echo "1.2.0" > built-1.2.0.txt
+          └ not run
 
-        finished: dry run, nothing was run
+        2/2  Publish ━
+        ╭─ confirm ─╮
+        │ Check built-1.2.0.txt before publishing. │
+        ╰─╯
+
+          ┌ sh
+          │ echo "published with $PUBLISH_TOKEN" > published-1.2.0.txt
+          └ not run
+
+        ╭─╮
+        │ dry run, nothing was run │
+        ╰─╯
         """
     )
     assert sorted(path.name for path in dry_runbook.parent.iterdir()) == ["dry-run-example.md"]
@@ -934,7 +979,7 @@ def test_run_dry_never_reads_or_shows_a_secret(runner, dry_runbook, monkeypatch)
     result = runner.invoke(cli.cli, ["run", "--dry", str(dry_runbook)])
 
     assert result.exit_code == 0
-    assert "inputs: VERSION=1.2.0 PUBLISH_TOKEN=****" in result.output.splitlines()
+    assert "│ inputs     VERSION=1.2.0 PUBLISH_TOKEN=**** │" in normalized(result.output).splitlines()
     assert "s3cret" not in result.output
 
 
@@ -953,39 +998,39 @@ def test_run_step_runs_skips_and_quits_block_by_block(runner, started_in):
     result = runner.invoke(cli.cli, ["run", "--step", str(RUNBOOKS / "step-example.md")], input="y\ny\ns\nq\n")
 
     assert result.exit_code == 1
-    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
+    assert normalized(result.output) == textwrap.dedent(
         """\
-        Step example
-        directory: DIR
-          1. Build
-          2. Publish
-          3. Announce
-        3 run blocks
+        ╭─ Step example ─╮
+        │ directory  DIR │
+        │ steps      1. Build │
+        │            2. Publish │
+        │            3. Announce │
+        │ blocks     3 run blocks │
+        ╰─╯
         Start? [y/N] y
 
-        === Build ===
-            echo "Building"
+        1/3  Build ━
 
-        Run this block? [y]es / [s]kip / [q]uit y
+          ┌ sh · 10:02:13.482
+          ├ Run this block? [y]es / [s]kip / [q]uit y
+          │ Building
+          └ ✓ exit 0 · Xs
 
-        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
-        Building
-        ========
+        2/3  Publish ━
 
-        exit 0 (Xs)
+          ┌ sh · 10:02:13.482
+          ├ Run this block? [y]es / [s]kip / [q]uit s
+          └ ↷ skipped
 
-        === Publish ===
-            echo "Publishing"
+        3/3  Announce ━
 
-        Run this block? [y]es / [s]kip / [q]uit s
-        skipped
+          ┌ sh · 10:02:13.482
+          ├ Run this block? [y]es / [s]kip / [q]uit q
+          └ not run
 
-        === Announce ===
-            echo "Announcing"
-
-        Run this block? [y]es / [s]kip / [q]uit q
-
-        finished: aborted at "Announce"
+        ╭─╮
+        │ ✗ aborted at "Announce" │
+        ╰─╯
         """
     )
 
@@ -995,7 +1040,7 @@ def test_run_step_finishes_ok_when_blocks_are_only_skipped(runner):
     result = runner.invoke(cli.cli, ["run", "--step", str(RUNBOOKS / "step-example.md")], input="y\ns\ns\ns\n")
 
     assert result.exit_code == 0
-    assert result.output.splitlines().count("skipped") == 3
+    assert result.output.splitlines().count("  └ ↷ skipped") == 3
     assert "Building" not in result.output.splitlines()
 
 
@@ -1026,33 +1071,32 @@ def test_run_steps_through_a_runbook_with_step_in_its_frontmatter(runner, starte
 
     assert result.exit_code == 0, result.output
     assert result.output == with_flag.output
-    assert with_directory(re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output), started_in) == textwrap.dedent(
+    assert normalized(result.output) == textwrap.dedent(
         """\
-        Step frontmatter example
-        directory: DIR
-          1. Migrate the database
-          2. Restart the service
-        2 run blocks
+        ╭─ Step frontmatter example ─╮
+        │ directory  DIR │
+        │ steps      1. Migrate the database │
+        │            2. Restart the service │
+        │ blocks     2 run blocks │
+        ╰─╯
         Start? [y/N] y
 
-        === Migrate the database ===
-            echo "Migrating"
+        1/2  Migrate the database ━
 
-        Run this block? [y]es / [s]kip / [q]uit s
-        skipped
+          ┌ sh · 10:02:13.482
+          ├ Run this block? [y]es / [s]kip / [q]uit s
+          └ ↷ skipped
 
-        === Restart the service ===
-            echo "Restarting"
+        2/2  Restart the service ━
 
-        Run this block? [y]es / [s]kip / [q]uit y
+          ┌ sh · 10:02:13.482
+          ├ Run this block? [y]es / [s]kip / [q]uit y
+          │ Restarting
+          └ ✓ exit 0 · Xs
 
-        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
-        Restarting
-        ========
-
-        exit 0 (Xs)
-
-        finished: ok (Xs)
+        ╭─╮
+        │ ✓ finished ok · Xs │
+        ╰─╯
         """
     )
 
@@ -1074,8 +1118,8 @@ def test_no_step_runs_a_runbook_with_step_in_its_frontmatter_straight_through(ar
 
     assert result.exit_code == 0, result.output
     assert "Run this block?" not in result.output
-    assert {"Migrating", "Restarting"} <= set(result.output.splitlines())
-    assert result.output.splitlines()[-1].startswith("finished: ok")
+    assert {"Migrating", "Restarting"} <= set(printed(result.output))
+    assert finished(result.output).startswith("✓ finished ok")
 
 
 def test_no_step_does_nothing_to_a_runbook_without_step(runner):
@@ -1086,7 +1130,7 @@ def test_no_step_does_nothing_to_a_runbook_without_step(runner):
     no_step = runner.invoke(cli.cli, ["run", "--no-step", path], input="y\n")
 
     assert no_step.exit_code == 0, no_step.output
-    assert re.sub(r"\(\d+\.\ds\)", "(Xs)", no_step.output) == re.sub(r"\(\d+\.\ds\)", "(Xs)", plain.output)
+    assert normalized(no_step.output) == normalized(plain.output)
 
 
 def test_dry_ignores_step_in_the_frontmatter(runner):
@@ -1095,7 +1139,7 @@ def test_dry_ignores_step_in_the_frontmatter(runner):
 
     assert result.exit_code == 0, result.output
     assert "Run this block?" not in result.output
-    assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
+    assert finished(result.output) == "dry run, nothing was run"
 
 
 def test_run_help_describes_step(runner):
@@ -1104,6 +1148,14 @@ def test_run_help_describes_step(runner):
 
     assert "--step / --no-step" in result.output
     assert "step: true" in result.output
+
+
+def test_run_help_describes_show_code(runner):
+    """run --help lists --show-code, and says --dry always shows code."""
+    result = runner.invoke(cli.cli, ["run", "--help"])
+
+    assert "--show-code" in result.output
+    assert "--dry always shows it." in " ".join(result.output.split())
 
 
 def test_run_help_describes_dry(runner):
@@ -1121,7 +1173,7 @@ def test_run_runs_python_blocks(runner, monkeypatch):
     result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "python-example.md")], input="y\n")
 
     assert result.exit_code == 0
-    lines = result.output.splitlines()
+    lines = printed(result.output)
     assert "Releasing 1.2.0" in lines
     assert "Next version: 1.2.1" in lines
 
@@ -1148,8 +1200,8 @@ def test_run_stops_at_a_python_block_that_raises(runner, tmp_path):
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
-    assert "not today" in result.output.splitlines()
-    assert result.output.endswith('\nfinished: failed at "Raises" (exit 1)\n')
+    assert "not today" in printed(result.output)
+    assert finished(normalized(result.output)) == '✗ failed at "Raises" (exit 1) · Xs'
     assert "unreachable" not in result.output
 
 
@@ -1588,9 +1640,9 @@ def test_run_with_no_runbook_picks_a_book_from_the_library_and_runs_it(runner, m
         "  2. update-project-deps  Update a project's dependencies",
         "Run which? (q to quit) 1",
     ]
-    assert lines[3] == "Say where"
-    assert str(started_in.resolve()) in lines
-    assert lines[-1].startswith("finished: ok")
+    assert lines[3].startswith("╭─ Say where ")
+    assert str(started_in.resolve()) in printed(result.output)
+    assert finished(result.output).startswith("✓ finished ok")
 
 
 @pytest.mark.parametrize("arguments", [["run", "--dry"], ["--dry"]], ids=["run --dry", "--dry alone"])
@@ -1603,8 +1655,8 @@ def test_the_picker_works_under_dry(arguments, runner, monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert "Run which? (q to quit) 2" in result.output.splitlines()
-    assert '    echo "git switch -c update-deps"' in result.output.splitlines()
-    assert result.output.splitlines()[-1] == "finished: dry run, nothing was run"
+    assert 'echo "git switch -c update-deps"' in printed(result.output)
+    assert finished(result.output) == "dry run, nothing was run"
 
 
 def test_the_picker_works_under_step(runner, monkeypatch):
@@ -1614,8 +1666,8 @@ def test_the_picker_works_under_step(runner, monkeypatch):
     result = runner.invoke(cli.cli, ["run", "--step"], input="1\ny\ns\n")
 
     assert result.exit_code == 0, result.output
-    assert "Run this block? [y]es / [s]kip / [q]uit s" in result.output.splitlines()
-    assert "skipped" in result.output.splitlines()
+    assert "  ├ Run this block? [y]es / [s]kip / [q]uit s" in result.output.splitlines()
+    assert "  └ ↷ skipped" in result.output.splitlines()
 
 
 @pytest.mark.parametrize("answer", ["0", "3", "two", "say-where", "-1"])
@@ -1632,7 +1684,7 @@ def test_the_picker_asks_again_after_an_answer_that_is_not_a_listed_number(answe
         "Pick a number from 1 to 2, or q to quit.",
         "Run which? (q to quit) 1",
     ]
-    assert "Say where" in result.output.splitlines()
+    assert title(result.output) == "Say where"
 
 
 @pytest.mark.parametrize("answer", ["", "q"], ids=["blank", "q"])
@@ -1785,19 +1837,13 @@ def test_run_runs_an_external_backends_blocks(runner, external_backend, tmp_path
         """,
     )
 
-    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
+    result = runner.invoke(cli.cli, ["run", "--show-code", str(path)], input="y\n")
 
     assert result.exit_code == 0
-    lines = result.output.splitlines()
-    assert "from shell" in lines
-    assert lines[lines.index("    hello") : lines.index("    hello") + 6] == [
-        "    hello",
-        "    world",
-        "",
-        "=== LOG: 2026-11-04T10:02:13.482915+01:00 ===",
-        "echo: hello",
-        "echo: world",
-    ]
+    assert "from shell" in printed(result.output)
+    assert "\n  ┌ fakelang · 10:02:13.482\n  │ hello\n  │ world\n  ├ output\n  │ echo: hello\n  │ echo: world\n" in (
+        result.output
+    )
 
 
 def test_run_stops_at_an_external_block_that_fails(runner, external_backend, tmp_path):
@@ -1807,9 +1853,9 @@ def test_run_stops_at_an_external_block_that_fails(runner, external_backend, tmp
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 1
-    assert "echo: before" in result.output.splitlines()
+    assert "echo: before" in printed(result.output)
     assert "echo: after" not in result.output
-    assert result.output.endswith('finished: failed at "Fails" (exit 7)\n')
+    assert finished(normalized(result.output)) == '✗ failed at "Fails" (exit 7) · Xs'
 
 
 def test_check_uses_an_external_backends_validation(runner, external_backend, tmp_path):
@@ -1896,31 +1942,28 @@ def test_run_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_r
     result = runner.invoke(cli.cli, ["run", str(input_block_runbook)], input="y\ny\n42\n123456\n")
 
     assert result.exit_code == 0
-    lines = re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output).splitlines()
-    start = lines.index("=== Open the pull request ===")
-    assert lines[start : start + 21] == [
-        "=== Open the pull request ===",
-        "Open a pull request for 1.2.0 on GitHub.",
-        "Continue? [y/N] y",
-        "PR (The number GitHub gave the pull request): 42",
-        '    echo "Merging pull request 42 for 1.2.0"',
-        "",
-        "=== LOG: 2026-11-04T10:02:13.482915+01:00 ===",
-        "Merging pull request 42 for 1.2.0",
-        "========",
-        "",
-        "exit 0 (Xs)",
-        "",
-        "=== Publish ===",
-        "OTP (The code from your authenticator app): ",  # a secret isn't echoed as it's typed
-        '    echo "Publishing 1.2.0 with code $OTP"',
-        "",
-        "=== LOG: 2026-11-04T10:02:13.482915+01:00 ===",
-        "Publishing 1.2.0 with code ****",
-        "========",
-        "",
-        "exit 0 (Xs)",
-    ]
+    shown = normalized(result.output)
+    assert shown[shown.index("1/2  Open the pull request") : shown.index("╭─╮")] == textwrap.dedent(
+        """\
+        1/2  Open the pull request ━
+        ╭─ confirm ─╮
+        │ Open a pull request for 1.2.0 on GitHub. │
+        ╰─╯
+        Continue? [y/N] y
+        PR (The number GitHub gave the pull request): 42
+
+          ┌ sh · 10:02:13.482
+          │ Merging pull request 42 for 1.2.0
+          └ ✓ exit 0 · Xs
+
+        2/2  Publish ━
+        OTP (The code from your authenticator app): \n
+          ┌ sh · 10:02:13.482
+          │ Publishing 1.2.0 with code ****
+          └ ✓ exit 0 · Xs
+
+        """
+    )
     assert "123456" not in result.output
 
 
@@ -1940,9 +1983,9 @@ def test_run_dry_shows_input_blocks_without_asking(runner, input_block_runbook, 
 
     assert result.exit_code == 0
     lines = result.output.splitlines()
-    assert "input: PR (The number GitHub gave the pull request), asked here" in lines
-    assert "input: OTP (The code from your authenticator app), asked here" in lines
-    assert '    echo "Merging pull request <PR> for 1.2.0"' in lines
+    assert "  input: PR (The number GitHub gave the pull request), asked here" in lines
+    assert "  input: OTP (The code from your authenticator app), asked here" in lines
+    assert 'echo "Merging pull request <PR> for 1.2.0"' in printed(result.output)
     assert not (started_in / "logs").exists()
 
 
@@ -1975,8 +2018,6 @@ def test_inputs_still_lists_frontmatter_inputs_when_the_body_cannot_be_read(runn
     assert "asked in" not in result.output
 
 
-def test_log_start_shows_when_the_output_started_to_the_microsecond():
-    """The LOG line has the full local time, with microseconds even when they're 0, and the UTC offset."""
-    at = datetime(2026, 11, 4, 9, 5, 7, 0, tzinfo=timezone.utc)
-
-    assert cli.log_start(at) == "=== LOG: 2026-11-04T09:05:07.000000+00:00 ==="
+def test_a_blocks_time_is_local_to_the_millisecond():
+    """A bracket shows the time its block started, to the millisecond, with leading zeros kept."""
+    assert cli.block_time(datetime(2026, 11, 4, 9, 5, 7, 4999, tzinfo=timezone.utc)) == "09:05:07.004"

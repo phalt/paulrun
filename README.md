@@ -4,13 +4,13 @@
 
 paulrun executes the code blocks in your markdown file, turning them into runbooks.
 
-A runbook is just a normal markdown file that a person can read and write, but if your annotate a code block `run`, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.
+A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block `run`, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.
 
 [![Package version](https://img.shields.io/pypi/v/paulrun?color=%2334D058&label=latest%20version)](https://pypi.org/project/paulrun)
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
 ![PyPI - License](https://img.shields.io/pypi/l/paulrun)
 
-![exampleimage](./example.png)
+![paulrun running a runbook, in a dark and a light terminal](docs/example.png)
 
 ## Example runbook
 
@@ -59,37 +59,31 @@ paulrun hello.md
 ```
 hello.md: ok
 NAME (Who to say hello to): Paul
-Say hello
-directory: /home/you/hello
-inputs: NAME=Paul
-  1. Greet
-  2. Count the letters
-2 run blocks
+╭─ Say hello ─────────────────────╮
+│ directory  /home/you/hello      │
+│ inputs     NAME=Paul            │
+│ steps      1. Greet             │
+│            2. Count the letters │
+│ blocks     2 run blocks         │
+╰─────────────────────────────────╯
 Start? [y/N] y
 
-=== Greet ===
-Saying hello to Paul.
-    echo "Hello, Paul!"
+1/2  Greet ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Saying hello to Paul.
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-Hello, Paul!
-========
+  ┌ sh · 10:02:13.482
+  │ Hello, Paul!
+  └ ✓ exit 0 · 0.0s
 
-exit 0 (0.0s)
+2/2  Count the letters ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Count the letters ===
-    import os
+  ┌ python · 10:02:13.483
+  │ Paul has 4 letters
+  └ ✓ exit 0 · 0.1s
 
-    name = os.environ["NAME"]
-    print(f"{name} has {len(name)} letters")
-
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-Paul has 4 letters
-========
-
-exit 0 (0.1s)
-
-finished: ok (0.1s)
+╭──────────────────────╮
+│ ✓ finished ok · 0.1s │
+╰──────────────────────╯
 ```
 
 `check` finds problems before anything runs. Then paulrun asks for the inputs, shows the plan, and runs each step in order, stopping at the first command that fails.

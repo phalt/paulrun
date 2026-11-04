@@ -8,13 +8,17 @@ from pathlib import Path
 from typing import Any
 
 import click
-from rich.console import Console
+from rich.box import ROUNDED
+from rich.console import Console, RenderableType
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.table import Table
 from rich.text import Text
 
 from paulrun import library, runner, settings
 from paulrun.backends import Backend, BackendError, load_backend_sources, load_backends
 from paulrun.inputs import Input, InputError
-from paulrun.runbook import Runbook, RunbookError, parse, parse_inputs, read_frontmatter
+from paulrun.runbook import Runbook, RunbookError, Step, parse, parse_inputs, read_frontmatter
 from paulrun.transcript import Transcript, TranscriptError
 from paulrun.validate import Report, validate
 
@@ -92,7 +96,8 @@ class RunbookArgument(click.ParamType):
     help="Ask before each run block whether to run it, skip it or quit. "
     "--no-step runs straight through, even if the runbook sets step: true.",
 )
-def run_runbook(runbook: Path | None, dry: bool, step: bool | None) -> None:
+@click.option("--show-code", is_flag=True, help="Show each block's code above its output. --dry always shows it.")
+def run_runbook(runbook: Path | None, dry: bool, step: bool | None, show_code: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
     RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
@@ -112,7 +117,7 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool | None) -> None:
 
     # --step or --no-step wins; with neither, the runbook's step key decides.
     step_by_step = parsed.step if step is None else step
-    printer = _Printer(console, dry=dry, step_by_step=step_by_step)
+    printer = _Printer(console, dry=dry, show_code=show_code or dry)
 
     def sink(event: runner.Event) -> None:
         printer(event)
@@ -349,6 +354,9 @@ class ClickPrompter:
         return _prompt(text, default="", show_default=False, hide_input=input.secret)
 
     def confirm(self, question: str) -> str:
+        if question == runner.STEP_QUESTION:
+            # Asked inside the block's bracket, between its heading and its output.
+            question = _styled(self.console, Text.assemble(("  ├ ", FRAME), question))
         # An empty default lets enter through as "", which the runner reads as no.
         return _prompt(question, default="", show_default=False, prompt_suffix=" ")
 
@@ -366,14 +374,14 @@ def _prompt(text: str, **options: Any) -> str:
         raise
 
 
-# What a block prints is fenced off between log_start and LOG_END, so it can't be mistaken for its code or
-# paulrun's own lines.
-LOG_END = "========"
+# One meaning per colour: blue is structure, green success, yellow a confirm or a dry run, red failure only.
+STRUCTURE = "blue"
+FRAME = "dim"
 
 
-def log_start(at: datetime) -> str:
-    """The line before a block's output, with when the output started, to the microsecond."""
-    return f"=== LOG: {at.isoformat(timespec='microseconds')} ==="
+def block_time(at: datetime) -> str:
+    """When a block started, as its bracket shows it: the local time to the millisecond."""
+    return at.strftime("%H:%M:%S.") + f"{at.microsecond // 1000:03d}"
 
 
 def _now() -> datetime:
@@ -382,71 +390,123 @@ def _now() -> datetime:
 
 @dataclass
 class _Printer:
-    """Prints run events in the terminal. It remembers whether a block's output has started, to fence it off."""
+    """Prints run events in the terminal: the overview and the end in boxes, each step under a rule, and each
+    block's output in a bracket closed by its result."""
 
     console: Console
     dry: bool = False
-    step_by_step: bool = False
-    in_log: bool = False
+    show_code: bool = False
+    steps: tuple[Step, ...] = ()
+    in_output: bool = False  # whether the current block's output has started, to put ├ output before it
+    under_rule: bool = False  # whether nothing has been printed since the step's rule
+    in_block: bool = False  # whether a block's bracket is open, so the run ending part way through closes it
 
     def __call__(self, event: runner.Event) -> None:
-        # console.out never reads markup or emoji codes and never wraps, so code and output appear as written.
+        self._print(event)
+        self.under_rule = isinstance(event, runner.StepStarted)
+
+    def _print(self, event: runner.Event) -> None:
+        # Everything from the runbook or a block is Text, so it's never read as markup or emoji, and never wrapped.
         match event:
             case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs, directory=directory):
-                self.console.out(title, style="bold")
-                self.console.out(f"directory: {directory}")
-                if inputs:
-                    self.console.out("inputs: " + " ".join(f"{name}={value}" for name, value in inputs))
-                for number, step in enumerate(steps, start=1):
-                    self.console.out(f"  {number}. {step.name}")
-                self.console.out(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}")
+                self.steps = steps
+                self._overview(title, steps, run_blocks, inputs, directory)
                 if self.dry:
                     self.console.out("dry run: nothing will be run", style="yellow")
             case runner.StepStarted(step=step):
-                self.console.out()
-                self.console.out(f"=== {step.name} ===", style="bold")
+                number = self.steps.index(step) + 1
+                self.console.print()
+                heading = Text(f"{number}/{len(self.steps)}  {step.name}", style=f"bold {STRUCTURE}")
+                self.console.print(Rule(heading, align="left", style=STRUCTURE, characters="━"))
             case runner.Docstring(text=text):
                 for line in text.splitlines():
-                    self.console.out(line)
+                    self._line(("  ", ""), (line, "dim italic"))
             case runner.InputBlock(input=input) if self.dry:
-                self.console.out(f"input: {input.name} ({input.description}), asked here", style="yellow")
+                self.console.print()
+                self._line(("  ", ""), (f"input: {input.name} ({input.description}), asked here", "yellow"))
             case runner.Confirm(text=text):
-                for line in text.splitlines():
-                    self.console.out(line, style="yellow")
-            case runner.BlockStarted(code=code):
-                for line in runner.code_lines(code):
-                    self.console.out(line, style="cyan")
-                self.in_log = False
-                if self.step_by_step and not self.dry:
-                    # Space between the code and the question, so the answer isn't read as part of either.
-                    self.console.out()
+                if not self.under_rule:
+                    self.console.print()
+                title = Text("confirm", style="bold yellow")
+                self._box(Text(text.rstrip("\n"), style="yellow"), "yellow", title=title)
+            case runner.BlockStarted(block=block, code=code):
+                self.console.print()
+                # Nothing runs under --dry, so there's no time it started.
+                started = "" if self.dry else f" · {block_time(_now())}"
+                self._line(("  ┌ ", FRAME), (block.language or "", "bold"), (started, FRAME))
+                if self.show_code:
+                    for line in code.splitlines():
+                        self._line(("  │", FRAME), (f" {line}" if line else "", "cyan"))
+                self.in_block = True
+                if self.dry:
+                    self._not_run()
+                self.in_output = False
             case runner.BlockSkipped():
-                self.console.out("skipped", style="yellow")
-            case runner.OutputLine(text=text):
-                if not self.in_log:
-                    self.console.out()
-                    self.console.out(log_start(_now()), style="dim")
-                    self.in_log = True
-                self.console.out(text)
+                self.in_block = False
+                self._line(("  └ ", FRAME), ("↷ skipped", "yellow"))
+            case runner.OutputLine(text=text, stderr=stderr):
+                if self.show_code and not self.in_output:
+                    self._line(("  ├ output", FRAME))
+                self.in_output = True
+                # Only the bar is red for stderr, so the line stays as readable as any other.
+                self._line(("  │", "red" if stderr else FRAME), (f" {text}" if text else "", ""))
             case runner.BlockFinished(exit_code=exit_code, duration=duration):
-                if self.in_log:
-                    self.console.out(LOG_END, style="dim")
-                    self.in_log = False
-                self.console.out()
-                self.console.out(
-                    f"exit {exit_code} ({runner.format_duration(duration)})", style="green" if exit_code == 0 else "red"
+                self.in_block = False
+                mark, style = ("✓", "green") if exit_code == 0 else ("✗", "red")
+                self._line(
+                    ("  └ ", FRAME),
+                    (f"{mark} exit {exit_code}", style),
+                    (f" · {runner.format_duration(duration)}", FRAME),
                 )
+            case runner.RunFinished() if self.in_block:
+                # Quit, or Ctrl-C, at --step's question: the block never ran.
+                self._not_run()
+                self._print(event)
             case runner.RunFinished(status="ok", duration=duration):
-                self.console.out()
-                self.console.out(f"finished: ok ({runner.format_duration(duration)})", style="green")
+                self._finished("✓", "green", "finished ok", duration)
             case runner.RunFinished(status="dry"):
-                self.console.out()
-                self.console.out("finished: dry run, nothing was run", style="yellow")
+                self._finished("", "yellow", "dry run, nothing was run")
             case runner.RunFinished(status="aborted" | "interrupted" as status, step=step):
-                self.console.out()
                 where = "before starting" if step is None else f'at "{step.name}"'
-                self.console.out(f"finished: {status} {where}", style="red")
-            case runner.RunFinished(step=step, exit_code=exit_code):
+                self._finished("✗", "red", f"{status} {where}")
+            case runner.RunFinished(step=step, exit_code=exit_code, duration=duration):
                 assert step is not None  # always set when a run fails
-                self.console.out()
-                self.console.out(f'finished: failed at "{step.name}" (exit {exit_code})', style="red")
+                self._finished("✗", "red", f'failed at "{step.name}" (exit {exit_code})', duration)
+
+    def _not_run(self) -> None:
+        self.in_block = False
+        self._line(("  └ ", FRAME), ("not run", "yellow"))
+
+    def _overview(
+        self,
+        title: str,
+        steps: tuple[Step, ...],
+        run_blocks: int,
+        inputs: tuple[tuple[str, str], ...],
+        directory: Path,
+    ) -> None:
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(style=FRAME)
+        grid.add_column()
+        grid.add_row(Text("directory"), Text(str(directory)))
+        if inputs:
+            grid.add_row(Text("inputs"), Text(" ".join(f"{name}={value}" for name, value in inputs)))
+        numbered = "\n".join(f"{number}. {step.name}" for number, step in enumerate(steps, start=1))
+        grid.add_row(Text("steps"), Text(numbered))
+        grid.add_row(Text("blocks"), Text(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}"))
+        self._box(grid, STRUCTURE, title=Text(title, style=f"bold {STRUCTURE}"))
+
+    def _finished(self, mark: str, style: str, text: str, duration: float | None = None) -> None:
+        line = Text.assemble((f"{mark} " if mark else "", style), (text, "bold"))
+        if duration is not None:
+            line.append(f" · {runner.format_duration(duration)}", style=FRAME)
+        self.console.print()
+        self._box(line, style)
+
+    def _box(self, content: RenderableType, style: str, *, title: Text | None = None) -> None:
+        self.console.print(
+            Panel(content, title=title, title_align="left", border_style=style, box=ROUNDED, expand=False)
+        )
+
+    def _line(self, *parts: tuple[str, str]) -> None:
+        _line(self.console, Text.assemble(*parts))

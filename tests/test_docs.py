@@ -16,6 +16,7 @@ from paulrun import backends, cli
 from paulrun.backends import Backend, Problem, load_backends
 from paulrun.runbook import parse
 from paulrun.validate import validate
+from tests.output import normalized, printed
 
 ROOT = Path(__file__).parent.parent
 DOCS = ROOT / "docs"
@@ -36,14 +37,9 @@ def fences(path: Path) -> list[tuple[str, str]]:
     return [(token.info, token.content) for token in tokens if token.type == "fence"]
 
 
-def without_durations(output: str) -> str:
-    """run's output with every duration as (Xs), since they change from run to run."""
-    return re.sub(r"\((\d+m)?\d+(\.\d)?s\)", "(Xs)", output)
-
-
-def without_directories(output: str) -> str:
-    """run's output with the directory it ran in as DIR, since the docs can only show an example of one."""
-    return re.sub(r"^directory: .*$", "directory: DIR", output, flags=re.MULTILINE)
+def without_times(output: str) -> str:
+    """run's output with each block's time as TIME, since the docs can only show an example of one."""
+    return re.sub(r"· \d\d:\d\d:\d\d\.\d{3}$", "· TIME", output, flags=re.MULTILINE)
 
 
 def check_example(text: str, tmp_path: Path) -> list[str]:
@@ -117,9 +113,9 @@ def test_the_readme_example_runs_as_written(runner, tmp_path, monkeypatch, witho
 
         assert [result.exit_code for result in results] == [0] * len(results), commands
         output = "".join(result.output for result in results)
-        assert without_directories(without_durations(output)) == without_directories(without_durations(shown))
-        # The directory line is only swapped for DIR above, so check it's really where paulrun ran.
-        assert all(f"directory: {tmp_path}" in result.output for result in results if "directory:" in result.output)
+        assert without_times(normalized(output)) == without_times(normalized(shown))
+        # The directory is only swapped for DIR above, so check it's really where paulrun ran.
+        assert all(f"│ directory  {tmp_path} " in result.output for result in results if "directory" in result.output)
 
 
 def test_the_backends_page_shows_the_real_backend_protocol():
@@ -159,7 +155,7 @@ def test_the_example_backend_runs_the_example_runbook(runner, node_backend, tmp_
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0, result.output
-    assert any(line.startswith("Hello from Node v") for line in result.output.splitlines()), result.output
+    assert any(line.startswith("Hello from Node v") for line in printed(result.output)), result.output
 
 
 @needs_node
