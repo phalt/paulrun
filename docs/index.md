@@ -4,7 +4,7 @@
 
 paulrun executes the code blocks in your markdown file, turning them into runbooks.
 
-A runbook is just a normal markdown file that a person can read and write, but if your annotate a code block `run`, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.
+A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block `run`, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.
 
 <div style="text-align: center; padding-top:10px;">
 <p>
