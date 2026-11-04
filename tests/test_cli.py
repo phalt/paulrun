@@ -256,13 +256,21 @@ def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
         === Greet ===
             echo hello
             echo world
+
+        == LOG ==
         hello
         world
+        ========
+
         exit 0 (Xs)
 
         === Again ===
             echo again
+
+        == LOG ==
         again
+        ========
+
         exit 0 (Xs)
 
         finished: ok (Xs)
@@ -279,6 +287,17 @@ def test_run_runs_blocks_in_the_directory_it_is_started_from(runner, started_in)
     assert ["1", "2", "3"] == [line for line in lines if line in {"1", "2", "3"}]
     assert str(started_in.resolve()) in lines
     assert f"runbook: {RUNBOOKS.resolve()}" in lines
+
+
+def test_run_fences_off_output_only_when_a_block_prints_something(runner, tmp_path):
+    """A block that prints nothing gets no LOG section, just a blank line before its exit code."""
+    path = write_runbook(tmp_path, "## Quiet\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    assert cli.LOG_START not in result.output
+    assert re.search(r"^    true\n\nexit 0 \(\d+\.\ds\)$", result.output, re.MULTILINE)
 
 
 def test_run_stops_at_the_failing_block_and_names_its_step(runner, tmp_path):
@@ -800,14 +819,22 @@ def test_run_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, st
         === Build ===
         Building 1.2.0. This only echoes; nothing is built.
             echo "Built 1.2.0"
+
+        == LOG ==
         Built 1.2.0
+        ========
+
         exit 0 (Xs)
 
         === Release on GitHub ===
         Create a GitHub release for tag 1.2.0 and publish it.
         Continue? [y/N] y
             echo "Released 1.2.0"
+
+        == LOG ==
         Released 1.2.0
+        ========
+
         exit 0 (Xs)
 
         finished: ok (Xs)
@@ -937,17 +964,24 @@ def test_run_step_runs_skips_and_quits_block_by_block(runner, started_in):
 
         === Build ===
             echo "Building"
+
         Run this block? [y]es / [s]kip / [q]uit y
+
+        == LOG ==
         Building
+        ========
+
         exit 0 (Xs)
 
         === Publish ===
             echo "Publishing"
+
         Run this block? [y]es / [s]kip / [q]uit s
         skipped
 
         === Announce ===
             echo "Announcing"
+
         Run this block? [y]es / [s]kip / [q]uit q
 
         finished: aborted at "Announce"
@@ -1002,13 +1036,19 @@ def test_run_steps_through_a_runbook_with_step_in_its_frontmatter(runner, starte
 
         === Migrate the database ===
             echo "Migrating"
+
         Run this block? [y]es / [s]kip / [q]uit s
         skipped
 
         === Restart the service ===
             echo "Restarting"
+
         Run this block? [y]es / [s]kip / [q]uit y
+
+        == LOG ==
         Restarting
+        ========
+
         exit 0 (Xs)
 
         finished: ok (Xs)
@@ -1749,9 +1789,11 @@ def test_run_runs_an_external_backends_blocks(runner, external_backend, tmp_path
     assert result.exit_code == 0
     lines = result.output.splitlines()
     assert "from shell" in lines
-    assert lines[lines.index("    hello") : lines.index("    hello") + 4] == [
+    assert lines[lines.index("    hello") : lines.index("    hello") + 6] == [
         "    hello",
         "    world",
+        "",
+        "== LOG ==",
         "echo: hello",
         "echo: world",
     ]
@@ -1855,19 +1897,27 @@ def test_run_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_r
     assert result.exit_code == 0
     lines = re.sub(r"\(\d+\.\ds\)", "(Xs)", result.output).splitlines()
     start = lines.index("=== Open the pull request ===")
-    assert lines[start : start + 13] == [
+    assert lines[start : start + 21] == [
         "=== Open the pull request ===",
         "Open a pull request for 1.2.0 on GitHub.",
         "Continue? [y/N] y",
         "PR (The number GitHub gave the pull request): 42",
         '    echo "Merging pull request 42 for 1.2.0"',
+        "",
+        "== LOG ==",
         "Merging pull request 42 for 1.2.0",
+        "========",
+        "",
         "exit 0 (Xs)",
         "",
         "=== Publish ===",
         "OTP (The code from your authenticator app): ",  # a secret isn't echoed as it's typed
         '    echo "Publishing 1.2.0 with code $OTP"',
+        "",
+        "== LOG ==",
         "Publishing 1.2.0 with code ****",
+        "========",
+        "",
         "exit 0 (Xs)",
     ]
     assert "123456" not in result.output

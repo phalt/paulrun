@@ -109,13 +109,15 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool | None) -> None:
     # Nothing runs under --dry, so there's nothing to record.
     transcript = Transcript.for_runbook(parsed, cwd) if parsed.output_path is not None and not dry else None
 
+    # --step or --no-step wins; with neither, the runbook's step key decides.
+    step_by_step = parsed.step if step is None else step
+    printer = _Printer(console, dry=dry, step_by_step=step_by_step)
+
     def sink(event: runner.Event) -> None:
-        _print_event(console, event, dry=dry)
+        printer(event)
         if transcript is not None:
             transcript(event)
 
-    # --step or --no-step wins; with neither, the runbook's step key decides.
-    step_by_step = parsed.step if step is None else step
     try:
         with transcript or nullcontext():
             result = runner.run(
@@ -363,52 +365,78 @@ def _prompt(text: str, **options: Any) -> str:
         raise
 
 
-def _print_event(console: Console, event: runner.Event, *, dry: bool = False) -> None:
-    # console.out never reads markup or emoji codes and never wraps, so code and output appear as written.
-    match event:
-        case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs, directory=directory):
-            console.out(title, style="bold")
-            console.out(f"directory: {directory}")
-            if inputs:
-                console.out("inputs: " + " ".join(f"{name}={value}" for name, value in inputs))
-            for number, step in enumerate(steps, start=1):
-                console.out(f"  {number}. {step.name}")
-            console.out(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}")
-            if dry:
-                console.out("dry run: nothing will be run", style="yellow")
-        case runner.StepStarted(step=step):
-            console.out()
-            console.out(f"=== {step.name} ===", style="bold")
-        case runner.Docstring(text=text):
-            for line in text.splitlines():
-                console.out(line)
-        case runner.InputBlock(input=input) if dry:
-            console.out(f"input: {input.name} ({input.description}), asked here", style="yellow")
-        case runner.Confirm(text=text):
-            for line in text.splitlines():
-                console.out(line, style="yellow")
-        case runner.BlockStarted(code=code):
-            for line in runner.code_lines(code):
-                console.out(line, style="cyan")
-        case runner.BlockSkipped():
-            console.out("skipped", style="yellow")
-        case runner.OutputLine(text=text):
-            console.out(text)
-        case runner.BlockFinished(exit_code=exit_code, duration=duration):
-            console.out(
-                f"exit {exit_code} ({runner.format_duration(duration)})", style="green" if exit_code == 0 else "red"
-            )
-        case runner.RunFinished(status="ok", duration=duration):
-            console.out()
-            console.out(f"finished: ok ({runner.format_duration(duration)})", style="green")
-        case runner.RunFinished(status="dry"):
-            console.out()
-            console.out("finished: dry run, nothing was run", style="yellow")
-        case runner.RunFinished(status="aborted" | "interrupted" as status, step=step):
-            console.out()
-            where = "before starting" if step is None else f'at "{step.name}"'
-            console.out(f"finished: {status} {where}", style="red")
-        case runner.RunFinished(step=step, exit_code=exit_code):
-            assert step is not None  # always set when a run fails
-            console.out()
-            console.out(f'finished: failed at "{step.name}" (exit {exit_code})', style="red")
+# What a block prints is fenced off between these, so it can't be mistaken for its code or paulrun's own lines.
+LOG_START = "== LOG =="
+LOG_END = "========"
+
+
+@dataclass
+class _Printer:
+    """Prints run events in the terminal. It remembers whether a block's output has started, to fence it off."""
+
+    console: Console
+    dry: bool = False
+    step_by_step: bool = False
+    in_log: bool = False
+
+    def __call__(self, event: runner.Event) -> None:
+        # console.out never reads markup or emoji codes and never wraps, so code and output appear as written.
+        match event:
+            case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs, directory=directory):
+                self.console.out(title, style="bold")
+                self.console.out(f"directory: {directory}")
+                if inputs:
+                    self.console.out("inputs: " + " ".join(f"{name}={value}" for name, value in inputs))
+                for number, step in enumerate(steps, start=1):
+                    self.console.out(f"  {number}. {step.name}")
+                self.console.out(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}")
+                if self.dry:
+                    self.console.out("dry run: nothing will be run", style="yellow")
+            case runner.StepStarted(step=step):
+                self.console.out()
+                self.console.out(f"=== {step.name} ===", style="bold")
+            case runner.Docstring(text=text):
+                for line in text.splitlines():
+                    self.console.out(line)
+            case runner.InputBlock(input=input) if self.dry:
+                self.console.out(f"input: {input.name} ({input.description}), asked here", style="yellow")
+            case runner.Confirm(text=text):
+                for line in text.splitlines():
+                    self.console.out(line, style="yellow")
+            case runner.BlockStarted(code=code):
+                for line in runner.code_lines(code):
+                    self.console.out(line, style="cyan")
+                self.in_log = False
+                if self.step_by_step and not self.dry:
+                    # Space between the code and the question, so the answer isn't read as part of either.
+                    self.console.out()
+            case runner.BlockSkipped():
+                self.console.out("skipped", style="yellow")
+            case runner.OutputLine(text=text):
+                if not self.in_log:
+                    self.console.out()
+                    self.console.out(LOG_START, style="dim")
+                    self.in_log = True
+                self.console.out(text)
+            case runner.BlockFinished(exit_code=exit_code, duration=duration):
+                if self.in_log:
+                    self.console.out(LOG_END, style="dim")
+                    self.in_log = False
+                self.console.out()
+                self.console.out(
+                    f"exit {exit_code} ({runner.format_duration(duration)})", style="green" if exit_code == 0 else "red"
+                )
+            case runner.RunFinished(status="ok", duration=duration):
+                self.console.out()
+                self.console.out(f"finished: ok ({runner.format_duration(duration)})", style="green")
+            case runner.RunFinished(status="dry"):
+                self.console.out()
+                self.console.out("finished: dry run, nothing was run", style="yellow")
+            case runner.RunFinished(status="aborted" | "interrupted" as status, step=step):
+                self.console.out()
+                where = "before starting" if step is None else f'at "{step.name}"'
+                self.console.out(f"finished: {status} {where}", style="red")
+            case runner.RunFinished(step=step, exit_code=exit_code):
+                assert step is not None  # always set when a run fails
+                self.console.out()
+                self.console.out(f'finished: failed at "{step.name}" (exit {exit_code})', style="red")

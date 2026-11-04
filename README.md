@@ -68,7 +68,11 @@ Start? [y/N] y
 === Greet ===
 Saying hello to Paul.
     echo "Hello, Paul!"
+
+== LOG ==
 Hello, Paul!
+========
+
 exit 0 (0.0s)
 
 === Count the letters ===
@@ -76,7 +80,11 @@ exit 0 (0.0s)
 
     name = os.environ["NAME"]
     print(f"{name} has {len(name)} letters")
+
+== LOG ==
 Paul has 4 letters
+========
+
 exit 0 (0.1s)
 
 finished: ok (0.1s)

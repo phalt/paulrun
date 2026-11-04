@@ -57,12 +57,20 @@ Start? [y/N] y
 
 === Run the tests ===
     make test
+
+== LOG ==
 ...
+========
+
 exit 0 (4.2s)
 
 === Tag the release ===
     git tag 1.2.0
+
+== LOG ==
 ...
+========
+
 exit 0 (0.1s)
 
 === Publish on GitHub ===
@@ -148,12 +156,18 @@ paulrun --step RELEASING.md
 ```
 === Build ===
     echo "Building"
+
 Run this block? [y]es / [s]kip / [q]uit y
+
+== LOG ==
 Building
+========
+
 exit 0 (0.0s)
 
 === Publish ===
     echo "Publishing"
+
 Run this block? [y]es / [s]kip / [q]uit s
 skipped
 

@@ -72,13 +72,21 @@ Start? [y/N] y
 
 === Run the tests ===
     make test
+
+== LOG ==
 ...
+========
+
 exit 0 (4.2s)
 
 === Tag the release ===
     git tag 1.2.0
     git push origin 1.2.0
+
+== LOG ==
 ...
+========
+
 exit 0 (1.3s)
 
 === Publish on GitHub ===
