@@ -29,7 +29,7 @@ paulrun check rebuild-frontend  # find problems in it
 
 A file in the current directory always comes first, so a book never hides a runbook in your project. See [Naming a runbook](cli.md#naming-a-runbook).
 
-A book runs in the directory you're in, not in your library, and paulrun shows it as `directory:` before anything runs. See [Where blocks run](runbook-format.md#where-blocks-run).
+A book runs in the directory you're in, not in your library, and paulrun shows it as `directory` before anything runs. See [Where blocks run](runbook-format.md#where-blocks-run).
 
 ## Finding a book
 

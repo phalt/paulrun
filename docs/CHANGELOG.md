@@ -1,5 +1,17 @@
 # Change log
 
+## 0.6.0
+
+- `paulrun run`'s output is easier to scan:
+    - the overview and how the run finished are in boxes
+    - each step is a numbered blue rule, e.g. `1/3  Build`
+    - each block is a bracket: `┌` with its language and when it started (`HH:MM:SS.mmm`), each line it printed after `│`, then `└ ✓ exit 0 · 0.4s` or `└ ✗ exit 3 · 0.4s`
+    - docstrings are dim, and confirms are in a yellow box
+- A line a block writes to stderr has a red `│`.
+- Code is hidden unless you pass `--show-code`. `--dry` always shows it.
+- The transcript is unchanged.
+- Backends: `output` takes an optional `stderr=True` for a stderr line, and `stream()` passes it when `output` accepts it. A backend that calls `output(line)` still works.
+
 ## 0.5.0
 
 - A block's output is fenced off between `=== LOG: <when it started> ===` and `========`, with the time to the microsecond and a blank line either side, so it can't be mistaken for the block's code or paulrun's own lines. A block that prints nothing gets no LOG section. Under `--step`, a blank line comes before and after `Run this block?` too. The transcript is unchanged.

@@ -63,39 +63,37 @@ paulrun asks for the version, shows you the plan, and runs each step in order, s
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
-Release my-package
-directory: /home/you/Projects/my-package
-inputs: VERSION=1.2.0
-  1. Run the tests
-  2. Tag the release
-  3. Publish on GitHub
-2 run blocks
+╭─ Release my-package ─────────────────────╮
+│ directory  /home/you/Projects/my-package │
+│ inputs     VERSION=1.2.0                 │
+│ steps      1. Run the tests              │
+│            2. Tag the release            │
+│            3. Publish on GitHub          │
+│ blocks     2 run blocks                  │
+╰──────────────────────────────────────────╯
 Start? [y/N] y
 
-=== Run the tests ===
-    make test
+1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
+  ┌ sh · 10:02:13.482
+  │ ...
+  └ ✓ exit 0 · 4.2s
 
-exit 0 (4.2s)
+2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Tag the release ===
-    git tag 1.2.0
-    git push origin 1.2.0
+  ┌ sh · 10:02:17.705
+  │ ...
+  └ ✓ exit 0 · 1.3s
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
-
-exit 0 (1.3s)
-
-=== Publish on GitHub ===
-Create a GitHub release from tag 1.2.0.
+3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╭─ confirm ───────────────────────────────╮
+│ Create a GitHub release from tag 1.2.0. │
+╰─────────────────────────────────────────╯
 Continue? [y/N] y
 
-finished: ok (12.8s)
+╭───────────────────────╮
+│ ✓ finished ok · 12.8s │
+╰───────────────────────╯
 transcript: logs/release-1.2.0.md
 ```
 

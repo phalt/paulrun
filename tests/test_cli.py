@@ -1150,6 +1150,14 @@ def test_run_help_describes_step(runner):
     assert "step: true" in result.output
 
 
+def test_run_help_describes_show_code(runner):
+    """run --help lists --show-code, and says --dry always shows code."""
+    result = runner.invoke(cli.cli, ["run", "--help"])
+
+    assert "--show-code" in result.output
+    assert "--dry always shows it." in " ".join(result.output.split())
+
+
 def test_run_help_describes_dry(runner):
     """run --help lists --dry."""
     result = runner.invoke(cli.cli, ["run", "--help"])
