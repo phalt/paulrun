@@ -58,7 +58,7 @@ Start? [y/N] y
 === Run the tests ===
     make test
 
-== LOG ==
+=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
 ...
 ========
 
@@ -67,7 +67,7 @@ exit 0 (4.2s)
 === Tag the release ===
     git tag 1.2.0
 
-== LOG ==
+=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
 ...
 ========
 
@@ -159,7 +159,7 @@ paulrun --step RELEASING.md
 
 Run this block? [y]es / [s]kip / [q]uit y
 
-== LOG ==
+=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
 Building
 ========
 

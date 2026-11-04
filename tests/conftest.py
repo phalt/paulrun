@@ -1,7 +1,9 @@
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
+from paulrun import cli
 from paulrun.backends import shell
 
 
@@ -15,6 +17,17 @@ def started_in(tmp_path_factory, monkeypatch) -> Path:
     directory = tmp_path_factory.mktemp("started-in")
     monkeypatch.chdir(directory)
     return directory
+
+
+# The time every LOG line shows in tests, as cli.log_start writes it.
+LOG_AT = datetime(2026, 11, 4, 10, 2, 13, 482915, tzinfo=timezone(timedelta(hours=1)))
+LOG_LINE = cli.log_start(LOG_AT)
+
+
+@pytest.fixture(autouse=True)
+def fixed_log_time(monkeypatch) -> None:
+    """Stop the clock for the LOG lines, so tests can match output exactly."""
+    monkeypatch.setattr(cli, "_now", lambda: LOG_AT)
 
 
 @pytest.fixture(autouse=True)

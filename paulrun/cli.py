@@ -2,6 +2,7 @@ import os
 import sys
 from contextlib import nullcontext
 from dataclasses import dataclass
+from datetime import datetime
 from importlib.metadata import EntryPoint
 from pathlib import Path
 from typing import Any
@@ -365,9 +366,18 @@ def _prompt(text: str, **options: Any) -> str:
         raise
 
 
-# What a block prints is fenced off between these, so it can't be mistaken for its code or paulrun's own lines.
-LOG_START = "== LOG =="
+# What a block prints is fenced off between log_start and LOG_END, so it can't be mistaken for its code or
+# paulrun's own lines.
 LOG_END = "========"
+
+
+def log_start(at: datetime) -> str:
+    """The line before a block's output, with when the output started, to the microsecond."""
+    return f"=== LOG: {at.isoformat(timespec='microseconds')} ==="
+
+
+def _now() -> datetime:
+    return datetime.now().astimezone()
 
 
 @dataclass
@@ -415,7 +425,7 @@ class _Printer:
             case runner.OutputLine(text=text):
                 if not self.in_log:
                     self.console.out()
-                    self.console.out(LOG_START, style="dim")
+                    self.console.out(log_start(_now()), style="dim")
                     self.in_log = True
                 self.console.out(text)
             case runner.BlockFinished(exit_code=exit_code, duration=duration):

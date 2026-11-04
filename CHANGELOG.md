@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- A block's output is fenced off between `== LOG ==` and `========`, with a blank line either side, so it can't be mistaken for the block's code or paulrun's own lines. A block that prints nothing gets no LOG section. Under `--step`, a blank line comes before and after `Run this block?` too. The transcript is unchanged.
+- A block's output is fenced off between `=== LOG: <when it started> ===` and `========`, with the time to the microsecond and a blank line either side, so it can't be mistaken for the block's code or paulrun's own lines. A block that prints nothing gets no LOG section. Under `--step`, a blank line comes before and after `Run this block?` too. The transcript is unchanged.
 
 ## 0.4.0
 

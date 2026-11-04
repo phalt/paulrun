@@ -7,6 +7,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from datetime import datetime, timezone
 from importlib.metadata import EntryPoint
 from pathlib import Path
 
@@ -257,7 +258,7 @@ def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
             echo hello
             echo world
 
-        == LOG ==
+        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
         hello
         world
         ========
@@ -267,7 +268,7 @@ def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
         === Again ===
             echo again
 
-        == LOG ==
+        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
         again
         ========
 
@@ -296,7 +297,7 @@ def test_run_fences_off_output_only_when_a_block_prints_something(runner, tmp_pa
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
 
     assert result.exit_code == 0
-    assert cli.LOG_START not in result.output
+    assert "=== LOG:" not in result.output
     assert re.search(r"^    true\n\nexit 0 \(\d+\.\ds\)$", result.output, re.MULTILINE)
 
 
@@ -820,7 +821,7 @@ def test_run_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, st
         Building 1.2.0. This only echoes; nothing is built.
             echo "Built 1.2.0"
 
-        == LOG ==
+        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
         Built 1.2.0
         ========
 
@@ -831,7 +832,7 @@ def test_run_prints_docstrings_and_waits_at_confirms(runner, confirm_runbook, st
         Continue? [y/N] y
             echo "Released 1.2.0"
 
-        == LOG ==
+        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
         Released 1.2.0
         ========
 
@@ -967,7 +968,7 @@ def test_run_step_runs_skips_and_quits_block_by_block(runner, started_in):
 
         Run this block? [y]es / [s]kip / [q]uit y
 
-        == LOG ==
+        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
         Building
         ========
 
@@ -1045,7 +1046,7 @@ def test_run_steps_through_a_runbook_with_step_in_its_frontmatter(runner, starte
 
         Run this block? [y]es / [s]kip / [q]uit y
 
-        == LOG ==
+        === LOG: 2026-11-04T10:02:13.482915+01:00 ===
         Restarting
         ========
 
@@ -1793,7 +1794,7 @@ def test_run_runs_an_external_backends_blocks(runner, external_backend, tmp_path
         "    hello",
         "    world",
         "",
-        "== LOG ==",
+        "=== LOG: 2026-11-04T10:02:13.482915+01:00 ===",
         "echo: hello",
         "echo: world",
     ]
@@ -1904,7 +1905,7 @@ def test_run_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_r
         "PR (The number GitHub gave the pull request): 42",
         '    echo "Merging pull request 42 for 1.2.0"',
         "",
-        "== LOG ==",
+        "=== LOG: 2026-11-04T10:02:13.482915+01:00 ===",
         "Merging pull request 42 for 1.2.0",
         "========",
         "",
@@ -1914,7 +1915,7 @@ def test_run_asks_for_input_blocks_as_the_run_reaches_them(runner, input_block_r
         "OTP (The code from your authenticator app): ",  # a secret isn't echoed as it's typed
         '    echo "Publishing 1.2.0 with code $OTP"',
         "",
-        "== LOG ==",
+        "=== LOG: 2026-11-04T10:02:13.482915+01:00 ===",
         "Publishing 1.2.0 with code ****",
         "========",
         "",
@@ -1972,3 +1973,10 @@ def test_inputs_still_lists_frontmatter_inputs_when_the_body_cannot_be_read(runn
     assert result.exit_code == 0
     assert result.output.splitlines()[0].startswith("VERSION ")
     assert "asked in" not in result.output
+
+
+def test_log_start_shows_when_the_output_started_to_the_microsecond():
+    """The LOG line has the full local time, with microseconds even when they're 0, and the UTC offset."""
+    at = datetime(2026, 11, 4, 9, 5, 7, 0, tzinfo=timezone.utc)
+
+    assert cli.log_start(at) == "=== LOG: 2026-11-04T09:05:07.000000+00:00 ==="

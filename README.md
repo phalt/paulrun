@@ -69,7 +69,7 @@ Start? [y/N] y
 Saying hello to Paul.
     echo "Hello, Paul!"
 
-== LOG ==
+=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
 Hello, Paul!
 ========
 
@@ -81,7 +81,7 @@ exit 0 (0.0s)
     name = os.environ["NAME"]
     print(f"{name} has {len(name)} letters")
 
-== LOG ==
+=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
 Paul has 4 letters
 ========
 
