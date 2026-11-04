@@ -11,6 +11,7 @@ from paulrun import cli
 from paulrun.backends import load_backends
 from paulrun.runbook import parse
 from paulrun.validate import validate
+from tests.output import finished, normalized, printed
 
 ROOT = Path(__file__).parent.parent
 EXAMPLES = ROOT / "examples"
@@ -53,10 +54,10 @@ def test_hello_runs_end_to_end(runner, monkeypatch):
     result = runner.invoke(cli.cli, ["run", str(EXAMPLES / "hello.md")], input="Paul\ny\n")
 
     assert result.exit_code == 0, result.output
-    lines = result.output.splitlines()
+    lines = printed(result.output)
     assert "Hello, Paul!" in lines
     assert "Paul has 4 letters" in lines
-    assert lines[-1].startswith("finished: ok")
+    assert finished(result.output).startswith("✓ finished ok")
 
 
 @pytest.mark.parametrize("path", RELEASES, ids=lambda path: path.name)
@@ -72,13 +73,14 @@ def test_a_dry_release_shows_every_step_for_the_version(path, runner, tmp_path, 
     result = runner.invoke(cli.cli, ["run", "--dry", str(copy)])
 
     assert result.exit_code == 0, result.output
-    lines = result.output.splitlines()
-    assert "inputs: VERSION=9.9.9 UV_PUBLISH_TOKEN=****" in lines
-    for step in parse(path).steps:
-        assert f"=== {step.name} ===" in lines
-    assert "    git tag 9.9.9" in lines
-    assert "    git push origin 9.9.9" in lines
-    assert any("releases/new?tag=9.9.9" in line for line in lines)
+    assert "│ inputs     VERSION=9.9.9 UV_PUBLISH_TOKEN=**** │" in normalized(result.output).splitlines()
+    steps = parse(path).steps
+    for number, step in enumerate(steps, start=1):
+        assert f"{number}/{len(steps)}  {step.name} ━" in normalized(result.output).splitlines()
+    lines = printed(result.output)
+    assert "git tag 9.9.9" in lines
+    assert "git push origin 9.9.9" in lines
+    assert "releases/new?tag=9.9.9" in result.output
     assert "<VERSION>" not in result.output
-    assert lines[-1] == "finished: dry run, nothing was run"
+    assert finished(result.output) == "dry run, nothing was run"
     assert sorted(path.name for path in tmp_path.iterdir()) == [copy.name]

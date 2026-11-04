@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from paulrun.backends import Interrupted, _kill_tree, stream
+from tests.output import finished, printed
 
 
 def start_in_own_group(command: list[str], **kwargs) -> subprocess.Popen:
@@ -167,8 +168,8 @@ def test_run_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runboo
     exit_code, output = run_paulrun(path, answers="y\n", at=tmp_path / "started")
 
     assert exit_code == 1
-    assert "stopping cleanly" in output.splitlines()
-    assert 'finished: interrupted at "Slow"' in output.splitlines()
+    assert "stopping cleanly" in printed(output)
+    assert finished(output) == '✗ interrupted at "Slow"'
     assert "Traceback" not in output
     assert not (tmp_path / "later-ran").exists()
     transcript = (tmp_path / "transcript.md").read_text()
@@ -197,7 +198,7 @@ def test_run_ctrl_c_at_a_confirm_finishes_as_interrupted(runbook, tmp_path):
     exit_code, output = run_paulrun(path, answers="y\n", at="Continue? [y/N] ")
 
     assert exit_code == 1
-    assert 'finished: interrupted at "Manual"' in output.splitlines()
+    assert finished(output) == '✗ interrupted at "Manual"'
     assert "Aborted!" not in output
     transcript = (tmp_path / "transcript.md").read_text()
     assert "confirm:" not in transcript
@@ -211,7 +212,7 @@ def test_run_ctrl_c_before_starting_writes_no_transcript(runbook, tmp_path):
     exit_code, output = run_paulrun(path, answers="", at="Start? [y/N] ")
 
     assert exit_code == 1
-    assert output.rstrip().endswith("finished: interrupted before starting")
+    assert finished(output) == "✗ interrupted before starting"
     assert not (tmp_path / "transcript.md").exists()
     assert not (tmp_path / "ran").exists()
 
