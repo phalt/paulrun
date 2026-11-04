@@ -487,7 +487,8 @@ class _Printer:
     ) -> None:
         grid = Table.grid(padding=(0, 2))
         grid.add_column(style=FRAME)
-        grid.add_column()
+        # Fold rather than cut a value too long for the box, so a long directory is still shown whole.
+        grid.add_column(overflow="fold")
         grid.add_row(Text("directory"), Text(str(directory)))
         if inputs:
             grid.add_row(Text("inputs"), Text(" ".join(f"{name}={value}" for name, value in inputs)))

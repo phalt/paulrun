@@ -18,7 +18,7 @@ from click.testing import CliRunner
 from paulrun import backends, cli
 from paulrun import runner as runner_module
 from paulrun.backends import BackendError, Problem
-from tests.output import finished, normalized, printed, title
+from tests.output import finished, normalized, overview, printed, title
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
 LIBRARY = Path(__file__).parent / "library"
@@ -217,7 +217,8 @@ def test_run_prints_the_directory_blocks_run_in_after_the_title(runner, tmp_path
 
         assert result.exit_code == 0
         assert title(result.output) == "Test"
-        assert result.output.splitlines()[1] == f"│ directory  {started_in} │"
+        assert next(iter(overview(result.output))) == "directory"
+        assert "".join(overview(result.output)["directory"]) == str(started_in)
 
 
 def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
@@ -271,6 +272,22 @@ def test_run_prints_each_step_block_and_result(runner, tmp_path, started_in):
         ╰─╯
         """
     )
+
+
+def test_run_shows_a_directory_too_long_for_the_box_in_full(runner, tmp_path, monkeypatch):
+    """A long path, like macOS's temporary directories, carries on over more rows rather than being cut short."""
+    deep = tmp_path / ("a-very-long-directory-name-" * 4) / "and-then-some-more"
+    deep.mkdir(parents=True)
+    monkeypatch.chdir(deep)
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
+
+    assert result.exit_code == 0
+    assert "…" not in result.output
+    assert len(overview(result.output)["directory"]) > 1
+    assert "".join(overview(result.output)["directory"]) == str(deep)
+    assert all(len(line) <= 80 for line in result.output.splitlines())
 
 
 def test_run_runs_blocks_in_the_directory_it_is_started_from(runner, started_in):

@@ -16,7 +16,7 @@ from paulrun import backends, cli
 from paulrun.backends import Backend, Problem, load_backends
 from paulrun.runbook import parse
 from paulrun.validate import validate
-from tests.output import normalized, printed
+from tests.output import normalized, overview, printed
 
 ROOT = Path(__file__).parent.parent
 DOCS = ROOT / "docs"
@@ -115,7 +115,11 @@ def test_the_readme_example_runs_as_written(runner, tmp_path, monkeypatch, witho
         output = "".join(result.output for result in results)
         assert without_times(normalized(output)) == without_times(normalized(shown))
         # The directory is only swapped for DIR above, so check it's really where paulrun ran.
-        assert all(f"│ directory  {tmp_path} " in result.output for result in results if "directory" in result.output)
+        assert all(
+            "".join(overview(result.output)["directory"]) == str(tmp_path)
+            for result in results
+            if result.output.startswith("╭─ ") or "\n╭─ " in result.output
+        )
 
 
 def test_the_backends_page_shows_the_real_backend_protocol():
