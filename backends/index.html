@@ -952,16 +952,17 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
         <span class="n">frontmatter</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
         <span class="n">env</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">cwd</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
-        <span class="n">output</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Output</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Run a block and return its exit code, where 0 means it succeeded.</span>
 
-<span class="sd">        Call output with each line the block prints, without its newline, as soon as it's printed.</span>
+<span class="sd">        Call output with each line the block prints, without its newline, as soon as it's printed, and</span>
+<span class="sd">        stderr=True for a line it wrote to stderr.</span>
 <span class="sd">        Don't print anything directly; paulrun owns the terminal. frontmatter is the runbook's</span>
 <span class="sd">        frontmatter, read-only. env is the block's complete environment and cwd is where it runs.</span>
 <span class="sd">        """</span>
 </code></pre></div>
-<p>Everything a backend needs is in <code>paulrun.backends</code> (<code>Problem</code>, <code>stream</code> and <code>Interrupted</code>) and <code>paulrun.inputs</code> (<code>PLACEHOLDER</code>).</p>
+<p>Everything a backend needs is in <code>paulrun.backends</code> (<code>Problem</code>, <code>Output</code>, <code>stream</code> and <code>Interrupted</code>) and <code>paulrun.inputs</code> (<code>PLACEHOLDER</code>).</p>
 <h3 id="validate">validate()</h3>
 <p><code>paulrun check</code> and <code>paulrun run</code> call <code>validate()</code> on every block before anything runs. It returns a list of <code>Problem</code>s:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -993,16 +994,16 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 <li><code>frontmatter</code>: the runbook's frontmatter, read-only, for settings of your own.</li>
 <li><code>env</code>: the block's complete environment. Pass it on as it is.</li>
 <li><code>cwd</code>: where the block runs, the folder paulrun was started from.</li>
-<li><code>output</code>: call it with each line the block prints, as it's printed.</li>
+<li><code>output</code>: call it with each line the block prints, as it's printed. Pass <code>stderr=True</code> for a line the block wrote to stderr, and paulrun marks it with a red <code>│</code>. <code>output(line)</code> alone is fine too: the line is shown like stdout.</li>
 </ul>
 <p>It returns the block's exit code. A backend never prints: paulrun shows each line, masks secrets and records the transcript.</p>
 <h3 id="stream">stream()</h3>
 <p>Most backends run a command, and <code>stream()</code> does all of that for you:</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream</span><span class="p">(</span><span class="n">command</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">cwd</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream</span><span class="p">(</span><span class="n">command</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">cwd</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 </code></pre></div>
 <p>It runs <code>command</code>, passes each line to <code>output</code> as it's printed, and returns the exit code. The built-in backends use it, because it gets the details right:</p>
 <ul>
-<li><strong>stdout and stderr are merged</strong>, in the order they were printed.</li>
+<li><strong>stderr is marked.</strong> Each line the command writes to stderr goes to <code>output</code> with <code>stderr=True</code>. stdout and stderr are read separately, so two lines written to them at almost the same moment can arrive in either order. Given an <code>output</code> that only takes the line, <code>stream()</code> merges them instead, in the order they were printed.</li>
 <li><strong>The command shares paulrun's terminal</strong>, so it can still ask for a password.</li>
 <li><strong>Ctrl-C works.</strong> The first press lets the command stop by itself; a second kills it and everything it started. Then <code>stream()</code> raises <code>Interrupted</code> with the exit code.</li>
 </ul>
@@ -1089,7 +1090,7 @@ shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
 <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Hello from Node </span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">version</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
 <span class="sb">```</span>
 </code></pre></div>
-<p>To test a backend, call its methods directly: <code>run()</code> with <code>output=lines.append</code>, then check the exit code and lines, and <code>validate()</code> on a broken block. See <a href="https://github.com/phalt/paulrun/tree/main/tests/backends">paulrun's backend tests</a>.</p>
+<p>To test a backend, call its methods directly: <code>run()</code> with <code>output=lines.append</code>, then check the exit code and lines (or <code>output=lambda line, stderr=False: lines.append((line, stderr))</code> to check which stream each came from), and <code>validate()</code> on a broken block. See <a href="https://github.com/phalt/paulrun/tree/main/tests/backends">paulrun's backend tests</a>.</p>
 <h3 id="things-to-know">Things to know</h3>
 <ul>
 <li><strong>Each language can only have one backend.</strong> If two claim the same language, paulrun stops with an error naming both.</li>

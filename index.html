@@ -794,8 +794,8 @@
 
 <h1 id="paulrun">🏃‍♂️‍➡️📕 paulrun</h1>
 <h2 id="what-is-paulrun">What is paulrun?</h2>
-<p>paulrun runs hand-written markdown runbooks.</p>
-<p>A runbook is a normal markdown file that a person can read and follow without paulrun. Mark a code block <code>run</code>, and paulrun runs it for you. Everything else stays documentation.</p>
+<p>paulrun executes the code blocks in your markdown file, turning them into runbooks.</p>
+<p>A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block <code>run</code>, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.</p>
 <div style="text-align: center; padding-top:10px;">
 <p>
     <a href="https://pypi.org/project/paulrun">
@@ -806,6 +806,7 @@
 </p>
 </div>
 
+<p><img alt="paulrun running a runbook, in a dark and a light terminal" src="example.png" /></p>
 <h2 id="example-runbook">Example runbook</h2>
 <div class="highlight"><pre><span></span><code>---
 title: Release my-package
@@ -843,39 +844,37 @@ paulrun<span class="w"> </span>RELEASING.md
 </code></pre></div>
 <p>paulrun asks for the version, shows you the plan, and runs each step in order, streaming every command's output as it goes. It stops at the first command that fails, and waits for you at the GitHub step, since that one is done by hand:</p>
 <div class="highlight"><pre><span></span><code>VERSION (The version to release, e.g. 1.2.0): 1.2.0
-Release my-package
-directory: /home/you/Projects/my-package
-inputs: VERSION=1.2.0
-  1. Run the tests
-  2. Tag the release
-  3. Publish on GitHub
-2 run blocks
+╭─ Release my-package ─────────────────────╮
+│ directory  /home/you/Projects/my-package │
+│ inputs     VERSION=1.2.0                 │
+│ steps      1. Run the tests              │
+│            2. Tag the release            │
+│            3. Publish on GitHub          │
+│ blocks     2 run blocks                  │
+╰──────────────────────────────────────────╯
 Start? [y/N] y
 
-=== Run the tests ===
-    make test
+1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
+  ┌ sh · 10:02:13.482
+  │ ...
+  └ ✓ exit 0 · 4.2s
 
-exit 0 (4.2s)
+2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Tag the release ===
-    git tag 1.2.0
-    git push origin 1.2.0
+  ┌ sh · 10:02:17.705
+  │ ...
+  └ ✓ exit 0 · 1.3s
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
-
-exit 0 (1.3s)
-
-=== Publish on GitHub ===
-Create a GitHub release from tag 1.2.0.
+3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╭─ confirm ───────────────────────────────╮
+│ Create a GitHub release from tag 1.2.0. │
+╰─────────────────────────────────────────╯
 Continue? [y/N] y
 
-finished: ok (12.8s)
+╭───────────────────────╮
+│ ✓ finished ok · 12.8s │
+╰───────────────────────╯
 transcript: logs/release-1.2.0.md
 </code></pre></div>
 <p>Every run is also recorded in <code>logs/release-1.2.0.md</code>, so you can see afterwards exactly what ran and what it printed.</p>

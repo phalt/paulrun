@@ -568,6 +568,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#-show-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --show-code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#picking-a-book" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -820,6 +831,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#-show-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --show-code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#picking-a-book" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -944,12 +966,12 @@
 
 
 <h1 id="command-line">📟 Command line</h1>
-<div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="w"> </span><span class="p">|</span><span class="w"> </span>--no-step<span class="o">]</span><span class="w">      </span><span class="c1"># run a runbook</span>
-paulrun<span class="w"> </span>run<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="w"> </span><span class="p">|</span><span class="w"> </span>--no-step<span class="o">]</span><span class="w">  </span><span class="c1"># the same, in full</span>
-paulrun<span class="w"> </span>check<span class="w"> </span>RUNBOOK<span class="w">                             </span><span class="c1"># find problems without running anything</span>
-paulrun<span class="w"> </span>inputs<span class="w"> </span>RUNBOOK<span class="w">                            </span><span class="c1"># list the inputs a runbook needs</span>
-paulrun<span class="w"> </span>library<span class="w">                                   </span><span class="c1"># list the books in your runbook library</span>
-paulrun<span class="w"> </span>backends<span class="w">                                  </span><span class="c1"># list the languages paulrun can run</span>
+<div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="w"> </span><span class="p">|</span><span class="w"> </span>--no-step<span class="o">]</span><span class="w"> </span><span class="o">[</span>--show-code<span class="o">]</span><span class="w">      </span><span class="c1"># run a runbook</span>
+paulrun<span class="w"> </span>run<span class="w"> </span>RUNBOOK<span class="w"> </span><span class="o">[</span>--dry<span class="o">]</span><span class="w"> </span><span class="o">[</span>--step<span class="w"> </span><span class="p">|</span><span class="w"> </span>--no-step<span class="o">]</span><span class="w"> </span><span class="o">[</span>--show-code<span class="o">]</span><span class="w">  </span><span class="c1"># the same, in full</span>
+paulrun<span class="w"> </span>check<span class="w"> </span>RUNBOOK<span class="w">                                           </span><span class="c1"># find problems without running anything</span>
+paulrun<span class="w"> </span>inputs<span class="w"> </span>RUNBOOK<span class="w">                                          </span><span class="c1"># list the inputs a runbook needs</span>
+paulrun<span class="w"> </span>library<span class="w">                                                 </span><span class="c1"># list the books in your runbook library</span>
+paulrun<span class="w"> </span>backends<span class="w">                                                </span><span class="c1"># list the languages paulrun can run</span>
 paulrun<span class="w"> </span>--version
 </code></pre></div>
 <p><code>paulrun</code> on its own shows this list.</p>
@@ -974,54 +996,64 @@ paulrun<span class="w"> </span>rebuild-frontend<span class="w">    </span><span 
 <li><strong>Checks the runbook</strong>, as <a href="#paulrun-check"><code>paulrun check</code></a> does. Errors stop it here.</li>
 <li><strong>Collects the inputs</strong>. See <a href="../runbook-format/#inputs">Inputs</a>.</li>
 <li><strong>Shows the plan</strong> and asks <code>Start? [y/N]</code>.</li>
-<li><strong>Runs each step in order</strong>, streaming each block's output as it's printed.</li>
+<li><strong>Runs each step in order</strong>, streaming each block's output as it's printed. Each block shows its language and when it started, then what it printed, then its exit code and how long it took. A line it wrote to stderr has a red <code>│</code>.</li>
 </ol>
 <div class="highlight"><pre><span></span><code>VERSION (The version to release, e.g. 1.2.0): 1.2.0
-Release my-package
-directory: /home/you/Projects/my-package
-inputs: VERSION=1.2.0
-  1. Run the tests
-  2. Tag the release
-  3. Publish on GitHub
-2 run blocks
+╭─ Release my-package ─────────────────────╮
+│ directory  /home/you/Projects/my-package │
+│ inputs     VERSION=1.2.0                 │
+│ steps      1. Run the tests              │
+│            2. Tag the release            │
+│            3. Publish on GitHub          │
+│ blocks     2 run blocks                  │
+╰──────────────────────────────────────────╯
 Start? [y/N] y
 
-=== Run the tests ===
-    make test
+1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
+  ┌ sh · 10:02:13.482
+  │ ...
+  └ ✓ exit 0 · 4.2s
 
-exit 0 (4.2s)
+2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Tag the release ===
-    git tag 1.2.0
+  ┌ sh · 10:02:17.705
+  └ ✓ exit 0 · 0.1s
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-...
-========
-
-exit 0 (0.1s)
-
-=== Publish on GitHub ===
-Create a GitHub release from tag 1.2.0.
+3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╭─ confirm ───────────────────────────────╮
+│ Create a GitHub release from tag 1.2.0. │
+╰─────────────────────────────────────────╯
 Continue? [y/N] y
 
-finished: ok (12.8s)
+╭───────────────────────╮
+│ ✓ finished ok · 12.8s │
+╰───────────────────────╯
 transcript: logs/release-1.2.0.md
 </code></pre></div>
-<p><code>directory:</code> is where blocks will run. See <a href="../runbook-format/#where-blocks-run">Where blocks run</a>.</p>
+<p><code>directory</code> is where blocks will run. See <a href="../runbook-format/#where-blocks-run">Where blocks run</a>.</p>
 <p>The run stops at the first block that fails:</p>
-<div class="highlight"><pre><span></span><code>=== Build ===
-    echo "Building"
-    exit 2
-Building
-exit 2 (0.0s)
+<div class="highlight"><pre><span></span><code>1/1  Build ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-finished: failed at "Build" (exit 2)
+  ┌ sh · 10:02:13.482
+  │ Building
+  │ make: *** [build] Error 2
+  └ ✗ exit 2 · 0.0s
+
+╭─────────────────────────────────────╮
+│ ✗ failed at "Build" (exit 2) · 0.0s │
+╰─────────────────────────────────────╯
 </code></pre></div>
 <p>Only <code>y</code> answers <code>Start?</code> and <code>Continue?</code> with yes. Anything else, including enter, ends the run as aborted.</p>
+<h3 id="-show-code">--show-code</h3>
+<p>Shows each block's code above what it printed:</p>
+<div class="highlight"><pre><span></span><code>  ┌ sh · 10:02:13.482
+  │ echo "Building"
+  ├ output
+  │ Building
+  └ ✓ exit 0 · 0.0s
+</code></pre></div>
+<p><code>--dry</code> always shows the code.</p>
 <h3 id="picking-a-book">Picking a book</h3>
 <p>With no runbook, <code>paulrun run</code> asks which book from your library to run:</p>
 <div class="highlight"><pre><span></span><code>$ paulrun run
@@ -1040,56 +1072,65 @@ Run which? (q to quit) 1
 <li>Secrets and <a href="../runbook-format/#input-blocks">input blocks</a> aren't asked for.</li>
 </ul>
 <div class="highlight"><pre><span></span><code>VERSION (The version to release, e.g. 1.2.0): 1.2.0
-Release my-package
-directory: /home/you/Projects/my-package
-inputs: VERSION=1.2.0
-  1. Run the tests
-  2. Tag the release
-  3. Publish on GitHub
-2 run blocks
+╭─ Release my-package ─────────────────────╮
+│ directory  /home/you/Projects/my-package │
+│ inputs     VERSION=1.2.0                 │
+│ steps      1. Run the tests              │
+│            2. Tag the release            │
+│            3. Publish on GitHub          │
+│ blocks     2 run blocks                  │
+╰──────────────────────────────────────────╯
 dry run: nothing will be run
 
-=== Run the tests ===
-    make test
+1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-=== Tag the release ===
-    git tag 1.2.0
+  ┌ sh
+  │ make test
+  └ not run
 
-=== Publish on GitHub ===
-Create a GitHub release from tag 1.2.0.
+2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-finished: dry run, nothing was run
+  ┌ sh
+  │ git tag 1.2.0
+  └ not run
+
+3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╭─ confirm ───────────────────────────────╮
+│ Create a GitHub release from tag 1.2.0. │
+╰─────────────────────────────────────────╯
+
+╭──────────────────────────╮
+│ dry run, nothing was run │
+╰──────────────────────────╯
 </code></pre></div>
 <h3 id="-step">--step</h3>
 <p>Asks before running each <code>run</code> block.</p>
 <div class="highlight"><pre><span></span><code>paulrun<span class="w"> </span>--step<span class="w"> </span>RELEASING.md
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>=== Build ===
-    echo "Building"
+<div class="highlight"><pre><span></span><code>1/2  Build ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Run this block? [y]es / [s]kip / [q]uit y
+  ┌ sh · 10:02:13.482
+  ├ Run this block? [y]es / [s]kip / [q]uit y
+  │ Building
+  └ ✓ exit 0 · 0.0s
 
-=== LOG: 2026-11-04T10:02:13.482915+01:00 ===
-Building
-========
+2/2  Publish ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-exit 0 (0.0s)
+  ┌ sh · 10:02:13.486
+  ├ Run this block? [y]es / [s]kip / [q]uit s
+  └ ↷ skipped
 
-=== Publish ===
-    echo "Publishing"
-
-Run this block? [y]es / [s]kip / [q]uit s
-skipped
-
-finished: ok (0.0s)
+╭──────────────────────╮
+│ ✓ finished ok · 0.0s │
+╰──────────────────────╯
 </code></pre></div>
-<p><code>y</code> runs the block, <code>s</code> skips it, and <code>q</code> ends the run as aborted. With <code>--dry</code>, <code>--step</code> does nothing, since nothing runs.</p>
+<p><code>y</code> runs the block, <code>s</code> skips it, and <code>q</code> ends the run as aborted. The code isn't shown unless you add <code>--show-code</code>. With <code>--dry</code>, <code>--step</code> does nothing, since nothing runs.</p>
 <p>A runbook that should always be run this way can set <a href="../runbook-format/#frontmatter"><code>step: true</code></a> in its frontmatter, so you don't need to remember <code>--step</code>. To run one of those straight through, pass <code>--no-step</code>.</p>
 <h3 id="pressing-ctrl-c">Pressing Ctrl-C</h3>
 <ul>
 <li>A running block gets the Ctrl-C too, and paulrun waits for it to stop.</li>
 <li>If a block ignores it, press Ctrl-C again to stop the block and everything it started.</li>
-<li>The run ends as <code>finished: interrupted at "&lt;step&gt;"</code>.</li>
+<li>The run ends as <code>✗ interrupted at "&lt;step&gt;"</code>.</li>
 </ul>
 <h2 id="paulrun-check">paulrun check</h2>
 <p>Finds problems in a runbook without running anything.</p>
