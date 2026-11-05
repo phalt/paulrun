@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="518" height="700" viewBox="0 0 518 700" role="img" aria-label="paulrun checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok">
+<title>paulrun checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok</title>
+<style>
+text{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;white-space:pre}
+.a{animation-duration:16.0s;animation-iteration-count:infinite;animation-timing-function:step-end;opacity:1}
+.caret{animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+@keyframes fade{0%{opacity:1}96.250%{opacity:1;animation-timing-function:ease}100%{opacity:0}}
+@keyframes l0{0%{opacity:0}2.500%,100%{opacity:1}}@keyframes t0c2{0%,3.438%{transform:translateX(0);animation-timing-function:steps(22,end)}11.562%,100%{transform:translateX(184.8px)}}@keyframes k0{0%{opacity:0}2.500%{opacity:1}13.750%,100%{opacity:0}}@keyframes l1{0%{opacity:0}13.750%,100%{opacity:1}}@keyframes l2{0%{opacity:0}17.500%,100%{opacity:1}}@keyframes t2c2{0%,18.438%{transform:translateX(0);animation-timing-function:steps(16,end)}24.062%,100%{transform:translateX(134.4px)}}@keyframes k2{0%{opacity:0}17.500%{opacity:1}26.250%,100%{opacity:0}}@keyframes l3{0%{opacity:0}26.250%,100%{opacity:1}}@keyframes t3c28{0%,28.750%{transform:translateX(0);animation-timing-function:steps(4,end)}31.875%,100%{transform:translateX(33.6px)}}@keyframes k3{0%{opacity:0}26.250%{opacity:1}34.375%,100%{opacity:0}}@keyframes l4{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l5{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l6{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l7{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l8{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l9{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l10{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l11{0%{opacity:0}38.125%,100%{opacity:1}}@keyframes t11c13{0%,43.125%{transform:translateX(0);animation-timing-function:steps(1,end)}43.437%,100%{transform:translateX(8.4px)}}@keyframes k11{0%{opacity:0}38.125%{opacity:1}46.250%,100%{opacity:0}}@keyframes l12{0%{opacity:0}46.250%,100%{opacity:1}}@keyframes l13{0%{opacity:0}46.250%,100%{opacity:1}}@keyframes l14{0%{opacity:0}48.125%,100%{opacity:1}}@keyframes l15{0%{opacity:0}50.000%,100%{opacity:1}}@keyframes l16{0%{opacity:0}50.000%,100%{opacity:1}}@keyframes l17{0%{opacity:0}52.500%,100%{opacity:1}}@keyframes l18{0%{opacity:0}54.375%,100%{opacity:1}}@keyframes l19{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l20{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l21{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l22{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l23{0%{opacity:0}61.875%,100%{opacity:1}}@keyframes l24{0%{opacity:0}63.750%,100%{opacity:1}}@keyframes l25{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l26{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l27{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l28{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l29{0%{opacity:0}71.875%,100%{opacity:1}}@keyframes k29{0%{opacity:0}71.875%{opacity:1}100.000%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.a,.caret{animation:none!important}.cover,.k{display:none}}
+</style>
+<defs><clipPath id="screen"><rect x="0" y="34" width="518" height="666"/></clipPath></defs>
+<rect width="518" height="700" rx="10" fill="#1c1c1c"/>
+<path d="M0 10a10 10 0 0 1 10-10h498a10 10 0 0 1 10 10v24h-518z" fill="#2a2a2a"/>
+<circle cx="18" cy="17.0" r="5.5" fill="#555"/><circle cx="36" cy="17.0" r="5.5" fill="#555"/><circle cx="54" cy="17.0" r="5.5" fill="#555"/>
+<text x="259.0" y="22.0" text-anchor="middle" opacity=".5" fill="#d0d0d0" style="font-size:13px">~/hello</text>
+<g clip-path="url(#screen)" fill="#d0d0d0"><g class="a" style="animation-name:fade">
+<g class="a" style="animation-name:l0"><text x="24.0" y="67.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text><text x="40.8" y="67.8" textLength="184.8" lengthAdjust="spacingAndGlyphs">paulrun check hello.md</text>
+<g class="a cover" style="animation-name:t0c2"><rect x="40.8" y="52.0" width="193.2" height="21" fill="#1c1c1c"/></g>
+</g>
+<g class="a k" style="animation-name:k0"><g class="a" style="animation-name:t0c2"><rect class="caret" x="40.8" y="54.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+<g class="a" style="animation-name:l1"><text x="24.0" y="88.8" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">hello.md: ok</text>
+</g>
+<g class="a" style="animation-name:l2"><text x="24.0" y="109.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text><text x="40.8" y="109.8" textLength="134.4" lengthAdjust="spacingAndGlyphs">paulrun hello.md</text>
+<g class="a cover" style="animation-name:t2c2"><rect x="40.8" y="94.0" width="142.8" height="21" fill="#1c1c1c"/></g>
+</g>
+<g class="a k" style="animation-name:k2"><g class="a" style="animation-name:t2c2"><rect class="caret" x="40.8" y="96.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+<g class="a" style="animation-name:l3"><text x="24.0" y="130.8" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAME</text><text x="66.0" y="130.8" textLength="176.4" lengthAdjust="spacingAndGlyphs" opacity=".55">(Who to say hello to)</text><text x="242.4" y="130.8" textLength="8.4" lengthAdjust="spacingAndGlyphs">:</text><text x="259.2" y="130.8" textLength="33.6" lengthAdjust="spacingAndGlyphs">Paul</text>
+<g class="a cover" style="animation-name:t3c28"><rect x="259.2" y="115.0" width="42.0" height="21" fill="#1c1c1c"/></g>
+</g>
+<g class="a k" style="animation-name:k3"><g class="a" style="animation-name:t3c28"><rect class="caret" x="259.2" y="117.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+<g class="a" style="animation-name:l4"><text x="24.0" y="151.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">╭─</text><text x="49.2" y="151.8" textLength="75.6" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">Say hello</text><text x="133.2" y="151.8" textLength="184.8" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">─────────────────────╮</text>
+</g>
+<g class="a" style="animation-name:l5"><text x="24.0" y="172.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="172.8" textLength="75.6" lengthAdjust="spacingAndGlyphs" opacity=".55">directory</text><text x="133.2" y="172.8" textLength="126.0" lengthAdjust="spacingAndGlyphs">/home/you/hello</text><text x="309.6" y="172.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+</g>
+<g class="a" style="animation-name:l6"><text x="24.0" y="193.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="193.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">inputs</text><text x="133.2" y="193.8" textLength="75.6" lengthAdjust="spacingAndGlyphs">NAME=Paul</text><text x="309.6" y="193.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+</g>
+<g class="a" style="animation-name:l7"><text x="24.0" y="214.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="214.8" textLength="42.0" lengthAdjust="spacingAndGlyphs" opacity=".55">steps</text><text x="133.2" y="214.8" textLength="67.2" lengthAdjust="spacingAndGlyphs">1. Greet</text><text x="309.6" y="214.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+</g>
+<g class="a" style="animation-name:l8"><text x="24.0" y="235.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="133.2" y="235.8" textLength="168.0" lengthAdjust="spacingAndGlyphs">2. Count the letters</text><text x="309.6" y="235.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+</g>
+<g class="a" style="animation-name:l9"><text x="24.0" y="256.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="256.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">blocks</text><text x="133.2" y="256.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">2 run blocks</text><text x="309.6" y="256.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+</g>
+<g class="a" style="animation-name:l10"><text x="24.0" y="277.8" textLength="294.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">╰─────────────────────────────────╯</text>
+</g>
+<g class="a" style="animation-name:l11"><text x="24.0" y="298.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">Start? [y/N]</text><text x="133.2" y="298.8" textLength="8.4" lengthAdjust="spacingAndGlyphs">y</text>
+<g class="a cover" style="animation-name:t11c13"><rect x="133.2" y="283.0" width="16.8" height="21" fill="#1c1c1c"/></g>
+</g>
+<g class="a k" style="animation-name:k11"><g class="a" style="animation-name:t11c13"><rect class="caret" x="133.2" y="285.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+<g class="a" style="animation-name:l12">
+</g>
+<g class="a" style="animation-name:l13"><text x="24.0" y="340.8" textLength="84.0" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">1/2  Greet</text><text x="116.4" y="340.8" textLength="378.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</text>
+</g>
+<g class="a" style="animation-name:l14"><text x="40.8" y="361.8" textLength="176.4" lengthAdjust="spacingAndGlyphs" opacity=".55" font-style="italic">Saying hello to Paul.</text>
+</g>
+<g class="a" style="animation-name:l15">
+</g>
+<g class="a" style="animation-name:l16"><text x="40.8" y="403.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">┌</text><text x="57.6" y="403.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" font-weight="700">sh</text><text x="82.8" y="403.8" textLength="117.6" lengthAdjust="spacingAndGlyphs" opacity=".55">· 10:02:13.482</text>
+</g>
+<g class="a" style="animation-name:l17"><text x="40.8" y="424.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">│</text><text x="57.6" y="424.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">Hello, Paul!</text>
+</g>
+<g class="a" style="animation-name:l18"><text x="40.8" y="445.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">└</text><text x="57.6" y="445.8" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓ exit 0</text><text x="133.2" y="445.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.0s</text>
+</g>
+<g class="a" style="animation-name:l19">
+</g>
+<g class="a" style="animation-name:l20"><text x="24.0" y="487.8" textLength="184.8" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">2/2  Count the letters</text><text x="217.2" y="487.8" textLength="277.2" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</text>
+</g>
+<g class="a" style="animation-name:l21">
+</g>
+<g class="a" style="animation-name:l22"><text x="40.8" y="529.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">┌</text><text x="57.6" y="529.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" font-weight="700">python</text><text x="116.4" y="529.8" textLength="117.6" lengthAdjust="spacingAndGlyphs" opacity=".55">· 10:02:13.483</text>
+</g>
+<g class="a" style="animation-name:l23"><text x="40.8" y="550.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">│</text><text x="57.6" y="550.8" textLength="151.2" lengthAdjust="spacingAndGlyphs">Paul has 4 letters</text>
+</g>
+<g class="a" style="animation-name:l24"><text x="40.8" y="571.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">└</text><text x="57.6" y="571.8" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓ exit 0</text><text x="133.2" y="571.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.1s</text>
+</g>
+<g class="a" style="animation-name:l25">
+</g>
+<g class="a" style="animation-name:l26"><text x="24.0" y="613.8" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">╭──────────────────────╮</text>
+</g>
+<g class="a" style="animation-name:l27"><text x="24.0" y="634.8" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">│ ✓</text><text x="57.6" y="634.8" textLength="92.4" lengthAdjust="spacingAndGlyphs" font-weight="700">finished ok</text><text x="158.4" y="634.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.1s</text><text x="217.2" y="634.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">│</text>
+</g>
+<g class="a" style="animation-name:l28"><text x="24.0" y="655.8" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">╰──────────────────────╯</text>
+</g>
+<g class="a" style="animation-name:l29"><text x="24.0" y="676.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text>
+</g>
+<g class="a k" style="animation-name:k29"><g><rect class="caret" x="40.8" y="663.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+</g></g>
+</svg>

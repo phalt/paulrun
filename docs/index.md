@@ -16,7 +16,7 @@ A runbook is just a normal markdown file that a person can read and write, but i
 </p>
 </div>
 
-![paulrun running a runbook, in a dark and a light terminal](example.png)
+![paulrun checking and running hello.md](demo.svg)
 
 ## Example runbook
 
