@@ -10,8 +10,6 @@ A runbook is just a normal markdown file that a person can read and write, but i
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
 ![PyPI - License](https://img.shields.io/pypi/l/paulrun)
 
-![paulrun checking and running hello.md](docs/demo.svg)
-
 ## Example runbook
 
 Save this as `hello.md`:
@@ -56,37 +54,13 @@ paulrun check hello.md
 paulrun hello.md
 ```
 
-```
-hello.md: ok
-NAME (Who to say hello to): Paul
-╭─ Say hello ─────────────────────╮
-│ directory  /home/you/hello      │
-│ inputs     NAME=Paul            │
-│ steps      1. Greet             │
-│            2. Count the letters │
-│ blocks     2 run blocks         │
-╰─────────────────────────────────╯
-Start? [y/N] y
+![paulrun checking and running hello.md](docs/demo.svg)
 
-1/2  Greet ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Saying hello to Paul.
+The command `check` will validate the formatting of your Markdown file to make sure it will work with Paulrun. 
 
-  ┌ sh · 10:02:13.482
-  │ Hello, Paul!
-  └ ✓ exit 0 · 0.0s
+When running a runbook, paulrun asks for the inputs, shows the plan, and runs each step in order.
 
-2/2  Count the letters ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ┌ python · 10:02:13.483
-  │ Paul has 4 letters
-  └ ✓ exit 0 · 0.1s
-
-╭──────────────────────╮
-│ ✓ finished ok · 0.1s │
-╰──────────────────────╯
-```
-
-`check` finds problems before anything runs. Then paulrun asks for the inputs, shows the plan, and runs each step in order, stopping at the first command that fails.
+You can run through each step one at a time with `--step` and even show the code that will run with each step with `--show-code`.
 
 ## Your runbook library
 
