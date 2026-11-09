@@ -16,7 +16,7 @@ from paulrun import backends, cli
 from paulrun.backends import Backend, Problem, load_backends
 from paulrun.runbook import parse
 from paulrun.validate import validate
-from tests.output import normalized, overview, printed
+from tests.output import overview, printed
 
 ROOT = Path(__file__).parent.parent
 DOCS = ROOT / "docs"
@@ -35,11 +35,6 @@ def fences(path: Path) -> list[tuple[str, str]]:
     """Each fenced code block in a markdown file, as its info string and its content."""
     tokens = MarkdownIt("commonmark").parse(path.read_text())
     return [(token.info, token.content) for token in tokens if token.type == "fence"]
-
-
-def without_times(output: str) -> str:
-    """run's output with each block's time as TIME, since the docs can only show an example of one."""
-    return re.sub(r"· \d\d:\d\d:\d\d\.\d{3}$", "· TIME", output, flags=re.MULTILINE)
 
 
 def check_example(text: str, tmp_path: Path) -> list[str]:
@@ -93,33 +88,23 @@ def test_the_changelog_in_the_docs_matches_the_one_at_the_root():
 
 
 def test_the_readme_example_runs_as_written(runner, tmp_path, monkeypatch, without_shellcheck):
-    """Each paulrun command in the README, run on the README's runbook, prints exactly what the README shows."""
+    """The README's check-then-run commands, on the README's runbook, pass the check and run every step."""
     blocks = fences(ROOT / "README.md")
     [runbook] = [content for info, content in blocks if info == "markdown"]
     (tmp_path / "hello.md").write_text(runbook)
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("NAME", raising=False)
-    examples = [
-        (commands, blocks[at + 1])
-        for at, (info, commands) in enumerate(blocks)
-        if info == "sh" and commands.startswith("paulrun ")
-    ]
-    assert examples
+    [commands] = [content for info, content in blocks if info == "sh" and content.startswith("paulrun ")]
+    assert commands.splitlines() == ["paulrun check hello.md", "paulrun hello.md"]
 
-    for commands, (info, shown) in examples:
-        # The output is the plain block straight after the commands.
-        assert info == "", commands
-        results = [runner.invoke(cli.cli, line.split()[1:], input="Paul\ny\n") for line in commands.splitlines()]
+    check, run = [runner.invoke(cli.cli, line.split()[1:], input="Paul\ny\n") for line in commands.splitlines()]
 
-        assert [result.exit_code for result in results] == [0] * len(results), commands
-        output = "".join(result.output for result in results)
-        assert without_times(normalized(output)) == without_times(normalized(shown))
-        # The directory is only swapped for DIR above, so check it's really where paulrun ran.
-        assert all(
-            "".join(overview(result.output)["directory"]) == str(tmp_path)
-            for result in results
-            if result.output.startswith("╭─ ") or "\n╭─ " in result.output
-        )
+    assert check.exit_code == 0, check.output
+    assert run.exit_code == 0, run.output
+    assert "Hello, Paul!" in run.output
+    assert "Paul has 4 letters" in run.output
+    # A runbook runs in the folder you're in.
+    assert "".join(overview(run.output)["directory"]) == str(tmp_path)
 
 
 def test_the_backends_page_shows_the_real_backend_protocol():

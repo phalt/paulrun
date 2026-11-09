@@ -215,7 +215,7 @@ Mirrors clientele.
 - Lint/format: ruff, line length 120, rules `F`, `E`, `W`, `I001`
 - Types: ty
 - Tests: pytest, pytest-cov
-- Docs: mkdocs + mkdocs-material, deployed to GitHub Pages on the default `phalt.github.io/paulrun` URL (no CNAME)
+- Docs: Zensical, deployed manually with ghp-import to GitHub Pages on the default `phalt.github.io/paulrun` URL (no CNAME)
 
 Runtime dependencies: click, rich, markdown-it-py, pyyaml. Nothing else without asking.
 
@@ -228,8 +228,8 @@ make install        # uv sync
 make test           # uv run pytest -vvv -x --cov=paulrun --cov-report=term-missing --cov-report=html --cov-config=pyproject.toml
 make format         # uv run ruff format . && uv run ruff check --fix .
 make ty             # uv run ty check .
-make docs-serve     # uv run mkdocs serve
-make deploy-docs    # uv run mkdocs build && uv run mkdocs gh-deploy
+make docs-serve     # uv run zensical serve
+make deploy-docs    # uv run zensical build --clean --strict && uv run ghp-import -n -p -f site
 make release        # uv build && uv publish
 make clean
 make shell          # uv run ipython

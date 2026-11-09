@@ -28,14 +28,14 @@ python = "paulrun.backends.python:PythonBackend"
 
 [dependency-groups]
 dev = [
+    "ghp-import>=2.1.0",
     "import-linter>=2.15",
     "ipython>=9.17.1",
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.7.7",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.10",
     "ty>=0.0.85",
+    "zensical>=0.1.0,<0.2",
 ]
 
 [build-system]

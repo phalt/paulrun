@@ -57,6 +57,9 @@ jobs:
       - name: Check import contracts
         run: |
           make lint-imports
+      - name: Build docs
+        run: |
+          uv run zensical build --strict
       - name: Test with pytest
         run: |
           uv run pytest -vv --cov=paulrun --cov-branch --cov-report=term-missing --cov-config=pyproject.toml
