@@ -8,7 +8,7 @@
 
 Rundot reads markdown files and executes the code blocks in a rich CLI output; turning your markdown files into repeatable procedures.
 
-![rundot checking and running hello.md](docs/demo.svg)
+![rundot checking and running hello.md](demo.svg)
 
 Use Runbot to build:
 
@@ -69,7 +69,7 @@ rundot check hello.md
 rundot hello.md
 ```
 
-![rundot checking and running hello.md](docs/demo.svg)
+![rundot checking and running hello.md](demo.svg)
 
 The command `check` will validate the formatting of your Markdown file to make sure it will work with Rundot. 
 
@@ -91,7 +91,7 @@ $ cd ~/Projects/website
 $ rundot rebuild-frontend
 ```
 
-A book runs in the folder you're in, so one book works for every project. See [Your runbook library](https://docs.rundot.dev/library/).
+A book runs in the folder you're in, so one book works for every project. See [Your runbook library](library.md).
 
 ## Why use rundot?
 
