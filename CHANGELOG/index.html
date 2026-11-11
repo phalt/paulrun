@@ -591,17 +591,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Unreleased
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#060" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -733,17 +722,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Unreleased
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#060" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -847,17 +825,16 @@
 
 
 <h1 id="change-log">Change log</h1>
-<h2 id="unreleased">Unreleased</h2>
+<blockquote>
+<p><strong>paulrun is now rundot.</strong> The project was renamed from paulrun to rundot. Nothing else changed: subcommands, flags and the runbook format all work as before. To move over:</p>
 <ul>
-<li><strong>Breaking:</strong> paulrun is now called rundot. Install it as <code>rundot</code>, and run it as <code>rundot</code> instead of <code>paulrun</code>. Subcommands and flags are unchanged.<ul>
-<li>The package is <code>rundot</code>, so imports are <code>from rundot.backends import ...</code>.</li>
-<li>Backends register in the <code>rundot.backends</code> entry point group, which was <code>paulrun.backends</code>.</li>
-<li><code>PAULRUN_LIBRARY</code> is now <code>RUNDOT_LIBRARY</code>.</li>
-<li><code>PAULRUN_RUNBOOK_DIR</code>, set for blocks, is now <code>RUNDOT_RUNBOOK_DIR</code>.</li>
+<li>Install <code>rundot</code> instead of <code>paulrun</code>, and run <code>rundot</code> instead of <code>paulrun</code>.</li>
+<li>Imports start with <code>rundot</code> instead of <code>paulrun</code>, and backends register in the <code>rundot.backends</code> entry point group, which was <code>paulrun.backends</code>.</li>
+<li><code>PAULRUN_LIBRARY</code> is now <code>RUNDOT_LIBRARY</code>, and blocks get <code>RUNDOT_RUNBOOK_DIR</code> instead of <code>PAULRUN_RUNBOOK_DIR</code>.</li>
 <li>The docs are at <a href="https://docs.rundot.dev/">docs.rundot.dev</a> and the code at <a href="https://github.com/phalt/rundot">github.com/phalt/rundot</a>.</li>
 </ul>
-</li>
-</ul>
+<p>Entries below this note use the old name, as they were written at the time.</p>
+</blockquote>
 <h2 id="060">0.6.0</h2>
 <ul>
 <li><code>paulrun run</code>'s output is easier to scan:<ul>
