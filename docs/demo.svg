@@ -1,88 +1,117 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="518" height="700" viewBox="0 0 518 700" role="img" aria-label="paulrun checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok">
-<title>paulrun checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="518" height="700" viewBox="0 0 518 700" role="img" aria-label="rundot checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok">
+<title>rundot checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok</title>
 <style>
 text{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;white-space:pre}
-.a{animation-duration:16.0s;animation-iteration-count:infinite;animation-timing-function:step-end;opacity:1}
-.caret{animation:blink 1s step-end infinite}
-@keyframes blink{50%{opacity:0}}
-@keyframes fade{0%{opacity:1}96.250%{opacity:1;animation-timing-function:ease}100%{opacity:0}}
-@keyframes l0{0%{opacity:0}2.500%,100%{opacity:1}}@keyframes t0c2{0%,3.438%{transform:translateX(0);animation-timing-function:steps(22,end)}11.562%,100%{transform:translateX(184.8px)}}@keyframes k0{0%{opacity:0}2.500%{opacity:1}13.750%,100%{opacity:0}}@keyframes l1{0%{opacity:0}13.750%,100%{opacity:1}}@keyframes l2{0%{opacity:0}17.500%,100%{opacity:1}}@keyframes t2c2{0%,18.438%{transform:translateX(0);animation-timing-function:steps(16,end)}24.062%,100%{transform:translateX(134.4px)}}@keyframes k2{0%{opacity:0}17.500%{opacity:1}26.250%,100%{opacity:0}}@keyframes l3{0%{opacity:0}26.250%,100%{opacity:1}}@keyframes t3c28{0%,28.750%{transform:translateX(0);animation-timing-function:steps(4,end)}31.875%,100%{transform:translateX(33.6px)}}@keyframes k3{0%{opacity:0}26.250%{opacity:1}34.375%,100%{opacity:0}}@keyframes l4{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l5{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l6{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l7{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l8{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l9{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l10{0%{opacity:0}34.375%,100%{opacity:1}}@keyframes l11{0%{opacity:0}38.125%,100%{opacity:1}}@keyframes t11c13{0%,43.125%{transform:translateX(0);animation-timing-function:steps(1,end)}43.437%,100%{transform:translateX(8.4px)}}@keyframes k11{0%{opacity:0}38.125%{opacity:1}46.250%,100%{opacity:0}}@keyframes l12{0%{opacity:0}46.250%,100%{opacity:1}}@keyframes l13{0%{opacity:0}46.250%,100%{opacity:1}}@keyframes l14{0%{opacity:0}48.125%,100%{opacity:1}}@keyframes l15{0%{opacity:0}50.000%,100%{opacity:1}}@keyframes l16{0%{opacity:0}50.000%,100%{opacity:1}}@keyframes l17{0%{opacity:0}52.500%,100%{opacity:1}}@keyframes l18{0%{opacity:0}54.375%,100%{opacity:1}}@keyframes l19{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l20{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l21{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l22{0%{opacity:0}57.500%,100%{opacity:1}}@keyframes l23{0%{opacity:0}61.875%,100%{opacity:1}}@keyframes l24{0%{opacity:0}63.750%,100%{opacity:1}}@keyframes l25{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l26{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l27{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l28{0%{opacity:0}67.500%,100%{opacity:1}}@keyframes l29{0%{opacity:0}71.875%,100%{opacity:1}}@keyframes k29{0%{opacity:0}71.875%{opacity:1}100.000%,100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.a,.caret{animation:none!important}.cover,.k{display:none}}
+.a{animation-duration:10.68s;animation-iteration-count:infinite;animation-timing-function:step-end}
+.blink{animation:zt-demo-blink 1s step-end infinite}
+@keyframes zt-demo-blink{50%{opacity:0}}
+@keyframes zt-demo-l0{0%{opacity:0}3.745%,100%{opacity:1}}
+@keyframes zt-demo-t0-2{0%,5.150%{transform:translateX(0);animation-timing-function:steps(21,end)}12.172%,100%{transform:translateX(176.4px)}}
+@keyframes zt-demo-k0{0%{opacity:0}3.745%{opacity:1}16.854%,100%{opacity:0}}
+@keyframes zt-demo-l1{0%{opacity:0}16.854%,100%{opacity:1}}
+@keyframes zt-demo-l2{0%{opacity:0}25.936%,100%{opacity:1}}
+@keyframes zt-demo-t2-2{0%,27.341%{transform:translateX(0);animation-timing-function:steps(15,end)}32.397%,100%{transform:translateX(126.0px)}}
+@keyframes zt-demo-k2{0%{opacity:0}25.936%{opacity:1}37.041%,100%{opacity:0}}
+@keyframes zt-demo-l3{0%{opacity:0}37.041%,100%{opacity:1}}
+@keyframes zt-demo-l4{0%{opacity:0}37.697%,100%{opacity:1}}
+@keyframes zt-demo-l5{0%{opacity:0}38.352%,100%{opacity:1}}
+@keyframes zt-demo-l6{0%{opacity:0}39.007%,100%{opacity:1}}
+@keyframes zt-demo-l7{0%{opacity:0}39.663%,100%{opacity:1}}
+@keyframes zt-demo-l8{0%{opacity:0}40.318%,100%{opacity:1}}
+@keyframes zt-demo-l9{0%{opacity:0}40.974%,100%{opacity:1}}
+@keyframes zt-demo-l10{0%{opacity:0}41.629%,100%{opacity:1}}
+@keyframes zt-demo-l11{0%{opacity:0}42.285%,100%{opacity:1}}
+@keyframes zt-demo-l12{0%{opacity:0}42.940%,100%{opacity:1}}
+@keyframes zt-demo-l13{0%{opacity:0}43.596%,100%{opacity:1}}
+@keyframes zt-demo-l14{0%{opacity:0}44.251%,100%{opacity:1}}
+@keyframes zt-demo-l15{0%{opacity:0}44.906%,100%{opacity:1}}
+@keyframes zt-demo-l16{0%{opacity:0}45.562%,100%{opacity:1}}
+@keyframes zt-demo-l17{0%{opacity:0}46.217%,100%{opacity:1}}
+@keyframes zt-demo-l18{0%{opacity:0}46.873%,100%{opacity:1}}
+@keyframes zt-demo-l19{0%{opacity:0}47.528%,100%{opacity:1}}
+@keyframes zt-demo-l20{0%{opacity:0}48.184%,100%{opacity:1}}
+@keyframes zt-demo-l21{0%{opacity:0}48.839%,100%{opacity:1}}
+@keyframes zt-demo-l22{0%{opacity:0}49.494%,100%{opacity:1}}
+@keyframes zt-demo-l23{0%{opacity:0}50.150%,100%{opacity:1}}
+@keyframes zt-demo-l24{0%{opacity:0}50.805%,100%{opacity:1}}
+@keyframes zt-demo-l25{0%{opacity:0}51.461%,100%{opacity:1}}
+@keyframes zt-demo-l26{0%{opacity:0}52.116%,100%{opacity:1}}
+@keyframes zt-demo-l27{0%{opacity:0}52.772%,100%{opacity:1}}
+@keyframes zt-demo-l28{0%{opacity:0}53.427%,100%{opacity:1}}
+@keyframes zt-demo-l29{0%{opacity:0}62.509%,100%{opacity:1}}
+@keyframes zt-demo-k29{0%{opacity:0}62.509%{opacity:1}100.000%,100%{opacity:0}}
+@keyframes zt-demo-scroll{0%{transform:translateY(0)}100%{transform:translateY(-0px)}}
+@keyframes zt-demo-fade{0%{opacity:1}94.382%{opacity:1;animation-timing-function:ease}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.a,.blink{animation:none!important}.cover,.caret{display:none}.scroll{transform:translateY(-0px)}}
 </style>
-<defs><clipPath id="screen"><rect x="0" y="34" width="518" height="666"/></clipPath></defs>
+<defs><clipPath id="zt-demo-screen"><rect x="0" y="52" width="518" height="630"/></clipPath></defs>
 <rect width="518" height="700" rx="10" fill="#1c1c1c"/>
-<path d="M0 10a10 10 0 0 1 10-10h498a10 10 0 0 1 10 10v24h-518z" fill="#2a2a2a"/>
-<circle cx="18" cy="17.0" r="5.5" fill="#555"/><circle cx="36" cy="17.0" r="5.5" fill="#555"/><circle cx="54" cy="17.0" r="5.5" fill="#555"/>
-<text x="259.0" y="22.0" text-anchor="middle" opacity=".5" fill="#d0d0d0" style="font-size:13px">~/hello</text>
-<g clip-path="url(#screen)" fill="#d0d0d0"><g class="a" style="animation-name:fade">
-<g class="a" style="animation-name:l0"><text x="24.0" y="67.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text><text x="40.8" y="67.8" textLength="184.8" lengthAdjust="spacingAndGlyphs">paulrun check hello.md</text>
-<g class="a cover" style="animation-name:t0c2"><rect x="40.8" y="52.0" width="193.2" height="21" fill="#1c1c1c"/></g>
+<path d="M0 10a10 10 0 0 1 10-10h498a10 10 0 0 1 10 10v24h-518z" fill="#2a2a2a"/><circle cx="18" cy="17.0" r="5.5" fill="#d0d0d0" opacity=".3"/><circle cx="36" cy="17.0" r="5.5" fill="#d0d0d0" opacity=".3"/><circle cx="54" cy="17.0" r="5.5" fill="#d0d0d0" opacity=".3"/><text x="259.0" y="22.0" text-anchor="middle" opacity=".5" fill="#d0d0d0" style="font-size:13px">/tmp/hello</text>
+<g clip-path="url(#zt-demo-screen)" fill="#d0d0d0"><g class="a" style="animation-name:zt-demo-fade"><g class="a scroll" style="animation-name:zt-demo-scroll">
+<g class="a" style="animation-name:zt-demo-l0"><text x="24.0" y="67.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text><text x="40.8" y="67.8" textLength="176.4" lengthAdjust="spacingAndGlyphs">rundot check hello.md</text>
+<g class="a cover" style="animation-name:zt-demo-t0-2"><rect x="40.8" y="52.0" width="184.8" height="21" fill="#1c1c1c"/></g>
 </g>
-<g class="a k" style="animation-name:k0"><g class="a" style="animation-name:t0c2"><rect class="caret" x="40.8" y="54.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
-<g class="a" style="animation-name:l1"><text x="24.0" y="88.8" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">hello.md: ok</text>
+<g class="a caret" style="animation-name:zt-demo-k0"><g class="a" style="animation-name:zt-demo-t0-2"><rect class="blink" x="40.8" y="54.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+<g class="a" style="animation-name:zt-demo-l1"><text x="24.0" y="88.8" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">hello.md: ok</text>
 </g>
-<g class="a" style="animation-name:l2"><text x="24.0" y="109.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text><text x="40.8" y="109.8" textLength="134.4" lengthAdjust="spacingAndGlyphs">paulrun hello.md</text>
-<g class="a cover" style="animation-name:t2c2"><rect x="40.8" y="94.0" width="142.8" height="21" fill="#1c1c1c"/></g>
+<g class="a" style="animation-name:zt-demo-l2"><text x="24.0" y="109.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text><text x="40.8" y="109.8" textLength="126.0" lengthAdjust="spacingAndGlyphs">rundot hello.md</text>
+<g class="a cover" style="animation-name:zt-demo-t2-2"><rect x="40.8" y="94.0" width="134.4" height="21" fill="#1c1c1c"/></g>
 </g>
-<g class="a k" style="animation-name:k2"><g class="a" style="animation-name:t2c2"><rect class="caret" x="40.8" y="96.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
-<g class="a" style="animation-name:l3"><text x="24.0" y="130.8" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAME</text><text x="66.0" y="130.8" textLength="176.4" lengthAdjust="spacingAndGlyphs" opacity=".55">(Who to say hello to)</text><text x="242.4" y="130.8" textLength="8.4" lengthAdjust="spacingAndGlyphs">:</text><text x="259.2" y="130.8" textLength="33.6" lengthAdjust="spacingAndGlyphs">Paul</text>
-<g class="a cover" style="animation-name:t3c28"><rect x="259.2" y="115.0" width="42.0" height="21" fill="#1c1c1c"/></g>
+<g class="a caret" style="animation-name:zt-demo-k2"><g class="a" style="animation-name:zt-demo-t2-2"><rect class="blink" x="40.8" y="96.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+<g class="a" style="animation-name:zt-demo-l3"><text x="24.0" y="130.8" textLength="268.8" lengthAdjust="spacingAndGlyphs">NAME (Who to say hello to): Paul</text>
 </g>
-<g class="a k" style="animation-name:k3"><g class="a" style="animation-name:t3c28"><rect class="caret" x="259.2" y="117.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
-<g class="a" style="animation-name:l4"><text x="24.0" y="151.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">╭─</text><text x="49.2" y="151.8" textLength="75.6" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">Say hello</text><text x="133.2" y="151.8" textLength="184.8" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">─────────────────────╮</text>
+<g class="a" style="animation-name:zt-demo-l4"><text x="24.0" y="151.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">╭─</text><text x="49.2" y="151.8" textLength="75.6" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">Say hello</text><text x="133.2" y="151.8" textLength="168.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">────────────────────</text><text x="301.2" y="151.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">─╮</text>
 </g>
-<g class="a" style="animation-name:l5"><text x="24.0" y="172.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="172.8" textLength="75.6" lengthAdjust="spacingAndGlyphs" opacity=".55">directory</text><text x="133.2" y="172.8" textLength="126.0" lengthAdjust="spacingAndGlyphs">/home/you/hello</text><text x="309.6" y="172.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+<g class="a" style="animation-name:zt-demo-l5"><text x="24.0" y="172.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="172.8" textLength="75.6" lengthAdjust="spacingAndGlyphs" opacity=".55">directory</text><text x="133.2" y="172.8" textLength="84.0" lengthAdjust="spacingAndGlyphs">/tmp/hello</text><text x="309.6" y="172.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
 </g>
-<g class="a" style="animation-name:l6"><text x="24.0" y="193.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="193.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">inputs</text><text x="133.2" y="193.8" textLength="75.6" lengthAdjust="spacingAndGlyphs">NAME=Paul</text><text x="309.6" y="193.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+<g class="a" style="animation-name:zt-demo-l6"><text x="24.0" y="193.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="193.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">inputs</text><text x="133.2" y="193.8" textLength="75.6" lengthAdjust="spacingAndGlyphs">NAME=Paul</text><text x="309.6" y="193.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
 </g>
-<g class="a" style="animation-name:l7"><text x="24.0" y="214.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="214.8" textLength="42.0" lengthAdjust="spacingAndGlyphs" opacity=".55">steps</text><text x="133.2" y="214.8" textLength="67.2" lengthAdjust="spacingAndGlyphs">1. Greet</text><text x="309.6" y="214.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+<g class="a" style="animation-name:zt-demo-l7"><text x="24.0" y="214.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="214.8" textLength="42.0" lengthAdjust="spacingAndGlyphs" opacity=".55">steps</text><text x="133.2" y="214.8" textLength="67.2" lengthAdjust="spacingAndGlyphs">1. Greet</text><text x="309.6" y="214.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
 </g>
-<g class="a" style="animation-name:l8"><text x="24.0" y="235.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="133.2" y="235.8" textLength="168.0" lengthAdjust="spacingAndGlyphs">2. Count the letters</text><text x="309.6" y="235.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+<g class="a" style="animation-name:zt-demo-l8"><text x="24.0" y="235.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="133.2" y="235.8" textLength="168.0" lengthAdjust="spacingAndGlyphs">2. Count the letters</text><text x="309.6" y="235.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
 </g>
-<g class="a" style="animation-name:l9"><text x="24.0" y="256.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="256.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">blocks</text><text x="133.2" y="256.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">2 run blocks</text><text x="309.6" y="256.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
+<g class="a" style="animation-name:zt-demo-l9"><text x="24.0" y="256.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text><text x="40.8" y="256.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">blocks</text><text x="133.2" y="256.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">2 run blocks</text><text x="309.6" y="256.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">│</text>
 </g>
-<g class="a" style="animation-name:l10"><text x="24.0" y="277.8" textLength="294.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">╰─────────────────────────────────╯</text>
+<g class="a" style="animation-name:zt-demo-l10"><text x="24.0" y="277.8" textLength="294.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">╰─────────────────────────────────╯</text>
 </g>
-<g class="a" style="animation-name:l11"><text x="24.0" y="298.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">Start? [y/N]</text><text x="133.2" y="298.8" textLength="8.4" lengthAdjust="spacingAndGlyphs">y</text>
-<g class="a cover" style="animation-name:t11c13"><rect x="133.2" y="283.0" width="16.8" height="21" fill="#1c1c1c"/></g>
+<g class="a" style="animation-name:zt-demo-l11"><text x="24.0" y="298.8" textLength="117.6" lengthAdjust="spacingAndGlyphs">Start? [y/N] y</text>
 </g>
-<g class="a k" style="animation-name:k11"><g class="a" style="animation-name:t11c13"><rect class="caret" x="133.2" y="285.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
-<g class="a" style="animation-name:l12">
+<g class="a" style="animation-name:zt-demo-l12">
 </g>
-<g class="a" style="animation-name:l13"><text x="24.0" y="340.8" textLength="84.0" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">1/2  Greet</text><text x="116.4" y="340.8" textLength="378.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</text>
+<g class="a" style="animation-name:zt-demo-l13"><text x="24.0" y="340.8" textLength="84.0" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">1/2  Greet</text><text x="116.4" y="340.8" textLength="378.0" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</text>
 </g>
-<g class="a" style="animation-name:l14"><text x="40.8" y="361.8" textLength="176.4" lengthAdjust="spacingAndGlyphs" opacity=".55" font-style="italic">Saying hello to Paul.</text>
+<g class="a" style="animation-name:zt-demo-l14"><text x="40.8" y="361.8" textLength="176.4" lengthAdjust="spacingAndGlyphs" opacity=".55" font-style="italic">Saying hello to Paul.</text>
 </g>
-<g class="a" style="animation-name:l15">
+<g class="a" style="animation-name:zt-demo-l15">
 </g>
-<g class="a" style="animation-name:l16"><text x="40.8" y="403.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">┌</text><text x="57.6" y="403.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" font-weight="700">sh</text><text x="82.8" y="403.8" textLength="117.6" lengthAdjust="spacingAndGlyphs" opacity=".55">· 10:02:13.482</text>
+<g class="a" style="animation-name:zt-demo-l16"><text x="40.8" y="403.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">┌</text><text x="57.6" y="403.8" textLength="16.8" lengthAdjust="spacingAndGlyphs" font-weight="700">sh</text><text x="82.8" y="403.8" textLength="117.6" lengthAdjust="spacingAndGlyphs" opacity=".55">· 10:57:01.510</text>
 </g>
-<g class="a" style="animation-name:l17"><text x="40.8" y="424.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">│</text><text x="57.6" y="424.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">Hello, Paul!</text>
+<g class="a" style="animation-name:zt-demo-l17"><text x="40.8" y="424.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">│</text><text x="57.6" y="424.8" textLength="100.8" lengthAdjust="spacingAndGlyphs">Hello, Paul!</text>
 </g>
-<g class="a" style="animation-name:l18"><text x="40.8" y="445.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">└</text><text x="57.6" y="445.8" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓ exit 0</text><text x="133.2" y="445.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.0s</text>
+<g class="a" style="animation-name:zt-demo-l18"><text x="40.8" y="445.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">└</text><text x="57.6" y="445.8" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓ exit 0</text><text x="133.2" y="445.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.0s</text>
 </g>
-<g class="a" style="animation-name:l19">
+<g class="a" style="animation-name:zt-demo-l19">
 </g>
-<g class="a" style="animation-name:l20"><text x="24.0" y="487.8" textLength="184.8" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">2/2  Count the letters</text><text x="217.2" y="487.8" textLength="277.2" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</text>
+<g class="a" style="animation-name:zt-demo-l20"><text x="24.0" y="487.8" textLength="184.8" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#4b8fe3">2/2  Count the letters</text><text x="217.2" y="487.8" textLength="277.2" lengthAdjust="spacingAndGlyphs" fill="#4b8fe3">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</text>
 </g>
-<g class="a" style="animation-name:l21">
+<g class="a" style="animation-name:zt-demo-l21">
 </g>
-<g class="a" style="animation-name:l22"><text x="40.8" y="529.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">┌</text><text x="57.6" y="529.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" font-weight="700">python</text><text x="116.4" y="529.8" textLength="117.6" lengthAdjust="spacingAndGlyphs" opacity=".55">· 10:02:13.483</text>
+<g class="a" style="animation-name:zt-demo-l22"><text x="40.8" y="529.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">┌</text><text x="57.6" y="529.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" font-weight="700">python</text><text x="116.4" y="529.8" textLength="117.6" lengthAdjust="spacingAndGlyphs" opacity=".55">· 10:57:01.514</text>
 </g>
-<g class="a" style="animation-name:l23"><text x="40.8" y="550.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">│</text><text x="57.6" y="550.8" textLength="151.2" lengthAdjust="spacingAndGlyphs">Paul has 4 letters</text>
+<g class="a" style="animation-name:zt-demo-l23"><text x="40.8" y="550.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">│</text><text x="57.6" y="550.8" textLength="151.2" lengthAdjust="spacingAndGlyphs">Paul has 4 letters</text>
 </g>
-<g class="a" style="animation-name:l24"><text x="40.8" y="571.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">└</text><text x="57.6" y="571.8" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓ exit 0</text><text x="133.2" y="571.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.1s</text>
+<g class="a" style="animation-name:zt-demo-l24"><text x="40.8" y="571.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">└</text><text x="57.6" y="571.8" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓ exit 0</text><text x="133.2" y="571.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.0s</text>
 </g>
-<g class="a" style="animation-name:l25">
+<g class="a" style="animation-name:zt-demo-l25">
 </g>
-<g class="a" style="animation-name:l26"><text x="24.0" y="613.8" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">╭──────────────────────╮</text>
+<g class="a" style="animation-name:zt-demo-l26"><text x="24.0" y="613.8" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">╭──────────────────────╮</text>
 </g>
-<g class="a" style="animation-name:l27"><text x="24.0" y="634.8" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">│ ✓</text><text x="57.6" y="634.8" textLength="92.4" lengthAdjust="spacingAndGlyphs" font-weight="700">finished ok</text><text x="158.4" y="634.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.1s</text><text x="217.2" y="634.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">│</text>
+<g class="a" style="animation-name:zt-demo-l27"><text x="24.0" y="634.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">│</text><text x="40.8" y="634.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">✓</text><text x="57.6" y="634.8" textLength="92.4" lengthAdjust="spacingAndGlyphs" font-weight="700">finished ok</text><text x="158.4" y="634.8" textLength="50.4" lengthAdjust="spacingAndGlyphs" opacity=".55">· 0.0s</text><text x="217.2" y="634.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">│</text>
 </g>
-<g class="a" style="animation-name:l28"><text x="24.0" y="655.8" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">╰──────────────────────╯</text>
+<g class="a" style="animation-name:zt-demo-l28"><text x="24.0" y="655.8" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#2fcf7a">╰──────────────────────╯</text>
 </g>
-<g class="a" style="animation-name:l29"><text x="24.0" y="676.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text>
+<g class="a" style="animation-name:zt-demo-l29"><text x="24.0" y="676.8" textLength="8.4" lengthAdjust="spacingAndGlyphs" opacity=".55">$</text>
 </g>
-<g class="a k" style="animation-name:k29"><g><rect class="caret" x="40.8" y="663.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
-</g></g>
+<g class="a caret" style="animation-name:zt-demo-k29"><g><rect class="blink" x="40.8" y="663.0" width="8.4" height="17" fill="#d0d0d0"/></g></g>
+</g></g></g>
 </svg>

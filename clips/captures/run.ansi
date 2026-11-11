@@ -1,0 +1,26 @@
+NAME (Who to say hello to): Paul
+[34m╭─[0m[1;34m Say hello [0m[34m────────────────────[0m[34m─╮[0m
+[34m│[0m [2mdirectory[0m[2m  [0m/tmp/hello           [34m│[0m
+[34m│[0m [2minputs   [0m[2m  [0mNAME=Paul            [34m│[0m
+[34m│[0m [2msteps    [0m[2m  [0m1. Greet             [34m│[0m
+[34m│[0m [2m           [0m2. Count the letters [34m│[0m
+[34m│[0m [2mblocks   [0m[2m  [0m2 run blocks         [34m│[0m
+[34m╰─────────────────────────────────╯[0m
+Start? [y/N] y
+
+[1;34m1/2  Greet[0m [34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+  [2;3mSaying hello to Paul.[0m
+
+[2m  ┌ [0m[1msh[0m[2m · 10:57:01.510[0m
+[2m  │[0m Hello, Paul!
+[2m  └ [0m[32m✓ exit 0[0m[2m · 0.0s[0m
+
+[1;34m2/2  Count the letters[0m [34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[2m  ┌ [0m[1mpython[0m[2m · 10:57:01.514[0m
+[2m  │[0m Paul has 4 letters
+[2m  └ [0m[32m✓ exit 0[0m[2m · 0.0s[0m
+
+[32m╭──────────────────────╮[0m
+[32m│[0m [32m✓ [0m[1mfinished ok[0m[2m · 0.0s[0m [32m│[0m
+[32m╰──────────────────────╯[0m

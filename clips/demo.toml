@@ -1,0 +1,26 @@
+# The demo in the README and on the docs home page.
+# Regenerate it after changing rundot's output:
+#   uvx zoetty record clips/demo.toml
+#   uvx zoetty build clips/demo.toml
+title = "/tmp/hello"
+label = "rundot checking and running hello.md: it asks for NAME, shows the plan, runs a shell step and a Python step, and finishes ok"
+cols = 56
+out = ["../docs/demo.svg"]
+
+[record]
+# Run in a fixed folder, so the clip shows the same directory wherever it's recorded.
+setup = ["rm -rf /tmp/hello && mkdir /tmp/hello && cp ../examples/hello.md /tmp/hello/"]
+
+[[run]]
+cmd = "rundot check hello.md"
+exec = 'root=$(cd .. && pwd) && cd /tmp/hello && uv run -q --project "$root" rundot check hello.md'
+output = "captures/check.ansi"
+
+[[run]]
+cmd = "rundot hello.md"
+exec = 'root=$(cd .. && pwd) && cd /tmp/hello && uv run -q --project "$root" rundot hello.md'
+output = "captures/run.ansi"
+input = """
+Paul
+y
+"""
