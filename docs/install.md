@@ -1,24 +1,24 @@
 # 🚀 Install
 
-paulrun is a command-line tool, so install it on its own rather than into a project:
+rundot is a command-line tool, so install it on its own rather than into a project:
 
 ### uv
 
 ```sh
-uv tool install paulrun
+uv tool install rundot
 ```
 
 ### pip
 
 ```sh
-pip install paulrun
+pip install rundot
 ```
 
 Once installed, check it's working:
 
 ```sh
-> paulrun --version
-paulrun, version 0.2.0
+> rundot --version
+rundot, version 0.2.0
 ```
 
 ## Requirements
@@ -29,7 +29,7 @@ paulrun, version 0.2.0
 
 ## Optional: shellcheck
 
-If [shellcheck](https://www.shellcheck.net/) is installed, `paulrun check` uses it to warn about common mistakes in shell blocks, such as an unquoted variable. Without it, shell blocks are still checked for syntax errors.
+If [shellcheck](https://www.shellcheck.net/) is installed, `rundot check` uses it to warn about common mistakes in shell blocks, such as an unquoted variable. Without it, shell blocks are still checked for syntax errors.
 
 ```sh
 brew install shellcheck      # macOS
@@ -39,4 +39,4 @@ sudo apt install shellcheck  # Debian and Ubuntu
 ## Next steps
 
 - [The runbook format](runbook-format.md) to write your first runbook
-- [The command line](cli.md) to see everything paulrun can do
+- [The command line](cli.md) to see everything rundot can do

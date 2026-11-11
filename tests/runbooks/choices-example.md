@@ -13,7 +13,7 @@ inputs:
 An input with `choices` lists them at the prompt, and only takes one of them:
 
 ```sh
-uv run paulrun tests/runbooks/choices-example.md
+uv run rundot tests/runbooks/choices-example.md
 ```
 
 ```
@@ -22,7 +22,7 @@ FE_SET must be one of: comms, billing, all
 ```
 
 Type the choice itself, not its number. A value from the environment has to be
-one of the choices too, or paulrun stops before anything runs. Choices work
+one of the choices too, or rundot stops before anything runs. Choices work
 with a `default`, which has to be one of them, and with a `pattern`, which
 every choice has to match.
 

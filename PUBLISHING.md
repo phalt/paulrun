@@ -1,24 +1,24 @@
 ---
-title: Release paulrun
-description: Release a new version of paulrun to GitHub, the docs site and PyPI.
+title: Release rundot
+description: Release a new version of rundot to GitHub, the docs site and PyPI.
 output_path: logs/release-<VERSION>.md
 inputs:
   - name: VERSION
     description: The version to release, e.g. 0.2.0
     pattern: '^\d+\.\d+\.\d+$'
   - name: UV_PUBLISH_TOKEN
-    description: PyPI API token for paulrun
+    description: PyPI API token for rundot
     secret: true
 ---
 
-# 🏃‍♂️‍➡️📕 Releasing paulrun
+# 🏃‍♂️‍➡️📕 Releasing rundot
 
-paulrun releases itself with this runbook:
+rundot releases itself with this runbook:
 
 ```sh
-paulrun check PUBLISHING.md
-paulrun PUBLISHING.md --dry
-paulrun PUBLISHING.md
+rundot check PUBLISHING.md
+rundot PUBLISHING.md --dry
+rundot PUBLISHING.md
 ```
 
 You can also follow it by hand: each step's commands are in the order they run.
@@ -63,12 +63,12 @@ make test
 
 ## Update the version
 
-`pyproject.toml` holds paulrun's only copy of its version. `uv version` sets
+`pyproject.toml` holds rundot's only copy of its version. `uv version` sets
 it and updates `uv.lock` to match.
 
 ```sh run
 uv version <VERSION>
-uv run paulrun --version
+uv run rundot --version
 ```
 
 ## Commit and push
@@ -110,7 +110,7 @@ print(notes.group(1).strip())
 
 ```confirm
 Create a release on GitHub from tag <VERSION>:
-https://github.com/phalt/paulrun/releases/new?tag=<VERSION>
+https://github.com/phalt/rundot/releases/new?tag=<VERSION>
 
 Paste in the release notes above, and mark it as the latest release.
 ```

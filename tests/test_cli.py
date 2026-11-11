@@ -15,9 +15,9 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from paulrun import backends, cli
-from paulrun import runner as runner_module
-from paulrun.backends import BackendError, Problem
+from rundot import backends, cli
+from rundot import runner as runner_module
+from rundot.backends import BackendError, Problem
 from tests.output import finished, normalized, overview, printed, title
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
@@ -103,7 +103,7 @@ def test_version_prints_package_version(runner):
     result = runner.invoke(cli.cli, ["--version"])
 
     assert result.exit_code == 0
-    assert result.output == f"paulrun, version {importlib.metadata.version('paulrun')}\n"
+    assert result.output == f"rundot, version {importlib.metadata.version('rundot')}\n"
 
 
 def test_help_lists_run_command_and_says_a_runbook_can_go_first(runner):
@@ -111,24 +111,24 @@ def test_help_lists_run_command_and_says_a_runbook_can_go_first(runner):
     result = runner.invoke(cli.cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "Usage: paulrun [OPTIONS] RUNBOOK | COMMAND [ARGS]..." in result.output
+    assert "Usage: rundot [OPTIONS] RUNBOOK | COMMAND [ARGS]..." in result.output
     assert "\n  run " in result.output
 
 
 def test_help_shows_the_header_version_and_links(runner):
-    """--help opens with the paulrun header, unwrapped, then the version and links to the docs and the project."""
+    """--help opens with the rundot header, unwrapped, then the version and links to the docs and the project."""
     result = runner.invoke(cli.cli, ["--help"])
 
     assert result.exit_code == 0
-    for line in cli.PAULRUN_HEADER.splitlines():
+    for line in cli.RUNDOT_HEADER.splitlines():
         assert f"\n  {line}\n" in result.output
-    assert f"🔢 Version {importlib.metadata.version('paulrun')}" in result.output
-    assert "📚 Read the docs: https://phalt.github.io/paulrun/" in result.output
-    assert "🐙 Contribute on GitHub: https://github.com/phalt/paulrun" in result.output
+    assert f"🔢 Version {importlib.metadata.version('rundot')}" in result.output
+    assert "📚 Read the docs: https://docs.rundot.dev/" in result.output
+    assert "🐙 Contribute on GitHub: https://github.com/phalt/rundot" in result.output
 
 
-def test_paulrun_with_nothing_else_shows_help(runner):
-    """Bare paulrun shows help, as it always has, rather than running or picking anything."""
+def test_rundot_with_nothing_else_shows_help(runner):
+    """Bare rundot shows help, as it always has, rather than running or picking anything."""
     result = runner.invoke(cli.cli, [])
 
     assert result.exit_code == 0
@@ -136,7 +136,7 @@ def test_paulrun_with_nothing_else_shows_help(runner):
 
 
 def test_a_runbook_runs_the_same_with_or_without_the_run_command(runner, started_in):
-    """paulrun RUNBOOK is paulrun run RUNBOOK: same output, same exit code."""
+    """rundot RUNBOOK is rundot run RUNBOOK: same output, same exit code."""
     shutil.copy(RUNBOOKS / "two_steps.md", started_in)
 
     without_run = runner.invoke(cli.cli, ["two_steps.md"], input="y\n")
@@ -154,7 +154,7 @@ def test_a_runbook_runs_the_same_with_or_without_the_run_command(runner, started
 )
 def test_options_work_on_either_side_of_a_runbook_given_without_run(arguments, runner, monkeypatch):
     """--dry and --step can come before or after the runbook, with or without run."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, arguments)
 
@@ -171,7 +171,7 @@ def test_a_runbook_given_without_run_has_the_same_errors(runner, empty_library):
 
 
 def test_go_is_not_a_command_any_more(runner, empty_library):
-    """go was replaced by run, so paulrun go x looks for a runbook called go, and doesn't run x."""
+    """go was replaced by run, so rundot go x looks for a runbook called go, and doesn't run x."""
     shutil.copy(RUNBOOKS / "two_steps.md", empty_library)
 
     result = runner.invoke(cli.cli, ["go", "two_steps"], input="y\n")
@@ -184,7 +184,7 @@ def test_go_is_not_a_command_any_more(runner, empty_library):
 @pytest.mark.parametrize("command", ["check", "inputs", "library", "backends", "run"])
 def test_a_command_name_is_never_read_as_a_runbook(command, runner, monkeypatch, tmp_path):
     """Command names win, so a book named after a command doesn't stop the command working."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / f"{command}.md").write_text(
         "---\ntitle: A book named like a command\n---\n\n## S\n\n```sh run\necho book\n```\n"
     )
@@ -192,12 +192,12 @@ def test_a_command_name_is_never_read_as_a_runbook(command, runner, monkeypatch,
     result = runner.invoke(cli.cli, [command, "--help"])
 
     assert result.exit_code == 0
-    assert f"Usage: paulrun {command} " in result.output
+    assert f"Usage: rundot {command} " in result.output
 
 
 def test_run_reaches_a_book_named_like_a_command(runner, monkeypatch, tmp_path):
-    """paulrun run check runs the book check.md, since paulrun check is the command."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    """rundot run check runs the book check.md, since rundot check is the command."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "check.md").write_text(
         "---\ntitle: Check the deploy\n---\n\n## S\n\n```sh run\necho the book ran\n```\n"
     )
@@ -291,7 +291,7 @@ def test_run_shows_a_directory_too_long_for_the_box_in_full(runner, tmp_path, mo
 
 
 def test_run_runs_blocks_in_the_directory_it_is_started_from(runner, started_in):
-    """Blocks run where paulrun is started, not in the runbook's directory, and can still find the runbook's."""
+    """Blocks run where rundot is started, not in the runbook's directory, and can still find the runbook's."""
     result = runner.invoke(cli.cli, ["run", str(RUNBOOKS / "two_steps.md")], input="y\n")
 
     assert result.exit_code == 0
@@ -407,8 +407,8 @@ def test_run_prints_output_and_code_verbatim(runner, tmp_path):
 
 
 def test_run_streams_output_line_by_line_through_a_pipe():
-    """Each line is written as soon as the block prints it, even when paulrun's stdout is a pipe."""
-    command = [sys.executable, "-c", "from paulrun.cli import cli; cli()", "run", str(RUNBOOKS / "two_steps.md")]
+    """Each line is written as soon as the block prints it, even when rundot's stdout is a pipe."""
+    command = [sys.executable, "-c", "from rundot.cli import cli; cli()", "run", str(RUNBOOKS / "two_steps.md")]
     arrivals: dict[str, float] = {}
 
     with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) as process:
@@ -431,8 +431,8 @@ def test_run_rejects_missing_runbook_as_usage_error(runner, tmp_path):
 
 @pytest.mark.parametrize("name", ["say-where", "say-where.md"])
 def test_run_runs_a_book_from_the_library_by_name_where_it_was_started(name, runner, monkeypatch, started_in):
-    """A name that isn't a file here is the book of that name in PAULRUN_LIBRARY, and runs here, not in the library."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    """A name that isn't a file here is the book of that name in RUNDOT_LIBRARY, and runs here, not in the library."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["run", name], input="y\n")
 
@@ -447,7 +447,7 @@ def test_run_runs_a_book_from_the_library_by_name_where_it_was_started(name, run
 @pytest.mark.parametrize("name", ["update-project-deps", "update-project-deps.md"])
 def test_check_and_inputs_find_a_book_in_the_library_by_name(command, name, runner, monkeypatch):
     """check and inputs look up a name the same way run does."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, [command, name])
 
@@ -457,7 +457,7 @@ def test_check_and_inputs_find_a_book_in_the_library_by_name(command, name, runn
 
 def test_check_names_a_book_by_its_path_in_the_library(runner, monkeypatch):
     """check's report says which file it checked, so a book is shown by where it's kept."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["check", "say-where"])
 
@@ -465,8 +465,8 @@ def test_check_names_a_book_by_its_path_in_the_library(runner, monkeypatch):
 
 
 def test_run_uses_the_default_library_in_the_home_directory(runner, tmp_path, monkeypatch):
-    """With no PAULRUN_LIBRARY, a name is looked up in ~/runbooks."""
-    monkeypatch.delenv("PAULRUN_LIBRARY")
+    """With no RUNDOT_LIBRARY, a name is looked up in ~/runbooks."""
+    monkeypatch.delenv("RUNDOT_LIBRARY")
     monkeypatch.setenv("HOME", str(tmp_path))
     shutil.copytree(LIBRARY, tmp_path / "runbooks")
 
@@ -476,8 +476,8 @@ def test_run_uses_the_default_library_in_the_home_directory(runner, tmp_path, mo
 
 
 def test_run_runs_a_file_here_before_a_book_with_the_same_name(runner, monkeypatch, started_in):
-    """Paths win over names: a runbook where paulrun is started is used, not the library's book."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    """Paths win over names: a runbook where rundot is started is used, not the library's book."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
     write_runbook(started_in, "## Here\n\n```sh run\necho the local one\n```\n").rename(started_in / "say-where.md")
 
     result = runner.invoke(cli.cli, ["run", "say-where.md"], input="y\n")
@@ -488,7 +488,7 @@ def test_run_runs_a_file_here_before_a_book_with_the_same_name(runner, monkeypat
 
 def test_run_never_looks_in_the_library_for_a_path(runner, monkeypatch):
     """An argument with a / is only a path, so a mistyped path is an error, not a different runbook."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["run", "docs/say-where.md"])
 
@@ -499,7 +499,7 @@ def test_run_never_looks_in_the_library_for_a_path(runner, monkeypatch):
 
 @pytest.mark.parametrize("command", ["run", "check", "inputs"])
 def test_a_name_that_is_not_here_or_in_the_library_is_a_usage_error(command, runner, empty_library):
-    """The error names both places paulrun looked, so it's clear which one to fix."""
+    """The error names both places rundot looked, so it's clear which one to fix."""
     result = runner.invoke(cli.cli, [command, "rebuild-frontend"])
 
     assert result.exit_code == 2
@@ -1129,7 +1129,7 @@ def test_run_steps_through_a_runbook_with_step_in_its_frontmatter(runner, starte
 )
 def test_no_step_runs_a_runbook_with_step_in_its_frontmatter_straight_through(arguments, runner, monkeypatch):
     """--no-step overrides step: true, so every block runs without being asked about, wherever the option goes."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(RUNBOOKS))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(RUNBOOKS))
 
     result = runner.invoke(cli.cli, arguments, input="y\n")
 
@@ -1225,7 +1225,7 @@ def test_run_stops_at_a_python_block_that_raises(runner, tmp_path):
 def test_run_writes_a_transcript_to_output_path(runner, transcript_runbook, started_in):
     """With output_path set, run appends the run to that file and says where it went.
 
-    The path is relative to where paulrun was started, so nothing is written next to the runbook.
+    The path is relative to where rundot was started, so nothing is written next to the runbook.
     """
     result = runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\ny\n")
 
@@ -1237,7 +1237,7 @@ def test_run_writes_a_transcript_to_output_path(runner, transcript_runbook, star
     text = re.sub(r"@ \S+", "@ TIME", text, count=1)
     assert text == textwrap.dedent(
         """\
-        --- paulrun transcript-example.md @ TIME
+        --- rundot transcript-example.md @ TIME
         --- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
 
         === Build ===
@@ -1259,7 +1259,7 @@ def test_run_writes_a_transcript_to_output_path(runner, transcript_runbook, star
 
 
 def test_run_shows_a_transcript_under_where_it_was_started_relative_to_there(runner, tmp_path, started_in):
-    """A transcript under the directory paulrun was started in is shown as a relative path, as the docs show it."""
+    """A transcript under the directory rundot was started in is shown as a relative path, as the docs show it."""
     path = write_runbook(tmp_path, "---\ntitle: T\noutput_path: logs/run.md\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
 
     result = runner.invoke(cli.cli, ["run", str(path)], input="y\n")
@@ -1286,8 +1286,8 @@ def test_run_appends_a_second_run_to_the_transcript(runner, transcript_runbook, 
     runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\ny\n")
 
     text = (started_in / "logs" / "release-1.2.0.md").read_text()
-    assert text.count("--- paulrun transcript-example.md @") == 2
-    assert '--- finished: aborted at "Release on GitHub"\n\n--- paulrun' in text
+    assert text.count("--- rundot transcript-example.md @") == 2
+    assert '--- finished: aborted at "Release on GitHub"\n\n--- rundot' in text
     assert re.search(r"--- finished: ok \(\d+\.\ds\)\n$", text)
 
 
@@ -1459,7 +1459,7 @@ def test_help_lists_inputs_command(runner):
 
 def test_library_lists_each_book_with_its_title_and_description(runner, monkeypatch):
     """library says where the library is, then each book's name and title, with its description underneath."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["library"])
 
@@ -1477,7 +1477,7 @@ def test_library_lists_each_book_with_its_title_and_description(runner, monkeypa
 
 def test_library_lists_books_without_a_title_or_that_cannot_be_read(runner, tmp_path, monkeypatch):
     """A book with no title shows its name alone, and one that can't be read is listed with why, not left out."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\n---\n")
     (tmp_path / "notes.md").write_text("# Notes\n")
     (tmp_path / "unclosed.md").write_text("---\ntitle: Unclosed\n\n## Step\n")
@@ -1497,10 +1497,10 @@ def test_library_lists_books_without_a_title_or_that_cannot_be_read(runner, tmp_
 
 def test_library_lists_only_markdown_files_directly_in_the_library(runner, tmp_path, monkeypatch):
     """Transcripts in a logs/ folder, and other files, aren't books."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\n---\n")
     (tmp_path / "logs").mkdir()
-    (tmp_path / "logs" / "deploy-1.2.0.md").write_text("--- paulrun deploy.md @ 2026-10-13T10:00:00+01:00\n")
+    (tmp_path / "logs" / "deploy-1.2.0.md").write_text("--- rundot deploy.md @ 2026-10-13T10:00:00+01:00\n")
     (tmp_path / "deploy.sh").write_text("echo hi\n")
 
     result = runner.invoke(cli.cli, ["library"])
@@ -1510,23 +1510,23 @@ def test_library_lists_only_markdown_files_directly_in_the_library(runner, tmp_p
 
 @pytest.mark.parametrize("exists", [True, False], ids=["empty", "missing"])
 def test_library_says_when_there_are_no_books(exists, runner, tmp_path, monkeypatch):
-    """An empty or missing library isn't an error. It says where paulrun looked, and how to look somewhere else."""
+    """An empty or missing library isn't an error. It says where rundot looked, and how to look somewhere else."""
     where = tmp_path / "runbooks"
     if exists:
         where.mkdir()
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(where))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(where))
 
     result = runner.invoke(cli.cli, ["library"])
 
     assert result.exit_code == 0
     assert result.output == (
-        f"no books in the library at {where}\nAdd runbooks there, or set PAULRUN_LIBRARY to where yours are.\n"
+        f"no books in the library at {where}\nAdd runbooks there, or set RUNDOT_LIBRARY to where yours are.\n"
     )
 
 
 def test_library_prints_titles_and_descriptions_verbatim(runner, tmp_path, monkeypatch):
     """A title or description is shown as written, even if it looks like rich markup."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "odd.md").write_text("---\ntitle: '[bold]Odd[/bold] :rocket:'\ndescription: '[red]x[/red]'\n---\n")
 
     result = runner.invoke(cli.cli, ["library"])
@@ -1535,8 +1535,8 @@ def test_library_prints_titles_and_descriptions_verbatim(runner, tmp_path, monke
 
 
 def test_library_marks_a_book_whose_name_is_a_command(runner, tmp_path, monkeypatch):
-    """paulrun check is the check command, so a book called check.md says how to run it instead."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    """rundot check is the check command, so a book called check.md says how to run it instead."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "check.md").write_text("---\ntitle: Check the deploy\n---\n")
     (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\n---\n")
 
@@ -1546,7 +1546,7 @@ def test_library_marks_a_book_whose_name_is_a_command(runner, tmp_path, monkeypa
         f"""\
         library: {tmp_path}
         check   Check the deploy
-                run it with paulrun run check, since paulrun check is a command
+                run it with rundot run check, since rundot check is a command
         deploy  Deploy
         """
     )
@@ -1569,7 +1569,7 @@ def in_colour(monkeypatch):
 
 def test_library_colours_names_so_they_stand_out(runner, in_colour, tmp_path, monkeypatch):
     """Each book's name, the thing you type, is bold cyan; descriptions and the library path are dim."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "deploy.md").write_text("---\ntitle: Deploy\ndescription: Ship it.\n---\n")
     (tmp_path / "unclosed.md").write_text("---\ntitle: Unclosed\n\n## Step\n")
     (tmp_path / "check.md").write_text("---\ntitle: Check the deploy\n---\n")
@@ -1579,12 +1579,12 @@ def test_library_colours_names_so_they_stand_out(runner, in_colour, tmp_path, mo
     assert styled(result.output, "bold cyan") == ["check", "deploy", "unclosed"]
     assert styled(result.output, "dim") == [f"library: {tmp_path}", "Ship it."]
     assert styled(result.output, "red") == ["can't read it: frontmatter has no closing ---"]
-    assert styled(result.output, "yellow") == ["run it with paulrun run check, since paulrun check is a command"]
+    assert styled(result.output, "yellow") == ["run it with rundot run check, since rundot check is a command"]
 
 
 def test_library_never_reads_a_title_as_markup_in_colour(runner, in_colour, tmp_path, monkeypatch):
     """Colouring a line mustn't make rich read a title like [bold]Odd[/bold] as markup."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "odd.md").write_text("---\ntitle: '[bold]Odd[/bold] :rocket:'\n---\n")
 
     result = runner.invoke(cli.cli, ["library"])
@@ -1597,7 +1597,7 @@ def test_the_picker_colours_numbers_names_and_the_question(runner, in_colour, mo
 
     color=True, since Click takes the colour out of a prompt that isn't going to a terminal.
     """
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["run"], input="\n", color=True)
 
@@ -1630,7 +1630,7 @@ def test_an_inputs_prompt_dims_its_default_and_choices(runner, in_colour, monkey
 
 def test_menus_have_no_colour_outside_a_terminal(runner, monkeypatch):
     """With no terminal, as when piped, nothing is coloured, so output stays easy to read and to grep."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     for arguments in (["library"], ["inputs", str(RUNBOOKS / "transcript-example.md")]):
         assert "\x1b[" not in runner.invoke(cli.cli, arguments).output
@@ -1645,8 +1645,8 @@ def test_help_lists_library_command(runner):
 
 
 def test_run_with_no_runbook_picks_a_book_from_the_library_and_runs_it(runner, monkeypatch, started_in):
-    """paulrun run lists the library's books by number, and runs the one picked, where paulrun was started."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    """rundot run lists the library's books by number, and runs the one picked, where rundot was started."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["run"], input="1\ny\n")
 
@@ -1665,7 +1665,7 @@ def test_run_with_no_runbook_picks_a_book_from_the_library_and_runs_it(runner, m
 @pytest.mark.parametrize("arguments", [["run", "--dry"], ["--dry"]], ids=["run --dry", "--dry alone"])
 def test_the_picker_works_under_dry(arguments, runner, monkeypatch):
     """--dry applies to the book picked, with or without run."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
     monkeypatch.setenv("BRANCH", "update-deps")
 
     result = runner.invoke(cli.cli, arguments, input="2\n")
@@ -1678,7 +1678,7 @@ def test_the_picker_works_under_dry(arguments, runner, monkeypatch):
 
 def test_the_picker_works_under_step(runner, monkeypatch):
     """--step applies to the book picked: it asks before each run block."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["run", "--step"], input="1\ny\ns\n")
 
@@ -1690,7 +1690,7 @@ def test_the_picker_works_under_step(runner, monkeypatch):
 @pytest.mark.parametrize("answer", ["0", "3", "two", "say-where", "-1"])
 def test_the_picker_asks_again_after_an_answer_that_is_not_a_listed_number(answer, runner, monkeypatch):
     """Only a number from the list picks a book; anything else, even a book's name, gets the question again."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     result = runner.invoke(cli.cli, ["run", "--dry"], input=f"{answer}\n1\n")
 
@@ -1707,7 +1707,7 @@ def test_the_picker_asks_again_after_an_answer_that_is_not_a_listed_number(answe
 @pytest.mark.parametrize("answer", ["", "q"], ids=["blank", "q"])
 def test_q_or_a_blank_answer_to_the_picker_runs_nothing(answer, runner, monkeypatch, tmp_path, started_in):
     """q, or pressing enter, at the picker ends without running anything or writing a transcript, and exits 1."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "record.md").write_text(
         "---\ntitle: Record\noutput_path: logs/run.md\n---\n\n## S\n\n```sh run\ntouch ran\n```\n"
     )
@@ -1721,7 +1721,7 @@ def test_q_or_a_blank_answer_to_the_picker_runs_nothing(answer, runner, monkeypa
 
 def test_q_at_the_picker_quits_even_with_a_book_called_q(runner, monkeypatch, tmp_path, started_in):
     """Books are picked by number, so q always quits, even when there's a q.md in the library."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "q.md").write_text("---\ntitle: Q\n---\n\n## S\n\n```sh run\ntouch ran\n```\n")
 
     result = runner.invoke(cli.cli, ["run"], input="q\n")
@@ -1732,7 +1732,7 @@ def test_q_at_the_picker_quits_even_with_a_book_called_q(runner, monkeypatch, tm
 
 def test_ctrl_c_at_the_picker_runs_nothing(runner, monkeypatch, started_in):
     """Ctrl-C at the picker ends as quietly as a blank answer, without a traceback."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     def ctrl_c(*args, **kwargs):
         raise KeyboardInterrupt
@@ -1747,19 +1747,19 @@ def test_ctrl_c_at_the_picker_runs_nothing(runner, monkeypatch, started_in):
 
 
 def test_the_picker_with_an_empty_library_is_an_error(runner, empty_library):
-    """There's nothing to pick, so paulrun run says where it looked, and exits 1."""
+    """There's nothing to pick, so rundot run says where it looked, and exits 1."""
     result = runner.invoke(cli.cli, ["run"])
 
     assert result.exit_code == 1
     assert result.output == (
         f"Error: no books in the library at {empty_library} to pick from. "
-        "Give a runbook to run, or set PAULRUN_LIBRARY to where yours are.\n"
+        "Give a runbook to run, or set RUNDOT_LIBRARY to where yours are.\n"
     )
 
 
 def test_the_picker_lists_a_book_that_cannot_be_read_and_reports_it_if_picked(runner, monkeypatch, tmp_path):
-    """A book with broken frontmatter is listed with why, like in paulrun library, and picking it is a clean error."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(tmp_path))
+    """A book with broken frontmatter is listed with why, like in rundot library, and picking it is a clean error."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(tmp_path))
     (tmp_path / "unclosed.md").write_text("---\ntitle: Unclosed\n\n## Step\n")
 
     result = runner.invoke(cli.cli, ["run"], input="1\n")
@@ -1774,7 +1774,7 @@ def test_the_picker_lists_a_book_that_cannot_be_read_and_reports_it_if_picked(ru
 
 def test_check_and_inputs_still_need_a_runbook(runner, monkeypatch):
     """Only run has a picker."""
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(LIBRARY))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
 
     for command in ("check", "inputs"):
         result = runner.invoke(cli.cli, [command])
@@ -1808,22 +1808,22 @@ class EchoBackend:
 
 @pytest.fixture
 def external_backend(monkeypatch):
-    """Install EchoBackend alongside paulrun's own backends, the way another package registering it would."""
+    """Install EchoBackend alongside rundot's own backends, the way another package registering it would."""
     installed = list(backends.installed_entry_points())
     echo = EntryPoint(name="echo", value=f"{__name__}:EchoBackend", group=backends.ENTRY_POINT_GROUP)
     monkeypatch.setattr(backends, "installed_entry_points", lambda: [*installed, echo])
 
 
 def test_backends_lists_each_backend_with_its_languages_and_where_it_came_from(runner):
-    """backends shows paulrun's own backends, the languages each runs, and the package that registered it."""
-    version = importlib.metadata.version("paulrun")
+    """backends shows rundot's own backends, the languages each runs, and the package that registered it."""
+    version = importlib.metadata.version("rundot")
 
     result = runner.invoke(cli.cli, ["backends"])
 
     assert result.exit_code == 0
     assert result.output == (
-        f"python  python, py       paulrun.backends.python:PythonBackend (paulrun {version})\n"
-        f"shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun {version})\n"
+        f"python  python, py       rundot.backends.python:PythonBackend (rundot {version})\n"
+        f"shell   sh, bash, shell  rundot.backends.shell:ShellBackend (rundot {version})\n"
     )
 
 

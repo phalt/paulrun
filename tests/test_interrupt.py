@@ -1,7 +1,7 @@
 """Tests for pressing Ctrl-C during a run.
 
-In a terminal, Ctrl-C sends SIGINT to every process in the foreground group: paulrun and whatever block
-it's running. These tests do the same, starting paulrun in its own process group and signalling the
+In a terminal, Ctrl-C sends SIGINT to every process in the foreground group: rundot and whatever block
+it's running. These tests do the same, starting rundot in its own process group and signalling the
 whole group, so nothing here fakes the signal.
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from paulrun.backends import Interrupted, _kill_tree, stream
+from rundot.backends import Interrupted, _kill_tree, stream
 from tests.output import finished, printed
 
 
@@ -43,7 +43,7 @@ STREAM_DRIVER = textwrap.dedent(
     import os, sys
     from pathlib import Path
 
-    from paulrun.backends import Interrupted, stream
+    from rundot.backends import Interrupted, stream
 
     try:
         code = stream(
@@ -160,7 +160,7 @@ def test_ctrl_c_lets_the_block_finish_stopping_and_keeps_its_output(tmp_path):
 
 
 def test_a_second_ctrl_c_kills_a_block_that_ignores_the_first(tmp_path):
-    """A block that ignores Ctrl-C is killed by the second press, so paulrun can't be stuck waiting for it."""
+    """A block that ignores Ctrl-C is killed by the second press, so rundot can't be stuck waiting for it."""
     script = "trap '' INT; echo before; touch started; while :; do sleep 0.05; done"
 
     lines = run_stream(["bash", "-c", script], tmp_path, presses=2)
@@ -181,36 +181,36 @@ def runbook(tmp_path):
     return write
 
 
-def run_paulrun(path: Path, *, answers: str, at: str | Path) -> tuple[int, str]:
-    """Run paulrun run, typing answers, and press Ctrl-C once it gets to `at`. Returns its exit code and output.
+def run_rundot(path: Path, *, answers: str, at: str | Path) -> tuple[int, str]:
+    """Run rundot run, typing answers, and press Ctrl-C once it gets to `at`. Returns its exit code and output.
 
-    paulrun is started in the runbook's directory, so the files its blocks make are next to the runbook.
-    `at` is either text paulrun prints, such as a prompt, or a file a block creates once it's running.
+    rundot is started in the runbook's directory, so the files its blocks make are next to the runbook.
+    `at` is either text rundot prints, such as a prompt, or a file a block creates once it's running.
     Waiting for one of those, not for a length of time, makes sure Ctrl-C lands where the test means.
     """
-    paulrun = start_in_own_group(
-        [sys.executable, "-c", "from paulrun.cli import cli; cli()", "run", str(path)],
+    rundot = start_in_own_group(
+        [sys.executable, "-c", "from rundot.cli import cli; cli()", "run", str(path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env={**os.environ, "NO_COLOR": "1"},
         cwd=path.parent,
     )
-    assert paulrun.stdin is not None and paulrun.stdout is not None  # set because both are pipes
-    paulrun.stdin.write(answers.encode())
-    paulrun.stdin.flush()
+    assert rundot.stdin is not None and rundot.stdout is not None  # set because both are pipes
+    rundot.stdin.write(answers.encode())
+    rundot.stdin.flush()
     output = b""
     if isinstance(at, Path):
         wait_for(at)
     else:
         deadline = time.monotonic() + 10
         while at.encode() not in output:
-            assert time.monotonic() < deadline, f"paulrun never printed {at!r}: {output!r}"
+            assert time.monotonic() < deadline, f"rundot never printed {at!r}: {output!r}"
             # Prompts don't end in a newline, so read whatever has arrived rather than whole lines.
-            output += os.read(paulrun.stdout.fileno(), 1024)
-    press_ctrl_c(paulrun)
-    rest, _ = paulrun.communicate(timeout=10)
-    return paulrun.returncode, (output + rest).decode()
+            output += os.read(rundot.stdout.fileno(), 1024)
+    press_ctrl_c(rundot)
+    rest, _ = rundot.communicate(timeout=10)
+    return rundot.returncode, (output + rest).decode()
 
 
 def test_run_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runbook, tmp_path):
@@ -234,7 +234,7 @@ def test_run_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runboo
         """
     )
 
-    exit_code, output = run_paulrun(path, answers="y\n", at=tmp_path / "started")
+    exit_code, output = run_rundot(path, answers="y\n", at=tmp_path / "started")
 
     assert exit_code == 1
     assert "stopping cleanly" in printed(output)
@@ -247,7 +247,7 @@ def test_run_ctrl_c_during_a_block_records_it_and_finishes_as_interrupted(runboo
 
 
 def test_run_ctrl_c_at_a_confirm_finishes_as_interrupted(runbook, tmp_path):
-    """Ctrl-C while paulrun waits at a confirm ends the run there, with no answer recorded."""
+    """Ctrl-C while rundot waits at a confirm ends the run there, with no answer recorded."""
     path = runbook(
         """\
         ## First
@@ -264,7 +264,7 @@ def test_run_ctrl_c_at_a_confirm_finishes_as_interrupted(runbook, tmp_path):
         """
     )
 
-    exit_code, output = run_paulrun(path, answers="y\n", at="Continue? [y/N] ")
+    exit_code, output = run_rundot(path, answers="y\n", at="Continue? [y/N] ")
 
     assert exit_code == 1
     assert finished(output) == '✗ interrupted at "Manual"'
@@ -278,7 +278,7 @@ def test_run_ctrl_c_before_starting_writes_no_transcript(runbook, tmp_path):
     """Ctrl-C at the start prompt ends the run before any step, so there's nothing to record."""
     path = runbook("## Only\n\n```sh run\ntouch ran\n```\n")
 
-    exit_code, output = run_paulrun(path, answers="", at="Start? [y/N] ")
+    exit_code, output = run_rundot(path, answers="", at="Start? [y/N] ")
 
     assert exit_code == 1
     assert finished(output) == "✗ interrupted before starting"
@@ -293,7 +293,7 @@ def test_interrupted_is_a_keyboard_interrupt():
 
 
 def test_stream_waits_for_the_command_to_stop_after_ctrl_c_and_keeps_its_output(tmp_path):
-    """In-process view of the first Ctrl-C: the terminal sends SIGINT to the command as well as paulrun.
+    """In-process view of the first Ctrl-C: the terminal sends SIGINT to the command as well as rundot.
     stream waits for it to stop, passes on what it prints while stopping, then raises Interrupted."""
     lines: list[str] = []
     script = "trap 'echo stopping; exit 130' INT; echo $$ > pid; echo ready; while :; do sleep 0.05; done"
@@ -301,7 +301,7 @@ def test_stream_waits_for_the_command_to_stop_after_ctrl_c_and_keeps_its_output(
     def output(line: str) -> None:
         lines.append(line)
         if line == "ready":
-            # What the terminal does for Ctrl-C: SIGINT to the command, KeyboardInterrupt in paulrun.
+            # What the terminal does for Ctrl-C: SIGINT to the command, KeyboardInterrupt in rundot.
             os.kill(int((tmp_path / "pid").read_text()), signal.SIGINT)
             raise KeyboardInterrupt
 

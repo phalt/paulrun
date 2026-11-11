@@ -1,5 +1,14 @@
 # Change log
 
+## Unreleased
+
+- **Breaking:** paulrun is now called rundot. Install it as `rundot`, and run it as `rundot` instead of `paulrun`. Subcommands and flags are unchanged.
+    - The package is `rundot`, so imports are `from rundot.backends import ...`.
+    - Backends register in the `rundot.backends` entry point group, which was `paulrun.backends`.
+    - `PAULRUN_LIBRARY` is now `RUNDOT_LIBRARY`.
+    - `PAULRUN_RUNBOOK_DIR`, set for blocks, is now `RUNDOT_RUNBOOK_DIR`.
+    - The docs are at [docs.rundot.dev](https://docs.rundot.dev/) and the code at [github.com/phalt/rundot](https://github.com/phalt/rundot).
+
 ## 0.6.0
 
 - `paulrun run`'s output is easier to scan:
@@ -30,7 +39,7 @@
 
 ### A runbook library
 - keep runbooks you use across projects in `~/runbooks`, or wherever `PAULRUN_LIBRARY` says. Then run one by name from anywhere, e.g. `paulrun rebuild-frontend`. `run`, `check` and `inputs` all take a book's name as well as a path, and a file where you are is always used before a book with the same name. `paulrun library` lists the books in your library, with each one's title and description. `paulrun run`, with no runbook, lists them by number and runs the one you pick.
-- A new docs page, [Your runbook library](https://phalt.github.io/paulrun/library/), with a worked example of a book that rebuilds a frontend under nvm.
+- A new docs page, [Your runbook library](https://docs.rundot.dev/library/), with a worked example of a book that rebuilds a frontend under nvm.
 
 - **Breaking:** `paulrun go` is now `paulrun run`, and you don't need to type it: `paulrun RELEASING.md` runs `RELEASING.md`. Anything after `paulrun` that isn't a command is a runbook to run, so `paulrun go` is no longer a command. `paulrun` on its own still shows help.
 - **Breaking:** blocks now run in the folder you run paulrun from, not the folder the runbook is in. A relative `output_path` is now relative to that folder too. A runbook kept at the root of its project, run from there, works as before. One run as `paulrun path/to/RUNBOOK.md` from another folder now works on that other folder and writes its transcript there. This includes blocks run by external backends, whose `cwd` is now the folder paulrun was started from.

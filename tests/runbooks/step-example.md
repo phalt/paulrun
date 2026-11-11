@@ -5,10 +5,10 @@ description: Choose, block by block, what runs.
 
 # Step example
 
-With `--step`, paulrun shows each `run` block's code and then asks what to do:
+With `--step`, rundot shows each `run` block's code and then asks what to do:
 
 ```sh
-uv run paulrun --step tests/runbooks/step-example.md
+uv run rundot --step tests/runbooks/step-example.md
 ```
 
 - `y` runs the block.

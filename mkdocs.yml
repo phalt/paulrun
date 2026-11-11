@@ -1,5 +1,5 @@
-site_name: paulrun
-site_url: https://phalt.github.io/paulrun/
+site_name: rundot
+site_url: https://docs.rundot.dev/
 theme:
   name: material
   features:
@@ -26,8 +26,8 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-repo_name: phalt/paulrun
-repo_url: https://github.com/phalt/paulrun
+repo_name: phalt/rundot
+repo_url: https://github.com/phalt/rundot
 nav:
   - 🏃‍♂️‍➡️📕 Home: index.md
   - 🚀 Install: install.md

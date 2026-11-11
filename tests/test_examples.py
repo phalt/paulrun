@@ -1,4 +1,4 @@
-"""Tests that the example runbooks, and the one paulrun releases itself with, are valid and do what they say."""
+"""Tests that the example runbooks, and the one rundot releases itself with, are valid and do what they say."""
 
 import shutil
 from pathlib import Path
@@ -7,10 +7,10 @@ import pytest
 from click.testing import CliRunner
 from markdown_it import MarkdownIt
 
-from paulrun import cli
-from paulrun.backends import load_backends
-from paulrun.runbook import parse
-from paulrun.validate import validate
+from rundot import cli
+from rundot.backends import load_backends
+from rundot.runbook import parse
+from rundot.validate import validate
 from tests.output import finished, normalized, printed
 
 ROOT = Path(__file__).parent.parent

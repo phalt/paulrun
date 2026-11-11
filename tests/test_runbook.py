@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from paulrun import runbook
-from paulrun.inputs import Input
+from rundot import runbook
+from rundot.inputs import Input
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
 

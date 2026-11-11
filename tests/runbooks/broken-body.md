@@ -12,8 +12,8 @@ inputs:
 
 # Broken body
 
-`paulrun inputs` reads only the frontmatter above, so it still lists the
-inputs. `paulrun check` and `paulrun go` read the whole file, and stop at the
+`rundot inputs` reads only the frontmatter above, so it still lists the
+inputs. `rundot check` and `rundot go` read the whole file, and stop at the
 next line, which isn't valid UTF-8:
 
 ÿþ not text

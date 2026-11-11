@@ -4,9 +4,9 @@ from importlib.metadata import EntryPoint
 
 import pytest
 
-from paulrun import backends
-from paulrun.backends.python import PythonBackend
-from paulrun.backends.shell import ShellBackend
+from rundot import backends
+from rundot.backends.python import PythonBackend
+from rundot.backends.shell import ShellBackend
 
 
 class FakeBackend:
@@ -33,7 +33,7 @@ class RivalShellBackend:
 
 def entry_point(name: str, cls: type) -> EntryPoint:
     """An entry point for a class defined in this module, as if a package had registered it."""
-    return EntryPoint(name=name, value=f"{__name__}:{cls.__name__}", group="paulrun.backends")
+    return EntryPoint(name=name, value=f"{__name__}:{cls.__name__}", group="rundot.backends")
 
 
 def test_plain_classes_satisfy_the_backend_protocol():
@@ -44,7 +44,7 @@ def test_plain_classes_satisfy_the_backend_protocol():
 
 
 def test_load_backends_finds_shell_backend_from_installed_entry_points():
-    """paulrun's own pyproject.toml registers the shell backend for sh, bash and shell."""
+    """rundot's own pyproject.toml registers the shell backend for sh, bash and shell."""
     loaded = backends.load_backends()
 
     assert isinstance(loaded["sh"], ShellBackend)
@@ -52,7 +52,7 @@ def test_load_backends_finds_shell_backend_from_installed_entry_points():
 
 
 def test_load_backends_finds_python_backend_from_installed_entry_points():
-    """paulrun's own pyproject.toml registers the Python backend for python and py."""
+    """rundot's own pyproject.toml registers the Python backend for python and py."""
     loaded = backends.load_backends()
 
     assert isinstance(loaded["python"], PythonBackend)
@@ -78,7 +78,7 @@ def test_load_backends_uses_only_the_entry_points_given():
 def test_load_backends_rejects_two_backends_claiming_one_language():
     """When two backends claim one language, the error names both, with where each came from."""
     entry_points = [
-        EntryPoint(name="shell", value="paulrun.backends.shell:ShellBackend", group="paulrun.backends"),
+        EntryPoint(name="shell", value="rundot.backends.shell:ShellBackend", group="rundot.backends"),
         entry_point("rival", RivalShellBackend),
     ]
 
@@ -86,7 +86,7 @@ def test_load_backends_rejects_two_backends_claiming_one_language():
         backends.load_backends(entry_points)
 
     assert str(error.value) == (
-        "language 'sh' is claimed by both 'shell' (paulrun.backends.shell:ShellBackend) "
+        "language 'sh' is claimed by both 'shell' (rundot.backends.shell:ShellBackend) "
         f"and 'rival' ({__name__}:RivalShellBackend)"
     )
 
@@ -102,7 +102,7 @@ def test_load_backend_sources_gives_each_backend_once_with_its_entry_point():
 
 
 def test_load_backend_sources_uses_the_installed_entry_points_by_default():
-    """With no entry points given, the installed ones are used, which include paulrun's own backends."""
+    """With no entry points given, the installed ones are used, which include rundot's own backends."""
     names = {loaded.backend.name for loaded in backends.load_backend_sources()}
 
     assert {"shell", "python"} <= names
@@ -121,7 +121,7 @@ def test_load_backend_sources_rejects_two_backends_claiming_one_language():
 
 
 def test_an_external_backend_loads_alongside_the_built_in_ones(monkeypatch):
-    """A backend another package registers is loaded like paulrun's own, from the same entry point group."""
+    """A backend another package registers is loaded like rundot's own, from the same entry point group."""
     installed = backends.installed_entry_points()
     monkeypatch.setattr(backends, "installed_entry_points", lambda: [*installed, entry_point("fake", FakeBackend)])
 

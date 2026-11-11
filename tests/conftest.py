@@ -3,15 +3,15 @@ from pathlib import Path
 
 import pytest
 
-from paulrun import cli
-from paulrun.backends import shell
+from rundot import cli
+from rundot.backends import shell
 
 
 @pytest.fixture(autouse=True)
 def started_in(tmp_path_factory, monkeypatch) -> Path:
     """Start every test in its own empty directory, and return it.
 
-    Blocks run in the directory paulrun is started from, so a test started in the repository could change it.
+    Blocks run in the directory rundot is started from, so a test started in the repository could change it.
     This is a different directory from tmp_path, so a test can keep its runbook apart from where it runs.
     """
     directory = tmp_path_factory.mktemp("started-in")
@@ -31,13 +31,13 @@ def fixed_block_time(monkeypatch) -> None:
 
 @pytest.fixture(autouse=True)
 def empty_library(tmp_path_factory, monkeypatch) -> Path:
-    """Point PAULRUN_LIBRARY at an empty directory for every test, and return it.
+    """Point RUNDOT_LIBRARY at an empty directory for every test, and return it.
 
-    So a real library at ~/runbooks never changes what a test sees. A test that needs books sets PAULRUN_LIBRARY
+    So a real library at ~/runbooks never changes what a test sees. A test that needs books sets RUNDOT_LIBRARY
     itself, usually to tests/library.
     """
     directory = tmp_path_factory.mktemp("library")
-    monkeypatch.setenv("PAULRUN_LIBRARY", str(directory))
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(directory))
     return directory
 
 

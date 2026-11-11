@@ -7,7 +7,7 @@ inputs:
 
 # Say hello
 
-A runbook is just markdown. paulrun runs the blocks marked `run`, shows the
+A runbook is just markdown. rundot runs the blocks marked `run`, shows the
 `docstring` ones, and leaves everything else alone, like this paragraph.
 
 ## Greet

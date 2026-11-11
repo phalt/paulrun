@@ -6,8 +6,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from paulrun.backends import Problem, stream
-from paulrun.inputs import PLACEHOLDER
+from rundot.backends import Problem, stream
+from rundot.inputs import PLACEHOLDER
 
 # How bash -n reports each problem, e.g. "bash: line 3: syntax error near unexpected token `fi'".
 _BASH_ERROR = re.compile(r"^\S*bash: line (\d+): (.*)$")
@@ -36,7 +36,7 @@ class ShellBackend:
     ) -> int:
         # The flags match `set -eo pipefail` without adding a line, so the script bash runs is exactly the
         # block. The last argument is $0, which bash puts at the start of its error messages.
-        return stream(["bash", "-e", "-o", "pipefail", "-c", code, "paulrun"], env=env, cwd=cwd, output=output)
+        return stream(["bash", "-e", "-o", "pipefail", "-c", code, "rundot"], env=env, cwd=cwd, output=output)
 
 
 def _bash_errors(script: str) -> list[Problem]:

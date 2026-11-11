@@ -2,9 +2,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from paulrun.runbook import RunbookError, read_frontmatter
+from rundot.runbook import RunbookError, read_frontmatter
 
-LIBRARY_VARIABLE = "PAULRUN_LIBRARY"
+LIBRARY_VARIABLE = "RUNDOT_LIBRARY"
 
 
 @dataclass(frozen=True)
@@ -19,8 +19,8 @@ class Book:
 
 
 def location(env: Mapping[str, str]) -> Path:
-    """Where the runbook library is: PAULRUN_LIBRARY if it's set and not empty, otherwise ~/runbooks."""
-    # An empty variable counts as unset, the same as for inputs, so a stray `PAULRUN_LIBRARY=` uses the default.
+    """Where the runbook library is: RUNDOT_LIBRARY if it's set and not empty, otherwise ~/runbooks."""
+    # An empty variable counts as unset, the same as for inputs, so a stray `RUNDOT_LIBRARY=` uses the default.
     if value := env.get(LIBRARY_VARIABLE):
         return Path(value).expanduser()
     return Path.home() / "runbooks"

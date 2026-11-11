@@ -1,45 +1,45 @@
 # 📟 Command line
 
 ```sh
-paulrun RUNBOOK [--dry] [--step | --no-step] [--show-code]      # run a runbook
-paulrun run RUNBOOK [--dry] [--step | --no-step] [--show-code]  # the same, in full
-paulrun check RUNBOOK                                           # find problems without running anything
-paulrun inputs RUNBOOK                                          # list the inputs a runbook needs
-paulrun library                                                 # list the books in your runbook library
-paulrun backends                                                # list the languages paulrun can run
-paulrun --version
+rundot RUNBOOK [--dry] [--step | --no-step] [--show-code]      # run a runbook
+rundot run RUNBOOK [--dry] [--step | --no-step] [--show-code]  # the same, in full
+rundot check RUNBOOK                                           # find problems without running anything
+rundot inputs RUNBOOK                                          # list the inputs a runbook needs
+rundot library                                                 # list the books in your runbook library
+rundot backends                                                # list the languages rundot can run
+rundot --version
 ```
 
-`paulrun` on its own shows this list.
+`rundot` on its own shows this list.
 
 ## Naming a runbook
 
 `RUNBOOK` is a file, or the name of a book in your [runbook library](library.md):
 
 ```sh
-paulrun RELEASING.md        # the file RELEASING.md, here
-paulrun rebuild-frontend    # the book rebuild-frontend.md, in your library
+rundot RELEASING.md        # the file RELEASING.md, here
+rundot rebuild-frontend    # the book rebuild-frontend.md, in your library
 ```
 
 1. If `RUNBOOK` is a file that exists, that's the runbook, so a file is never hidden by a book with the same name.
 2. Otherwise, if it has no `/`, it's the book `<name>.md` in your library. The `.md` is optional.
-3. Otherwise it's a usage error, which names both places paulrun looked:
+3. Otherwise it's a usage error, which names both places rundot looked:
 
 ```
 Error: Invalid value for 'RUNBOOK': no runbook 'rebuild-frontend': no such file here, and no rebuild-frontend.md in the library at /home/you/runbooks
 ```
 
-## paulrun run
+## rundot run
 
 Runs a runbook, step by step.
 
 ```sh
-paulrun RELEASING.md
+rundot RELEASING.md
 ```
 
-You don't need to type `run`: anything after `paulrun` that isn't a command is a runbook. Options go before or after it, so `paulrun RELEASING.md --dry` is the same as `paulrun --dry RELEASING.md`. Use `paulrun run check` to run a book called `check.md`, since `paulrun check` is the command.
+You don't need to type `run`: anything after `rundot` that isn't a command is a runbook. Options go before or after it, so `rundot RELEASING.md --dry` is the same as `rundot --dry RELEASING.md`. Use `rundot run check` to run a book called `check.md`, since `rundot check` is the command.
 
-1. **Checks the runbook**, as [`paulrun check`](#paulrun-check) does. Errors stop it here.
+1. **Checks the runbook**, as [`rundot check`](#rundot-check) does. Errors stop it here.
 2. **Collects the inputs**. See [Inputs](runbook-format.md#inputs).
 3. **Shows the plan** and asks `Start? [y/N]`.
 4. **Runs each step in order**, streaming each block's output as it's printed. Each block shows its language and when it started, then what it printed, then its exit code and how long it took. A line it wrote to stderr has a red `│`.
@@ -114,10 +114,10 @@ Shows each block's code above what it printed:
 
 ### Picking a book
 
-With no runbook, `paulrun run` asks which book from your library to run:
+With no runbook, `rundot run` asks which book from your library to run:
 
 ```
-$ paulrun run
+$ rundot run
   1. rebuild-frontend     Rebuild the frontend
   2. update-project-deps  Update a project's dependencies
 Run which? (q to quit) 1
@@ -130,7 +130,7 @@ Answer with a number. `--dry` and `--step` work too. Answer `q`, or press enter,
 Shows what the runbook would do, without running anything.
 
 ```sh
-paulrun --dry RELEASING.md
+rundot --dry RELEASING.md
 ```
 
 - Every block is shown with its inputs filled in.
@@ -176,7 +176,7 @@ dry run: nothing will be run
 Asks before running each `run` block.
 
 ```sh
-paulrun --step RELEASING.md
+rundot --step RELEASING.md
 ```
 
 ```
@@ -204,16 +204,16 @@ A runbook that should always be run this way can set [`step: true`](runbook-form
 
 ### Pressing Ctrl-C
 
-- A running block gets the Ctrl-C too, and paulrun waits for it to stop.
+- A running block gets the Ctrl-C too, and rundot waits for it to stop.
 - If a block ignores it, press Ctrl-C again to stop the block and everything it started.
 - The run ends as `✗ interrupted at "<step>"`.
 
-## paulrun check
+## rundot check
 
 Finds problems in a runbook without running anything.
 
 ```sh
-paulrun check RELEASING.md
+rundot check RELEASING.md
 ```
 
 ```
@@ -245,16 +245,16 @@ broken.md:21: error: syntax error near unexpected token `fi'
 
 **Warnings** don't:
 
-- a frontmatter or input key paulrun doesn't know, often a typo
+- a frontmatter or input key rundot doesn't know, often a typo
 - an input nothing uses
 - a Python `SyntaxWarning`, and [shellcheck](install.md#optional-shellcheck) findings if it's installed
 
-## paulrun inputs
+## rundot inputs
 
 Lists the inputs a runbook needs, so you know what to have ready.
 
 ```sh
-paulrun inputs PUBLISHING.md
+rundot inputs PUBLISHING.md
 ```
 
 ```
@@ -273,12 +273,12 @@ OTP      The code from your authenticator app
 
 Inputs from [input blocks](runbook-format.md#input-blocks) come last, with the step that asks for them. Frontmatter inputs are listed even if the rest of the runbook is broken.
 
-## paulrun library
+## rundot library
 
 Lists the books in your [runbook library](library.md), with each one's `title` and `description`.
 
 ```
-$ paulrun library
+$ rundot library
 library: /home/you/runbooks
 rebuild-frontend     Rebuild the frontend
                      Clean install the frontend's dependencies, then rebuild it.
@@ -287,14 +287,14 @@ update-project-deps  Update a project's dependencies
 
 A book whose frontmatter can't be read is still listed, with why.
 
-## paulrun backends
+## rundot backends
 
-Lists the languages paulrun can run, and the package each comes from.
+Lists the languages rundot can run, and the package each comes from.
 
 ```
-$ paulrun backends
-python  python, py       paulrun.backends.python:PythonBackend (paulrun 0.2.0)
-shell   sh, bash, shell  paulrun.backends.shell:ShellBackend (paulrun 0.2.0)
+$ rundot backends
+python  python, py       rundot.backends.python:PythonBackend (rundot 0.2.0)
+shell   sh, bash, shell  rundot.backends.shell:ShellBackend (rundot 0.2.0)
 ```
 
 ## Exit codes

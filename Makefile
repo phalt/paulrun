@@ -1,5 +1,5 @@
 help:
-	@echo Developer commands for paulrun
+	@echo Developer commands for rundot
 	@echo
 	@grep -E '^[ .a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo
@@ -35,12 +35,12 @@ clean:  ## Clear any cache files and test files
 	rm -rf .import_linter_cache
 	rm -rf site/
 	rm -rf dist/
-	find paulrun tests -name __pycache__ -prune -exec rm -rf {} +
+	find rundot tests -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf htmlcov/
 	rm -rf .coverage
 
 test:  ## Run tests
-	uv run pytest -vvv -x --cov=paulrun --cov-report=term-missing --cov-report=html --cov-config=pyproject.toml
+	uv run pytest -vvv -x --cov=rundot --cov-report=term-missing --cov-report=html --cov-config=pyproject.toml
 
 shell:  ## Run an ipython shell
 	uv run ipython

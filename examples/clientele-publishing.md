@@ -19,8 +19,8 @@ version. It lives in clientele's repository as `PUBLISHING.md`, and is run
 from there:
 
 ```sh
-paulrun PUBLISHING.md --dry
-paulrun PUBLISHING.md
+rundot PUBLISHING.md --dry
+rundot PUBLISHING.md
 ```
 
 Before you start, add a `## <version>` section for the release to the top of

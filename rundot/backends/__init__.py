@@ -10,7 +10,7 @@ from importlib.metadata import EntryPoint
 from pathlib import Path
 from typing import Any, Protocol
 
-ENTRY_POINT_GROUP = "paulrun.backends"
+ENTRY_POINT_GROUP = "rundot.backends"
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class Output(Protocol):
 class Backend(Protocol):
     """Runs `run` blocks for one or more languages.
 
-    Backends are classes registered under the `paulrun.backends` entry point group. Each is created
+    Backends are classes registered under the `rundot.backends` entry point group. Each is created
     once, with no arguments, when backends are loaded.
     """
 
@@ -68,7 +68,7 @@ class Backend(Protocol):
 
         Call output with each line the block prints, without its newline, as soon as it's printed, and
         stderr=True for a line it wrote to stderr.
-        Don't print anything directly; paulrun owns the terminal. frontmatter is the runbook's
+        Don't print anything directly; rundot owns the terminal. frontmatter is the runbook's
         frontmatter, read-only. env is the block's complete environment and cwd is where it runs.
         """
 
@@ -84,15 +84,15 @@ class Interrupted(KeyboardInterrupt):
 def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output: Callable[..., None]) -> int:
     """Run command, passing each line it prints to output as it's printed, and return its exit code.
 
-    If output takes a stderr keyword, as the output paulrun gives a backend does, each line written to stderr is
+    If output takes a stderr keyword, as the output rundot gives a backend does, each line written to stderr is
     passed with stderr=True. stdout and stderr are read apart then, so two lines written to them at almost the
     same moment can arrive in either order. Otherwise they're merged, so lines keep the order they were printed
-    in. The command shares paulrun's terminal, so it can still ask for a password on it, as git, ssh and gpg do.
+    in. The command shares rundot's terminal, so it can still ask for a password on it, as git, ssh and gpg do.
     This is how the built-in backends run blocks, and other backends can use it too.
 
-    Ctrl-C reaches the command as well as paulrun. On the first press, paulrun waits for the command to
+    Ctrl-C reaches the command as well as rundot. On the first press, rundot waits for the command to
     stop, still passing on what it prints. A second press kills it and everything it started, and stops
-    reading, so nothing can keep paulrun waiting. Either way, once the command has exited, Interrupted
+    reading, so nothing can keep rundot waiting. Either way, once the command has exited, Interrupted
     is raised with its exit code.
     """
     marks_stderr = _takes_stderr(output)
@@ -114,7 +114,7 @@ def stream(command: Sequence[str], *, env: Mapping[str, str], cwd: Path, output:
                         interrupted = True
                         continue
                     _kill_tree(process.pid)
-                    # Stop reading, so nothing still holding the output open can keep paulrun waiting.
+                    # Stop reading, so nothing still holding the output open can keep rundot waiting.
                     break
         process.wait()
     if interrupted:
@@ -204,11 +204,11 @@ class BackendError(Exception):
 @dataclass(frozen=True)
 class LoadedBackend:
     backend: Backend
-    entry_point: EntryPoint  # where it was registered, e.g. paulrun's own pyproject.toml or another package's
+    entry_point: EntryPoint  # where it was registered, e.g. rundot's own pyproject.toml or another package's
 
 
 def installed_entry_points() -> Iterable[EntryPoint]:
-    """Every backend registered under the paulrun.backends group by an installed package, paulrun included."""
+    """Every backend registered under the rundot.backends group by an installed package, rundot included."""
     return importlib.metadata.entry_points(group=ENTRY_POINT_GROUP)
 
 

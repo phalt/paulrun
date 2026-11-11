@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from paulrun import runner
-from paulrun.backends import load_backends
-from paulrun.inputs import Input
-from paulrun.runbook import parse
-from paulrun.transcript import Transcript, TranscriptError, transcript_path
+from rundot import runner
+from rundot.backends import load_backends
+from rundot.inputs import Input
+from rundot.runbook import parse
+from rundot.transcript import Transcript, TranscriptError, transcript_path
 
 # A fixed time for run headers, so transcripts can be compared exactly.
 STARTED = datetime(2026, 10, 7, 10, 2, 13, tzinfo=timezone(timedelta(hours=1)))
@@ -106,7 +106,7 @@ def test_transcript_records_a_run_in_the_spec_format(tmp_path, monkeypatch):
 
     assert without_durations(output.read_text()) == textwrap.dedent(
         """\
-        --- paulrun PUBLISHING.md @ 2026-10-07T10:02:13+01:00
+        --- rundot PUBLISHING.md @ 2026-10-07T10:02:13+01:00
         --- inputs: VERSION=1.2.0 TOKEN=****
 
         === Build ===
@@ -251,7 +251,7 @@ def test_transcript_creates_missing_parent_directories(tmp_path):
 
     run_with_transcript(path, output)
 
-    assert output.read_text().startswith("--- paulrun PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n\n")
+    assert output.read_text().startswith("--- rundot PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n\n")
 
 
 def test_transcript_leaves_out_the_inputs_line_when_there_are_none(tmp_path):
@@ -261,7 +261,7 @@ def test_transcript_leaves_out_the_inputs_line_when_there_are_none(tmp_path):
 
     run_with_transcript(path, output)
 
-    assert output.read_text().startswith("--- paulrun PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n\n=== Only ===\n")
+    assert output.read_text().startswith("--- rundot PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n\n=== Only ===\n")
 
 
 def test_transcript_is_written_as_the_run_goes(tmp_path):
@@ -283,8 +283,8 @@ def test_transcript_is_written_as_the_run_goes(tmp_path):
     assert without_durations(before_finishing).endswith("=== Only ===\n    echo hi\nhi\nexit 0 (Xs)\n")
 
 
-def test_transcript_path_fills_in_plain_inputs_relative_to_where_paulrun_runs(tmp_path):
-    """output_path has placeholders filled in and is resolved from cwd, where paulrun runs, not the runbook's."""
+def test_transcript_path_fills_in_plain_inputs_relative_to_where_rundot_runs(tmp_path):
+    """output_path has placeholders filled in and is resolved from cwd, where rundot runs, not the runbook's."""
     path = write_runbook(tmp_path / "book", "---\ntitle: T\noutput_path: logs/release-<VERSION>.md\n---\n")
     project = tmp_path / "project"
 
@@ -292,7 +292,7 @@ def test_transcript_path_fills_in_plain_inputs_relative_to_where_paulrun_runs(tm
 
 
 def test_transcript_path_keeps_an_absolute_output_path(tmp_path):
-    """An absolute output_path is used as it is, wherever paulrun runs."""
+    """An absolute output_path is used as it is, wherever rundot runs."""
     target = tmp_path / "elsewhere" / "log.md"
     path = write_runbook(tmp_path / "book", f"---\ntitle: T\noutput_path: {target}\n---\n")
 
@@ -309,7 +309,7 @@ def test_transcript_path_is_none_without_output_path(tmp_path):
 def test_transcript_for_a_runbook_goes_to_its_output_path_with_inputs_filled_in(tmp_path, monkeypatch):
     """Made from a runbook, a transcript works out its file from output_path once the inputs are known.
 
-    The file is in the directory paulrun runs in, and nothing is written next to the runbook.
+    The file is in the directory rundot runs in, and nothing is written next to the runbook.
     """
     monkeypatch.setenv("VERSION", "1.2.0")
     project = tmp_path / "project"
@@ -341,7 +341,7 @@ def test_transcript_for_a_runbook_goes_to_its_output_path_with_inputs_filled_in(
     assert transcript.path == project / "logs" / "release-1.2.0.md"
     assert transcript.path is not None
     assert sorted(item.name for item in (tmp_path / "book").iterdir()) == ["PUBLISHING.md"]
-    assert transcript.path.read_text().startswith("--- paulrun PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n")
+    assert transcript.path.read_text().startswith("--- rundot PUBLISHING.md @ 2026-10-07T10:02:13+01:00\n")
 
 
 def test_transcript_that_cannot_be_opened_raises_a_transcript_error(tmp_path):

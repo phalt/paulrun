@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from paulrun.backends import Problem, load_backends
-from paulrun.runbook import parse
-from paulrun.validate import Finding, Report, validate
+from rundot.backends import Problem, load_backends
+from rundot.runbook import parse
+from rundot.validate import Finding, Report, validate
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
 BROKEN = RUNBOOKS / "broken"
@@ -68,7 +68,7 @@ BROKEN_CASES = [
     ),
     ("run-block-with-no-backend.md", 7, "no backend runs 'cobol' blocks"),
     ("block-before-first-step.md", 7, "run blocks must be inside a step (a ## heading)"),
-    ("python-not-on-path.md", 3, "python command 'paulrun-no-such-python' isn't on PATH"),
+    ("python-not-on-path.md", 3, "python command 'rundot-no-such-python' isn't on PATH"),
     ("shell-syntax-error.md", 10, "syntax error near unexpected token `fi'"),
     ("python-syntax-error.md", 9, "expected ':'"),
 ]
@@ -131,7 +131,7 @@ def test_validate_finds_no_problems_in_the_valid_fixtures(fixture):
 
 
 def test_validate_warns_about_unknown_frontmatter_keys(tmp_path):
-    """A top-level key paulrun doesn't know is a warning on its line, not an error."""
+    """A top-level key rundot doesn't know is a warning on its line, not an error."""
     path = write_runbook(tmp_path, "---\ntitle: Release\nversion: 2\n---\n\n## Only\n\n```sh run\ntrue\n```\n")
 
     report = check(path)
@@ -141,7 +141,7 @@ def test_validate_warns_about_unknown_frontmatter_keys(tmp_path):
 
 
 def test_validate_warns_about_unknown_input_keys(tmp_path):
-    """A key on an input that paulrun doesn't know is a warning on that input's line."""
+    """A key on an input that rundot doesn't know is a warning on that input's line."""
     path = write_runbook(
         tmp_path,
         """\
@@ -457,8 +457,8 @@ def test_validate_reports_each_undeclared_placeholder_on_its_own_line(tmp_path):
     ]
 
 
-def test_validate_treats_paulrun_runbook_dir_as_an_environment_variable_not_an_input(tmp_path):
-    """PAULRUN_RUNBOOK_DIR is set for every block but isn't an input, so it's read as $PAULRUN_RUNBOOK_DIR only."""
+def test_validate_treats_rundot_runbook_dir_as_an_environment_variable_not_an_input(tmp_path):
+    """RUNDOT_RUNBOOK_DIR is set for every block but isn't an input, so it's read as $RUNDOT_RUNBOOK_DIR only."""
     path = write_runbook(
         tmp_path,
         """\
@@ -469,13 +469,13 @@ def test_validate_treats_paulrun_runbook_dir_as_an_environment_variable_not_an_i
         ## Only
 
         ```sh run
-        cat "$PAULRUN_RUNBOOK_DIR/notes.md"
-        echo <PAULRUN_RUNBOOK_DIR>
+        cat "$RUNDOT_RUNBOOK_DIR/notes.md"
+        echo <RUNDOT_RUNBOOK_DIR>
         ```
         """,
     )
 
-    assert check(path).errors == [Finding(9, "<PAULRUN_RUNBOOK_DIR> isn't a declared input")]
+    assert check(path).errors == [Finding(9, "<RUNDOT_RUNBOOK_DIR> isn't a declared input")]
 
 
 def test_validate_reports_docstring_and_confirm_blocks_before_the_first_step(tmp_path):
@@ -534,7 +534,7 @@ def test_validate_suggests_an_upper_snake_case_name(tmp_path, name, suggestion):
 def test_validate_checks_python_only_when_the_runbook_has_python_blocks(tmp_path):
     """A python command that isn't installed doesn't matter if nothing uses it."""
     path = write_runbook(
-        tmp_path, "---\ntitle: T\npython: paulrun-no-such-python\n---\n\n## S\n\n```sh run\ntrue\n```\n"
+        tmp_path, "---\ntitle: T\npython: rundot-no-such-python\n---\n\n## S\n\n```sh run\ntrue\n```\n"
     )
 
     assert check(path).findings == []
@@ -623,7 +623,7 @@ def test_report_sorts_findings_by_line_whichever_check_found_them(tmp_path):
 
 def test_validate_suggests_only_names_that_are_themselves_valid():
     """Every suggestion is UPPER_SNAKE_CASE, even for a name that starts with a digit."""
-    from paulrun.validate import _UPPER_SNAKE_CASE, _upper_snake
+    from rundot.validate import _UPPER_SNAKE_CASE, _upper_snake
 
     for name in ["2fa", "9", "a-b", "Ünïcode", "_x_", "x1"]:
         assert _UPPER_SNAKE_CASE.fullmatch(_upper_snake(name)), name
@@ -849,7 +849,7 @@ def test_validate_reports_an_empty_input_block(tmp_path):
 
 
 def test_validate_does_not_read_an_input_blocks_own_text_as_placeholders(tmp_path):
-    """An input block's YAML declares an input; it isn't text paulrun fills in, so <NAME> in it is just text."""
+    """An input block's YAML declares an input; it isn't text rundot fills in, so <NAME> in it is just text."""
     path = write_runbook(
         tmp_path,
         """\

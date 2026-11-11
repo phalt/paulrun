@@ -1,6 +1,6 @@
 ---
 title: python command not on PATH
-python: paulrun-no-such-python --version
+python: rundot-no-such-python --version
 ---
 
 ## Only step

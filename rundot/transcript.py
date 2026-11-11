@@ -4,13 +4,13 @@ from pathlib import Path
 from types import TracebackType
 from typing import TextIO
 
-from paulrun import runner
-from paulrun.inputs import substitute
-from paulrun.runbook import Runbook
+from rundot import runner
+from rundot.inputs import substitute
+from rundot.runbook import Runbook
 
 
 def transcript_path(runbook: Runbook, values: Mapping[str, str], cwd: Path) -> Path | None:
-    """Where a run's transcript goes: output_path with plain inputs filled in, from cwd, where paulrun runs."""
+    """Where a run's transcript goes: output_path with plain inputs filled in, from cwd, where rundot runs."""
     if runbook.output_path is None:
         return None
     return cwd / substitute(runbook.output_path, values)
@@ -107,7 +107,7 @@ class Transcript:
         self._written = True
         if has_runs:
             self._write("")
-        self._write(f"--- paulrun {self._runbook_name} @ {self._clock().isoformat(timespec='seconds')}")
+        self._write(f"--- rundot {self._runbook_name} @ {self._clock().isoformat(timespec='seconds')}")
         if self._inputs:
             self._write("--- inputs: " + " ".join(f"{name}={value}" for name, value in self._inputs))
 

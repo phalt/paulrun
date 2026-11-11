@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from paulrun import runner
-from paulrun.backends import Interrupted, load_backends
-from paulrun.inputs import Input, InputError
-from paulrun.runbook import parse
+from rundot import runner
+from rundot.backends import Interrupted, load_backends
+from rundot.inputs import Input, InputError
+from rundot.runbook import parse
 
 # A runbook with one plain input and one secret, for the input tests.
 INPUTS_FRONTMATTER = """\
@@ -207,8 +207,8 @@ def test_run_runs_python_blocks_in_the_directory_it_is_given(tmp_path):
 
 
 def test_run_tells_blocks_where_the_runbook_is(tmp_path, monkeypatch):
-    """PAULRUN_RUNBOOK_DIR is the runbook's directory as an absolute path, even if paulrun was given a relative one."""
-    write_runbook(tmp_path / "book", '## Where\n\n```sh run\necho "$PAULRUN_RUNBOOK_DIR"\n```\n')
+    """RUNDOT_RUNBOOK_DIR is the runbook's directory as an absolute path, even if rundot was given a relative one."""
+    write_runbook(tmp_path / "book", '## Where\n\n```sh run\necho "$RUNDOT_RUNBOOK_DIR"\n```\n')
     (tmp_path / "project").mkdir()
     monkeypatch.chdir(tmp_path / "project")
 
@@ -217,10 +217,10 @@ def test_run_tells_blocks_where_the_runbook_is(tmp_path, monkeypatch):
     assert output(events) == [str((tmp_path / "book").resolve())]
 
 
-def test_run_sets_paulrun_runbook_dir_over_one_already_in_the_environment(tmp_path, monkeypatch):
-    """A PAULRUN_RUNBOOK_DIR left over from an outer run is replaced, so a block never sees the wrong runbook's."""
-    monkeypatch.setenv("PAULRUN_RUNBOOK_DIR", "/somewhere/else")
-    path = write_runbook(tmp_path / "book", '## Where\n\n```sh run\necho "$PAULRUN_RUNBOOK_DIR"\n```\n')
+def test_run_sets_rundot_runbook_dir_over_one_already_in_the_environment(tmp_path, monkeypatch):
+    """A RUNDOT_RUNBOOK_DIR left over from an outer run is replaced, so a block never sees the wrong runbook's."""
+    monkeypatch.setenv("RUNDOT_RUNBOOK_DIR", "/somewhere/else")
+    path = write_runbook(tmp_path / "book", '## Where\n\n```sh run\necho "$RUNDOT_RUNBOOK_DIR"\n```\n')
 
     events, _ = run(path, cwd=tmp_path)
 
@@ -287,7 +287,7 @@ def test_run_result_names_the_failed_step_and_exit_code(tmp_path):
 
 
 def test_run_adds_streaming_and_pager_settings_to_block_env(tmp_path, monkeypatch):
-    """Python output isn't held back and nothing opens a pager, even if paulrun's environment sets one."""
+    """Python output isn't held back and nothing opens a pager, even if rundot's environment sets one."""
     monkeypatch.setenv("PAGER", "less")
     path = write_runbook(tmp_path, '## Env\n\n```sh run\necho "$PYTHONUNBUFFERED $GIT_PAGER $PAGER"\n```\n')
 
@@ -296,10 +296,10 @@ def test_run_adds_streaming_and_pager_settings_to_block_env(tmp_path, monkeypatc
     assert output(events) == ["1 cat cat"]
 
 
-def test_run_passes_paulrun_environment_to_blocks(tmp_path, monkeypatch):
-    """Blocks see the environment paulrun was started with."""
-    monkeypatch.setenv("PAULRUN_TEST_INHERITED", "yes")
-    path = write_runbook(tmp_path, '## Env\n\n```sh run\necho "$PAULRUN_TEST_INHERITED"\n```\n')
+def test_run_passes_rundot_environment_to_blocks(tmp_path, monkeypatch):
+    """Blocks see the environment rundot was started with."""
+    monkeypatch.setenv("RUNDOT_TEST_INHERITED", "yes")
+    path = write_runbook(tmp_path, '## Env\n\n```sh run\necho "$RUNDOT_TEST_INHERITED"\n```\n')
 
     events, _ = run(path)
 
@@ -442,7 +442,7 @@ def test_run_masks_secret_values_in_block_output(tmp_path, monkeypatch):
 
 
 def test_run_takes_inputs_from_the_environment_without_prompting(tmp_path, monkeypatch):
-    """Inputs set in paulrun's environment are used as they are."""
+    """Inputs set in rundot's environment are used as they are."""
     monkeypatch.setenv("VERSION", "1.2.0")
     monkeypatch.setenv("TOKEN", "s3cret")
     path = write_runbook(tmp_path, INPUTS_FRONTMATTER + '\n## Env\n\n```sh run\necho "<VERSION> $TOKEN"\n```\n')
@@ -487,7 +487,7 @@ def test_run_does_not_ask_for_inputs_when_a_block_has_no_backend(tmp_path, monke
 
 
 def test_run_shows_an_overview_after_collecting_inputs_then_asks_to_start(tmp_path, monkeypatch):
-    """The title, steps and number of run blocks are sent once inputs are in, and then paulrun asks to start."""
+    """The title, steps and number of run blocks are sent once inputs are in, and then rundot asks to start."""
     monkeypatch.delenv("VERSION", raising=False)
     monkeypatch.delenv("TOKEN", raising=False)
     path = write_runbook(
@@ -919,7 +919,7 @@ touch announced
 
 
 def test_step_by_step_runs_each_block_answered_y(tmp_path):
-    """After each run block's code, paulrun asks about it, and y runs it."""
+    """After each run block's code, rundot asks about it, and y runs it."""
     path = write_runbook(tmp_path, THREE_STEPS)
     prompter = FakePrompter(replies=["y", "y", "y", "y"])
 
@@ -1124,7 +1124,7 @@ def test_dry_run_sends_no_confirm_answers(tmp_path):
 
 
 def test_run_masks_a_secret_value_written_into_the_runbook_itself(tmp_path, monkeypatch):
-    """If a secret's value also appears in the runbook's own text, it's masked in every text paulrun sends."""
+    """If a secret's value also appears in the runbook's own text, it's masked in every text rundot sends."""
     monkeypatch.setenv("VERSION", "1.2.0")
     monkeypatch.setenv("TOKEN", "s3cret")
     path = write_runbook(
@@ -1511,6 +1511,6 @@ def test_run_rejects_an_input_block_that_is_not_a_valid_input_before_running_any
     with pytest.raises(runner.RunnerError) as error:
         runner.run(parse(path), load_backends(), events.append, FakePrompter(), cwd=path.parent)
 
-    assert str(error.value) == "line 9: input block isn't a valid input; run paulrun check to see why"
+    assert str(error.value) == "line 9: input block isn't a valid input; run rundot check to see why"
     assert events == []
     assert not (tmp_path / "ran").exists()

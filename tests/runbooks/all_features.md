@@ -15,7 +15,7 @@ inputs:
 # Release example
 
 Everything before the first step is documentation. This fence isn't marked
-`run`, so paulrun ignores it:
+`run`, so rundot ignores it:
 
 ```sh
 echo "for reading only"

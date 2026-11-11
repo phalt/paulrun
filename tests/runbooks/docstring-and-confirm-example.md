@@ -9,12 +9,12 @@ inputs:
 
 # Docstring and confirm example
 
-paulrun prints `docstring` blocks as it reaches them, and stops at each
+rundot prints `docstring` blocks as it reaches them, and stops at each
 `confirm` block until you answer `y`. Any other answer ends the run there, and
 nothing after it runs.
 
 ```sh
-VERSION=1.2.0 uv run paulrun tests/runbooks/docstring-and-confirm-example.md
+VERSION=1.2.0 uv run rundot tests/runbooks/docstring-and-confirm-example.md
 ```
 
 Both kinds of block have plain inputs substituted, like `run` blocks.

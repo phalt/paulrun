@@ -1,8 +1,8 @@
 # 📜 Runbook format
 
-A runbook is a markdown file. Frontmatter at the top sets it up, each `##` heading is a step, and code blocks marked for paulrun are shown, paused on, or run. Everything else is documentation.
+A runbook is a markdown file. Frontmatter at the top sets it up, each `##` heading is a step, and code blocks marked for rundot are shown, paused on, or run. Everything else is documentation.
 
-Run `paulrun check` on a runbook to find anything wrong with it.
+Run `rundot check` on a runbook to find anything wrong with it.
 
 ## Frontmatter
 
@@ -28,7 +28,7 @@ inputs:                                      # optional
 | Key | What it does |
 |---|---|
 | `title` | The runbook's name, shown when it runs. Required. |
-| `description` | What it's for, shown by [`paulrun library`](cli.md#paulrun-library). |
+| `description` | What it's for, shown by [`rundot library`](cli.md#rundot-library). |
 | `output_path` | Where to keep a [transcript](#transcript) of each run. |
 | `python` | The command that runs [Python blocks](#python-blocks). |
 | `step` | `true` to ask before each `run` block, as [`--step`](cli.md#-step) does, without having to pass it. `--no-step` turns it off for one run. |
@@ -43,24 +43,24 @@ Values a runbook needs each time it runs, such as the version being released.
 | Key | What it does |
 |---|---|
 | `name` | Required, in UPPER_SNAKE_CASE, e.g. `VERSION`. |
-| `description` | Required. Shown when paulrun asks for it. |
+| `description` | Required. Shown when rundot asks for it. |
 | `pattern` | A regular expression the whole value must match, e.g. `'^\d+\.\d+\.\d+$'`. |
 | `secret` | `true` for passwords and tokens. See [Secrets](#secrets). |
 | `default` | Used if you press enter. See [Defaults](#defaults). |
 | `choices` | The only values accepted. See [Choices](#choices). |
 
-paulrun collects every input before the first step:
+rundot collects every input before the first step:
 
-1. If an environment variable with the input's name is set, it's used: `VERSION=1.2.0 paulrun RELEASING.md` doesn't ask. An empty variable counts as not set.
-2. Otherwise paulrun asks for it.
+1. If an environment variable with the input's name is set, it's used: `VERSION=1.2.0 rundot RELEASING.md` doesn't ask. An empty variable counts as not set.
+2. Otherwise rundot asks for it.
 
-A typed answer that doesn't fit the input's `pattern` or `choices` is asked for again. A value from the environment that doesn't fit stops paulrun before anything runs.
+A typed answer that doesn't fit the input's `pattern` or `choices` is asked for again. A value from the environment that doesn't fit stops rundot before anything runs.
 
 ### Using inputs
 
 Every input is an environment variable in every `run` block: `$VERSION` in shell, `os.environ["VERSION"]` in Python.
 
-An input that isn't secret can also be written as a placeholder, `<VERSION>`, in `run`, `docstring` and `confirm` blocks and in `output_path`. paulrun fills it in. The rest of the runbook is never changed.
+An input that isn't secret can also be written as a placeholder, `<VERSION>`, in `run`, `docstring` and `confirm` blocks and in `output_path`. rundot fills it in. The rest of the runbook is never changed.
 
 A placeholder that isn't a declared input is a `check` error, and an input nothing uses, as `<VERSION>` or `$VERSION`, is a warning.
 
@@ -108,14 +108,14 @@ An input with `secret: true` is never shown or saved:
 - Its prompt hides what's typed.
 - It's never a placeholder. Read it as `$PUBLISH_TOKEN`; writing `<PUBLISH_TOKEN>` is a `check` error.
 - Its value is shown as `****` in block output and the transcript.
-- `paulrun --dry` doesn't ask for it.
+- `rundot --dry` doesn't ask for it.
 
 ```sh
 uv publish --token "$PUBLISH_TOKEN"
 ```
 
 !!! note
-    paulrun spots a secret by its exact value, one line at a time. A command that encodes it, or splits it across lines, can still reveal it. Pass secrets to commands rather than printing them.
+    rundot spots a secret by its exact value, one line at a time. A command that encodes it, or splits it across lines, can still reveal it. Pass secrets to commands rather than printing them.
 
 ### Input blocks
 
@@ -142,7 +142,7 @@ gh pr merge <PR>
 It takes the same keys as a frontmatter input, and works the same from then on.
 
 - Using it before the block, or in `output_path`, is a `check` error.
-- `paulrun --dry` doesn't ask for it, and shows `<PR>` as written.
+- `rundot --dry` doesn't ask for it, and shows `<PR>` as written.
 
 A one-time code is a good use of a secret input block:
 
@@ -167,9 +167,9 @@ A block before the first `##` heading is a `check` error.
 
 ## Blocks
 
-The first word of a code block's opening line is its language. A second word of `run` makes paulrun run it.
+The first word of a code block's opening line is its language. A second word of `run` makes rundot run it.
 
-| Block | What paulrun does |
+| Block | What rundot does |
 |---|---|
 | ```` ```docstring ```` | Shows the text. |
 | ```` ```confirm ```` | Shows the text and waits for `y`. Any other answer ends the run. |
@@ -177,7 +177,7 @@ The first word of a code block's opening line is its language. A second word of 
 | ```` ```sh run ```` | Runs it. See [Run blocks](#run-blocks). |
 | Anything else, e.g. ```` ```sh ```` | Nothing. It's documentation. |
 
-So a plain ```` ```sh ```` block shows a command without paulrun running it.
+So a plain ```` ```sh ```` block shows a command without rundot running it.
 
 ````markdown
 ```docstring
@@ -191,29 +191,29 @@ Create a GitHub release from tag <VERSION>, then come back here.
 
 ### Run blocks
 
-paulrun shows each block's output as it's printed. Exit code `0` carries on; anything else stops the run.
+rundot shows each block's output as it's printed. Exit code `0` carries on; anything else stops the run.
 
-Every block runs with paulrun's environment and every input, plus:
+Every block runs with rundot's environment and every input, plus:
 
-- `PAULRUN_RUNBOOK_DIR`, the folder the runbook is in
+- `RUNDOT_RUNBOOK_DIR`, the folder the runbook is in
 - `PYTHONUNBUFFERED=1`, so Python output isn't held back
 - `PAGER=cat` and `GIT_PAGER=cat`, so nothing waits in a pager
 
-Run `paulrun backends` to see which languages you can use, or add your own with [backends](backends.md).
+Run `rundot backends` to see which languages you can use, or add your own with [backends](backends.md).
 
 #### Where blocks run
 
-Blocks run in the folder you run paulrun from, not the runbook's folder. So one runbook can work on whichever project you're in:
+Blocks run in the folder you run rundot from, not the runbook's folder. So one runbook can work on whichever project you're in:
 
 ```sh
 cd ~/Projects/website
-paulrun ~/runbooks/update-deps.md
+rundot ~/runbooks/update-deps.md
 ```
 
-Use `$PAULRUN_RUNBOOK_DIR` for files kept next to the runbook:
+Use `$RUNDOT_RUNBOOK_DIR` for files kept next to the runbook:
 
 ```sh
-cp "$PAULRUN_RUNBOOK_DIR/templates/pull-request.md" .github/
+cp "$RUNDOT_RUNBOOK_DIR/templates/pull-request.md" .github/
 ```
 
 Each block is its own process, so a `cd` or `export` is gone by the next block. Keep commands that need them together.
@@ -224,13 +224,13 @@ Each block is its own process, so a `cd` or `export` is gone by the next block. 
 
 #### Python blocks
 
-`python` or `py`. Each block is its own script, run with the Python paulrun runs on, so only the standard library is available. To use another interpreter or your project's dependencies, set `python`:
+`python` or `py`. Each block is its own script, run with the Python rundot runs on, so only the standard library is available. To use another interpreter or your project's dependencies, set `python`:
 
 ```yaml
 python: uv run python
 ```
 
-`check` compiles each block with paulrun's own Python, so syntax only a newer Python understands isn't caught.
+`check` compiles each block with rundot's own Python, so syntax only a newer Python understands isn't caught.
 
 #### Blocks that ask questions
 
@@ -244,10 +244,10 @@ Set `output_path`, and each run is added to the end of that file, so a failed at
 output_path: logs/release-<VERSION>.md
 ```
 
-A relative path is relative to the folder you run paulrun from. Missing folders are created, and `--dry` runs aren't recorded.
+A relative path is relative to the folder you run rundot from. Missing folders are created, and `--dry` runs aren't recorded.
 
 ```
---- paulrun RELEASING.md @ 2026-10-12T15:11:27+01:00
+--- rundot RELEASING.md @ 2026-10-12T15:11:27+01:00
 --- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
 
 === Run the tests ===

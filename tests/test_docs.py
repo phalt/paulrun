@@ -12,10 +12,10 @@ import pytest
 from click.testing import CliRunner
 from markdown_it import MarkdownIt
 
-from paulrun import backends, cli
-from paulrun.backends import Backend, Problem, load_backends
-from paulrun.runbook import parse
-from paulrun.validate import validate
+from rundot import backends, cli
+from rundot.backends import Backend, Problem, load_backends
+from rundot.runbook import parse
+from rundot.validate import validate
 from tests.output import overview, printed
 
 ROOT = Path(__file__).parent.parent
@@ -94,8 +94,8 @@ def test_the_readme_example_runs_as_written(runner, tmp_path, monkeypatch, witho
     (tmp_path / "hello.md").write_text(runbook)
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("NAME", raising=False)
-    [commands] = [content for info, content in blocks if info == "sh" and content.startswith("paulrun ")]
-    assert commands.splitlines() == ["paulrun check hello.md", "paulrun hello.md"]
+    [commands] = [content for info, content in blocks if info == "sh" and content.startswith("rundot ")]
+    assert commands.splitlines() == ["rundot check hello.md", "rundot hello.md"]
 
     check, run = [runner.invoke(cli.cli, line.split()[1:], input="Paul\ny\n") for line in commands.splitlines()]
 
@@ -108,7 +108,7 @@ def test_the_readme_example_runs_as_written(runner, tmp_path, monkeypatch, witho
 
 
 def test_the_backends_page_shows_the_real_backend_protocol():
-    """Problem, the Backend protocol and stream() on the backends page are paulrun's own, word for word."""
+    """Problem, the Backend protocol and stream() on the backends page are rundot's own, word for word."""
     code = [content for info, content in fences(DOCS / "backends.md") if info == "python"]
 
     assert any(inspect.getsource(Problem) in block for block in code)
@@ -122,7 +122,7 @@ def node_backend(tmp_path, monkeypatch):
     """The example backend from the backends page, installed the way its pyproject.toml registers it."""
     blocks = fences(DOCS / "backends.md")
     [pyproject] = [tomllib.loads(content) for info, content in blocks if info == "toml" and "[project]" in content]
-    [(name, value)] = pyproject["project"]["entry-points"]["paulrun.backends"].items()
+    [(name, value)] = pyproject["project"]["entry-points"]["rundot.backends"].items()
     module, cls = value.split(":")
     [source] = [content for info, content in blocks if info == "python" and f"class {cls}:" in content]
     (tmp_path / f"{module}.py").write_text(source)

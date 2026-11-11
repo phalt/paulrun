@@ -15,7 +15,7 @@ inputs:
 An input with a `default` shows it at the prompt, and pressing enter takes it:
 
 ```sh
-VERSION=1.2.0 uv run paulrun tests/runbooks/default-example.md
+VERSION=1.2.0 uv run rundot tests/runbooks/default-example.md
 ```
 
 ```

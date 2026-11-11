@@ -1,14 +1,14 @@
-# 🏃‍♂️‍➡️📕 paulrun
+# 🏃‍♂️‍➡️📕 rundot
 
-## What is paulrun?
+## What is rundot?
 
-paulrun executes the code blocks in your markdown file, turning them into runbooks.
+rundot executes the code blocks in your markdown file, turning them into runbooks.
 
-A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block `run`, then paulrun can execute the code blocks for you, helping you to automate tedious multi-step tasks.
+A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block `run`, then rundot can execute the code blocks for you, helping you to automate tedious multi-step tasks.
 
-[![Package version](https://img.shields.io/pypi/v/paulrun?color=%2334D058&label=latest%20version)](https://pypi.org/project/paulrun)
+[![Package version](https://img.shields.io/pypi/v/rundot?color=%2334D058&label=latest%20version)](https://pypi.org/project/rundot)
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
-![PyPI - License](https://img.shields.io/pypi/l/paulrun)
+![PyPI - License](https://img.shields.io/pypi/l/rundot)
 
 ## Example runbook
 
@@ -24,7 +24,7 @@ inputs:
 
 # Say hello
 
-A runbook is just markdown. paulrun runs the blocks marked `run`, shows the
+A runbook is just markdown. rundot runs the blocks marked `run`, shows the
 `docstring` ones, and leaves everything else alone, like this paragraph.
 
 ## Greet
@@ -50,15 +50,15 @@ print(f"{name} has {len(name)} letters")
 Check it, then run it:
 
 ```sh
-paulrun check hello.md
-paulrun hello.md
+rundot check hello.md
+rundot hello.md
 ```
 
-![paulrun checking and running hello.md](docs/demo.svg)
+![rundot checking and running hello.md](docs/demo.svg)
 
-The command `check` will validate the formatting of your Markdown file to make sure it will work with Paulrun. 
+The command `check` will validate the formatting of your Markdown file to make sure it will work with Rundot. 
 
-When running a runbook, paulrun asks for the inputs, shows the plan, and runs each step in order.
+When running a runbook, rundot asks for the inputs, shows the plan, and runs each step in order.
 
 You can run through each step one at a time with `--step` and even show the code that will run with each step with `--show-code`.
 
@@ -67,24 +67,24 @@ You can run through each step one at a time with `--step` and even show the code
 Keep runbooks you use across projects in `~/runbooks`, and run them by name from anywhere:
 
 ```
-$ paulrun library
+$ rundot library
 library: /home/you/runbooks
 rebuild-frontend     Rebuild the frontend
 update-project-deps  Update a project's dependencies
 
 $ cd ~/Projects/website
-$ paulrun rebuild-frontend
+$ rundot rebuild-frontend
 ```
 
-A book runs in the folder you're in, so one book works for every project. See [Your runbook library](https://phalt.github.io/paulrun/library/).
+A book runs in the folder you're in, so one book works for every project. See [Your runbook library](https://docs.rundot.dev/library/).
 
-## Why use paulrun?
+## Why use rundot?
 
 Release steps get forgotten. Writing them down helps; making the written-down version run itself fixes it.
 
-- **It's just markdown** - A runbook reads like documentation, renders on GitHub, and works fine without paulrun.
-- **Check before you run** - `paulrun check` finds broken frontmatter, undeclared placeholders and syntax errors.
-- **See what would happen** - `paulrun --dry RELEASING.md` shows every command with its inputs filled in, and runs nothing.
+- **It's just markdown** - A runbook reads like documentation, renders on GitHub, and works fine without rundot.
+- **Check before you run** - `rundot check` finds broken frontmatter, undeclared placeholders and syntax errors.
+- **See what would happen** - `rundot --dry RELEASING.md` shows every command with its inputs filled in, and runs nothing.
 - **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets off the screen and out of the log.
 - **Manual steps too** - `confirm` blocks pause for the things only a person can do.
 - **A record of every run** - An optional transcript keeps every command, its output and how it finished.
@@ -92,24 +92,24 @@ Release steps get forgotten. Writing them down helps; making the written-down ve
 
 ## Install
 
-paulrun is a command-line tool, so install it on its own rather than into a project:
+rundot is a command-line tool, so install it on its own rather than into a project:
 
 ```sh
-uv tool install paulrun
+uv tool install rundot
 ```
 
 Or with pip:
 
 ```sh
-pip install paulrun
+pip install rundot
 ```
 
-paulrun needs Python 3.12 or later and `bash`, and runs on **macOS and Linux**. Windows isn't supported. It's for runbooks you run yourself, at a terminal; there's no CI mode.
+rundot needs Python 3.12 or later and `bash`, and runs on **macOS and Linux**. Windows isn't supported. It's for runbooks you run yourself, at a terminal; there's no CI mode.
 
 ## Getting started
 
-👉 Read the [full documentation](https://phalt.github.io/paulrun/) for the runbook format, every command, and writing your own backend.
+👉 Read the [full documentation](https://docs.rundot.dev/) for the runbook format, every command, and writing your own backend.
 
-See [`examples/`](https://github.com/phalt/paulrun/tree/main/examples) for more runbooks, including a real release, and [`PUBLISHING.md`](https://github.com/phalt/paulrun/blob/main/PUBLISHING.md) for the runbook paulrun releases itself with.
+See [`examples/`](https://github.com/phalt/rundot/tree/main/examples) for more runbooks, including a real release, and [`PUBLISHING.md`](https://github.com/phalt/rundot/blob/main/PUBLISHING.md) for the runbook rundot releases itself with.
 
-Want to help? See [CONTRIBUTING.md](https://github.com/phalt/paulrun/blob/main/CONTRIBUTING.md).
+Want to help? See [CONTRIBUTING.md](https://github.com/phalt/rundot/blob/main/CONTRIBUTING.md).

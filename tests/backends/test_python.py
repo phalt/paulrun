@@ -10,8 +10,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from paulrun.backends import Backend, Problem
-from paulrun.backends.python import PythonBackend
+from rundot.backends import Backend, Problem
+from rundot.backends.python import PythonBackend
 
 # The runner sets this for every block, so Python's output isn't held back while it's piped.
 UNBUFFERED = {**os.environ, "PYTHONUNBUFFERED": "1"}
@@ -35,8 +35,8 @@ def test_run_passes_each_line_to_output_and_returns_zero(tmp_path):
     assert exit_code == 0
 
 
-def test_run_uses_paulruns_interpreter_when_the_runbook_sets_no_python(tmp_path):
-    """With no python key in the frontmatter, blocks run with the interpreter that's running paulrun."""
+def test_run_uses_rundots_interpreter_when_the_runbook_sets_no_python(tmp_path):
+    """With no python key in the frontmatter, blocks run with the interpreter that's running rundot."""
     lines, _ = run("import sys\nprint(sys.executable)\n", tmp_path)
 
     assert lines == [sys.executable]
@@ -126,9 +126,9 @@ def test_run_uses_cwd(tmp_path):
 
 
 def test_run_env_is_the_complete_environment(tmp_path, monkeypatch):
-    """The block sees env and only env. paulrun's own environment isn't mixed in."""
-    monkeypatch.setenv("PAULRUN_TEST_ONLY_IN_PARENT", "leaked")
-    code = "import os\nprint(os.environ['GREETING'], os.environ.get('PAULRUN_TEST_ONLY_IN_PARENT', 'unset'))\n"
+    """The block sees env and only env. rundot's own environment isn't mixed in."""
+    monkeypatch.setenv("RUNDOT_TEST_ONLY_IN_PARENT", "leaked")
+    code = "import os\nprint(os.environ['GREETING'], os.environ.get('RUNDOT_TEST_ONLY_IN_PARENT', 'unset'))\n"
 
     lines, _ = run(code, tmp_path, env={"GREETING": "hello"})
 
@@ -136,13 +136,13 @@ def test_run_env_is_the_complete_environment(tmp_path, monkeypatch):
 
 
 def test_run_reads_stdin_from_the_terminal(tmp_path):
-    """stdin is inherited, so a block that reads input gets what was typed into paulrun's terminal."""
+    """stdin is inherited, so a block that reads input gets what was typed into rundot's terminal."""
     script = textwrap.dedent(
         """\
         import os
         from pathlib import Path
 
-        from paulrun.backends.python import PythonBackend
+        from rundot.backends.python import PythonBackend
 
         lines = []
         code = 'print("got " + input())\\n'

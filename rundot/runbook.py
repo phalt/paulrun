@@ -8,7 +8,7 @@ import yaml
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 
-from paulrun.inputs import Input
+from rundot.inputs import Input
 
 BlockKind = Literal["docstring", "confirm", "input", "run"]
 

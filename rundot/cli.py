@@ -15,18 +15,18 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from paulrun import library, runner, settings
-from paulrun.backends import Backend, BackendError, load_backend_sources, load_backends
-from paulrun.inputs import Input, InputError
-from paulrun.runbook import Runbook, RunbookError, Step, parse, parse_inputs, read_frontmatter
-from paulrun.transcript import Transcript, TranscriptError
-from paulrun.validate import Report, validate
+from rundot import library, runner, settings
+from rundot.backends import Backend, BackendError, load_backend_sources, load_backends
+from rundot.inputs import Input, InputError
+from rundot.runbook import Runbook, RunbookError, Step, parse, parse_inputs, read_frontmatter
+from rundot.transcript import Transcript, TranscriptError
+from rundot.validate import Report, validate
 
 
 class RunsByDefault(click.Group):
-    """A group where anything that isn't a command is a runbook to run, so paulrun X is paulrun run X.
+    """A group where anything that isn't a command is a runbook to run, so rundot X is rundot run X.
 
-    Command names always win, so a book called check.md is run with paulrun run check. With nothing at all,
+    Command names always win, so a book called check.md is run with rundot run check. With nothing at all,
     the group shows its help.
     """
 
@@ -39,31 +39,31 @@ class RunsByDefault(click.Group):
         return super().parse_args(ctx, args)
 
 
-PAULRUN_HEADER = r"""
-   ___            _
-  / _ \__ _ _   _| |_ __ _   _ _ __
- / /_)/ _` | | | | | '__| | | | '_ \
-/ ___/ (_| | |_| | | |  | |_| | | | |
-\/    \__,_|\__,_|_|_|   \__,_|_| |_|
+RUNDOT_HEADER = r"""
+   __                 _       _
+  /__\_   _ _ __   __| | ___ | |_
+ / \// | | | '_ \ / _` |/ _ \| __|
+/ _  \ |_| | | | | (_| | (_) | |_
+\/ \_/\__,_|_| |_|\__,_|\___/ \__|
 """.strip("\n")
 
 # \b stops Click rewrapping the header, which would break it apart. The paragraphs after it wrap as normal.
 HELP = f"""\b
-{PAULRUN_HEADER}
+{RUNDOT_HEADER}
 
-🏃‍♂️‍➡️📕 paulrun runs hand-written markdown runbooks.
+🏃‍♂️‍➡️📕 rundot runs hand-written markdown runbooks.
 
 🔢 Version {settings.VERSION}
 
-📚 Read the docs: https://phalt.github.io/paulrun/
+📚 Read the docs: https://docs.rundot.dev/
 
-🐙 Contribute on GitHub: https://github.com/phalt/paulrun
+🐙 Contribute on GitHub: https://github.com/phalt/rundot
 
-paulrun RUNBOOK executes a runbook.
+rundot RUNBOOK executes a runbook.
 """
 
 
-@click.group("paulrun", cls=RunsByDefault, subcommand_metavar="RUNBOOK | COMMAND [ARGS]...", help=HELP)
+@click.group("rundot", cls=RunsByDefault, subcommand_metavar="RUNBOOK | COMMAND [ARGS]...", help=HELP)
 @click.version_option(settings.VERSION)
 def cli() -> None:
     pass
@@ -100,8 +100,8 @@ class RunbookArgument(click.ParamType):
 def run_runbook(runbook: Path | None, dry: bool, step: bool | None, show_code: bool) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
-    RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
-    With no RUNBOOK, pick a book from the library. paulrun RUNBOOK, with no command, does the same.
+    RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $RUNDOT_LIBRARY.
+    With no RUNBOOK, pick a book from the library. rundot RUNBOOK, with no command, does the same.
     """
     console = Console(highlight=False)
     if runbook is None:
@@ -110,7 +110,7 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool | None, show_code: b
     _print_report(console, runbook, report, summary_if_ok=False)
     if not report.ok:
         sys.exit(1)
-    # Blocks and the transcript both go where paulrun was started.
+    # Blocks and the transcript both go where rundot was started.
     cwd = Path.cwd()
     # Nothing runs under --dry, so there's nothing to record.
     transcript = Transcript.for_runbook(parsed, cwd) if parsed.output_path is not None and not dry else None
@@ -177,7 +177,7 @@ def _shown_from(path: Path, cwd: Path) -> Path:
 def check(runbook: Path) -> None:
     """Check a runbook for problems without running anything. Exits 1 if there are any errors.
 
-    RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
+    RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $RUNDOT_LIBRARY.
     """
     console = Console(highlight=False)
     _, _, report = _validated(runbook)
@@ -192,7 +192,7 @@ def inputs(runbook: Path) -> None:
     """List the inputs a runbook needs, including ones its input blocks ask for part way through.
 
     Frontmatter inputs are listed even if the rest of the runbook is broken. RUNBOOK is a file, or the name
-    of a book in your runbook library: ~/runbooks, or $PAULRUN_LIBRARY.
+    of a book in your runbook library: ~/runbooks, or $RUNDOT_LIBRARY.
     """
     console = Console(highlight=False)
     try:
@@ -223,7 +223,7 @@ def inputs(runbook: Path) -> None:
 def list_library() -> None:
     """List the books in your runbook library, with each one's title and description.
 
-    The library is ~/runbooks, or $PAULRUN_LIBRARY. Run a book from it by name, e.g. paulrun deploy.
+    The library is ~/runbooks, or $RUNDOT_LIBRARY. Run a book from it by name, e.g. rundot deploy.
     """
     console = Console(highlight=False)
     where = library.location(os.environ)
@@ -238,9 +238,9 @@ def list_library() -> None:
         _line(console, _book_line(book, width))
         if book.description is not None:
             _line(console, Text.assemble(" " * (width + 2), (book.description, "dim")))
-        # Command names win, so paulrun <name> wouldn't run this book.
+        # Command names win, so rundot <name> wouldn't run this book.
         if book.name in cli.commands:
-            note = f"run it with paulrun run {book.name}, since paulrun {book.name} is a command"
+            note = f"run it with rundot run {book.name}, since rundot {book.name} is a command"
             _line(console, Text.assemble(" " * (width + 2), (note, "yellow")))
 
 

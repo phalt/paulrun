@@ -13,14 +13,14 @@ inputs:
 
 # Transcript example
 
-With `output_path` set, `paulrun` adds a plain record of each run to that
+With `output_path` set, `rundot` adds a plain record of each run to that
 file: every command, what it printed, its exit code, and how the run finished.
 
 ```sh
-VERSION=1.2.0 uv run paulrun tests/runbooks/transcript-example.md
+VERSION=1.2.0 uv run rundot tests/runbooks/transcript-example.md
 ```
 
-The path is relative to the directory you run paulrun from, not this runbook,
+The path is relative to the directory you run rundot from, not this runbook,
 so the command above writes `logs/release-1.2.0.md` at the top of the
 repository. It can use plain inputs, and its directory is created if it
 doesn't exist. Each run is added to the end, so a failed attempt and its rerun

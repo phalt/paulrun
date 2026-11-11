@@ -5,9 +5,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
-from paulrun.backends import Backend, Interrupted
-from paulrun.inputs import MASK, Input, Prompter, collect, mask, substitute
-from paulrun.runbook import Block, Runbook, Step
+from rundot.backends import Backend, Interrupted
+from rundot.inputs import MASK, Input, Prompter, collect, mask, substitute
+from rundot.runbook import Block, Runbook, Step
 
 # Blocks print to a pipe rather than a terminal. Python would hold its output back until it exits,
 # and anything that opens a pager would wait for keys nobody can see, so turn both off.
@@ -128,8 +128,8 @@ def run(
 
     docstring blocks are sent to sink, confirm blocks wait for a y, and run blocks are run, stopping at
     the first that fails. Any answer but y aborts the run. Every event goes to sink as it happens, ending
-    with the RunFinished event that's also returned. Blocks run in cwd, the directory paulrun was started
-    from, with paulrun's environment plus every input, and PAULRUN_RUNBOOK_DIR set to the runbook's
+    with the RunFinished event that's also returned. Blocks run in cwd, the directory rundot was started
+    from, with rundot's environment plus every input, and RUNDOT_RUNBOOK_DIR set to the runbook's
     directory. Plain inputs are substituted into each block's text first. Secret values are masked in
     every text sent to sink: block output, but also the title, step names and block text, in case a
     secret's value is written in the runbook itself.
@@ -137,7 +137,7 @@ def run(
     With dry, every block is still sent with inputs substituted, but nothing runs, nothing is asked
     except plain inputs, and secrets are never collected.
 
-    With step_by_step, each run block's code is sent and then paulrun asks whether to run it, skip it
+    With step_by_step, each run block's code is sent and then rundot asks whether to run it, skip it
     or quit. Quitting aborts the run. step_by_step does nothing under dry, since nothing runs.
 
     Ctrl-C once the run has started finishes it as interrupted, so whatever is listening still gets a
@@ -150,12 +150,12 @@ def run(
     for step in runbook.steps:
         for block in step.blocks:
             if block.kind == "input" and block.input is None:
-                raise RunnerError(f"line {block.line}: input block isn't a valid input; run paulrun check to see why")
+                raise RunnerError(f"line {block.line}: input block isn't a valid input; run rundot check to see why")
     values = collect(runbook.inputs, os.environ, prompter, skip_secrets=dry)
     secrets = [values[input.name] for input in runbook.inputs if input.secret and not dry]
     plain = {input.name: values[input.name] for input in runbook.inputs if not input.secret}
-    # A runbook keeps files next to itself by reading them from $PAULRUN_RUNBOOK_DIR, since blocks run elsewhere.
-    env = {**os.environ, **_BLOCK_ENV, "PAULRUN_RUNBOOK_DIR": str(runbook.path.parent.resolve()), **values}
+    # A runbook keeps files next to itself by reading them from $RUNDOT_RUNBOOK_DIR, since blocks run elsewhere.
+    env = {**os.environ, **_BLOCK_ENV, "RUNDOT_RUNBOOK_DIR": str(runbook.path.parent.resolve()), **values}
     shown = tuple((input.name, MASK if input.secret else values[input.name]) for input in runbook.inputs)
     # Steps keep their blocks as written, so blocks still run as written; only the names sent are masked.
     steps = tuple(replace(step, name=mask(step.name, secrets)) for step in runbook.steps)

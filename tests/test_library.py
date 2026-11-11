@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from paulrun import library
-from paulrun.backends import load_backends
-from paulrun.runbook import parse
-from paulrun.validate import validate
+from rundot import library
+from rundot.backends import load_backends
+from rundot.runbook import parse
+from rundot.validate import validate
 
 # A fixture library of readable example books, for the tests of looking up, listing and picking books.
 LIBRARY = Path(__file__).parent / "library"
@@ -29,21 +29,21 @@ def write(path: Path, text: str = "---\ntitle: T\n---\n") -> Path:
     return path
 
 
-def test_location_is_paulrun_library_when_it_is_set(tmp_path):
-    """PAULRUN_LIBRARY says where the library is."""
-    assert library.location({"PAULRUN_LIBRARY": str(tmp_path / "books")}) == tmp_path / "books"
+def test_location_is_rundot_library_when_it_is_set(tmp_path):
+    """RUNDOT_LIBRARY says where the library is."""
+    assert library.location({"RUNDOT_LIBRARY": str(tmp_path / "books")}) == tmp_path / "books"
 
 
-def test_location_expands_a_tilde_in_paulrun_library(tmp_path, monkeypatch):
-    """PAULRUN_LIBRARY=~/work-runbooks means the folder in your home directory, even when the shell didn't expand it."""
+def test_location_expands_a_tilde_in_rundot_library(tmp_path, monkeypatch):
+    """RUNDOT_LIBRARY=~/work-runbooks means the folder in your home directory, even when the shell didn't expand it."""
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    assert library.location({"PAULRUN_LIBRARY": "~/work-runbooks"}) == tmp_path / "work-runbooks"
+    assert library.location({"RUNDOT_LIBRARY": "~/work-runbooks"}) == tmp_path / "work-runbooks"
 
 
-@pytest.mark.parametrize("env", [{}, {"PAULRUN_LIBRARY": ""}], ids=["unset", "empty"])
+@pytest.mark.parametrize("env", [{}, {"RUNDOT_LIBRARY": ""}], ids=["unset", "empty"])
 def test_location_is_runbooks_in_the_home_directory_by_default(env, tmp_path, monkeypatch):
-    """Without PAULRUN_LIBRARY, or with it empty, the library is ~/runbooks."""
+    """Without RUNDOT_LIBRARY, or with it empty, the library is ~/runbooks."""
     monkeypatch.setenv("HOME", str(tmp_path))
 
     assert library.location(env) == tmp_path / "runbooks"
@@ -141,7 +141,7 @@ def test_books_keeps_a_book_whose_frontmatter_cannot_be_read_with_the_reason(tmp
 
 
 def test_books_keeps_a_book_it_cannot_open_with_the_reason(tmp_path):
-    """A book paulrun can't open, e.g. one it isn't allowed to read, is listed with the reason too."""
+    """A book rundot can't open, e.g. one it isn't allowed to read, is listed with the reason too."""
     locked = write(tmp_path / "locked.md")
     locked.chmod(0)
     if os.access(locked, os.R_OK):  # e.g. running as root, which can read anything

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from paulrun.inputs import Input, InputError, collect, mask, substitute
+from rundot.inputs import Input, InputError, collect, mask, substitute
 
 VERSION = Input(name="VERSION", description="The version", pattern=r"\d+\.\d+\.\d+")
 
@@ -204,7 +204,7 @@ def test_substitute_replaces_each_placeholder_with_its_value():
     """Every <NAME> that has a value is replaced, however many times it appears."""
     text = "git tag <VERSION> && echo <PACKAGE> <VERSION>"
 
-    assert substitute(text, {"VERSION": "1.2.0", "PACKAGE": "paulrun"}) == "git tag 1.2.0 && echo paulrun 1.2.0"
+    assert substitute(text, {"VERSION": "1.2.0", "PACKAGE": "rundot"}) == "git tag 1.2.0 && echo rundot 1.2.0"
 
 
 def test_substitute_leaves_placeholders_without_a_value_alone():

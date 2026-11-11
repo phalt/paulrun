@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from paulrun.backends import Backend, Problem
-from paulrun.backends.shell import ShellBackend
+from rundot.backends import Backend, Problem
+from rundot.backends.shell import ShellBackend
 
 
 @pytest.fixture
@@ -152,22 +152,22 @@ def test_run_uses_env(tmp_path):
 
 
 def test_run_env_is_the_complete_environment(tmp_path, monkeypatch):
-    """Only env reaches the block. paulrun's own environment isn't mixed in."""
-    monkeypatch.setenv("PAULRUN_TEST_ONLY_IN_PARENT", "leaked")
+    """Only env reaches the block. rundot's own environment isn't mixed in."""
+    monkeypatch.setenv("RUNDOT_TEST_ONLY_IN_PARENT", "leaked")
 
-    lines, _ = run('echo "${PAULRUN_TEST_ONLY_IN_PARENT:-unset}"\n', tmp_path, env={"PATH": os.environ["PATH"]})
+    lines, _ = run('echo "${RUNDOT_TEST_ONLY_IN_PARENT:-unset}"\n', tmp_path, env={"PATH": os.environ["PATH"]})
 
     assert lines == ["unset"]
 
 
 def test_run_reads_stdin_from_the_terminal(tmp_path):
-    """stdin is inherited, so a block that reads input gets what was typed into paulrun's terminal."""
+    """stdin is inherited, so a block that reads input gets what was typed into rundot's terminal."""
     script = textwrap.dedent(
         """\
         import os
         from pathlib import Path
 
-        from paulrun.backends.shell import ShellBackend
+        from rundot.backends.shell import ShellBackend
 
         lines = []
         code = 'read answer\\necho "got $answer"\\n'
@@ -305,7 +305,7 @@ def test_run_can_prompt_on_the_terminal_directly(tmp_path):
         import os
         from pathlib import Path
 
-        from paulrun.backends.shell import ShellBackend
+        from rundot.backends.shell import ShellBackend
 
         lines = []
         code = 'read -r answer < /dev/tty && echo "got $answer"\\n'

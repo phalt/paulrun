@@ -7,9 +7,9 @@ from typing import Any
 
 import yaml
 
-from paulrun.backends import Backend
-from paulrun.inputs import PLACEHOLDER
-from paulrun.runbook import Block, Runbook
+from rundot.backends import Backend
+from rundot.inputs import PLACEHOLDER
+from rundot.runbook import Block, Runbook
 
 CORE_KEYS = ("title", "description", "output_path", "python", "step", "inputs")
 INPUT_KEYS = ("name", "description", "pattern", "secret", "default", "choices")
