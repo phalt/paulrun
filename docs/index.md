@@ -1,4 +1,4 @@
-# 🏃‍♂️‍➡️📕 Rundot
+# Rundot
 
 [![Package version](https://img.shields.io/pypi/v/rundot?color=%2334D058&label=latest%20version)](https://pypi.org/project/rundot)
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
