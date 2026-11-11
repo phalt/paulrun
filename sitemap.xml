@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
       <url>
-        <loc>https://phalt.github.io/paulrun/</loc>
+        <loc>https://docs.rundot.dev/</loc>
       </url>
       <url>
-        <loc>https://phalt.github.io/paulrun/CHANGELOG/</loc>
+        <loc>https://docs.rundot.dev/CHANGELOG/</loc>
       </url>
       <url>
-        <loc>https://phalt.github.io/paulrun/backends/</loc>
+        <loc>https://docs.rundot.dev/backends/</loc>
       </url>
       <url>
-        <loc>https://phalt.github.io/paulrun/cli/</loc>
+        <loc>https://docs.rundot.dev/cli/</loc>
       </url>
       <url>
-        <loc>https://phalt.github.io/paulrun/install/</loc>
+        <loc>https://docs.rundot.dev/install/</loc>
       </url>
       <url>
-        <loc>https://phalt.github.io/paulrun/library/</loc>
+        <loc>https://docs.rundot.dev/library/</loc>
       </url>
       <url>
-        <loc>https://phalt.github.io/paulrun/runbook-format/</loc>
+        <loc>https://docs.rundot.dev/runbook-format/</loc>
       </url>
 </urlset>
