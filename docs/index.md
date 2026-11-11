@@ -1,103 +1,81 @@
-# 🏃‍♂️‍➡️📕 rundot
+# 🏃‍♂️‍➡️📕 Rundot
 
-## What is rundot?
+[![Package version](https://img.shields.io/pypi/v/rundot?color=%2334D058&label=latest%20version)](https://pypi.org/project/rundot)
+![Python versions](https://img.shields.io/badge/python-3.12+-blue)
+![PyPI - License](https://img.shields.io/pypi/l/rundot)
 
-rundot executes the code blocks in your markdown file, turning them into runbooks.
+## What is Rundot?
 
-A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block `run`, then rundot can execute the code blocks for you, helping you to automate tedious multi-step tasks.
+Rundot reads markdown files and executes the code blocks in a rich CLI output; turning your markdown files into repeatable procedures.
 
-<div style="text-align: center; padding-top:10px;">
-<p>
-    <a href="https://pypi.org/project/rundot">
-    <img alt="Package version" src="https://img.shields.io/pypi/v/rundot?color=%2334D058&label=latest%20version">
-    </a>
-    <img alt="Python versions" src="https://img.shields.io/badge/python-3.12+-blue">
-    <img alt="PyPI - License" src="https://img.shields.io/pypi/l/rundot">
-</p>
-</div>
+![rundot checking and running hello.md](docs/demo.svg)
 
-![rundot checking and running hello.md](demo.svg)
+Use Runbot to build:
+
+- Automated installation scripts.
+- Incident runbooks.
+- Repeatable tedious multi-step tasks.
+- Deterministic procedures for your LLMs to follow.
+- Release and publishing checklists.
+- Onboarding guides that new contributors can run, not just read.
+- Dev environment setup that works the same on every machine.
+- Database migrations and backups with the safety checks built in.
+- Deploys scripts that ask before they touch anything destructive.
+- Living documentation that breaks loudly when it goes stale.
+- One-off ops chores you only do twice a year - but always forget!
+
 
 ## Example runbook
 
+Save this as `hello.md`:
+
 ````markdown
 ---
-title: Release my-package
-output_path: logs/release-<VERSION>.md
+title: Say hello
 inputs:
-  - name: VERSION
-    description: The version to release, e.g. 1.2.0
-    pattern: '^\d+\.\d+\.\d+$'
+  - name: NAME
+    description: Who to say hello to
 ---
 
-# Releasing my-package
+# Say hello
 
-## Run the tests
+A runbook is just markdown. rundot runs the blocks marked `run`, shows the
+`docstring` ones, and leaves everything else alone, like this paragraph.
 
-```sh run
-make test
+## Greet
+
+```docstring
+Saying hello to <NAME>.
 ```
 
-## Tag the release
-
 ```sh run
-git tag <VERSION>
-git push origin <VERSION>
+echo "Hello, <NAME>!"
 ```
 
-## Publish on GitHub
+## Count the letters
 
-```confirm
-Create a GitHub release from tag <VERSION>.
+```python run
+import os
+
+name = os.environ["NAME"]
+print(f"{name} has {len(name)} letters")
 ```
 ````
 
 Check it, then run it:
 
 ```sh
-rundot check RELEASING.md
-rundot RELEASING.md
+rundot check hello.md
+rundot hello.md
 ```
 
-rundot asks for the version, shows you the plan, and runs each step in order, streaming every command's output as it goes. It stops at the first command that fails, and waits for you at the GitHub step, since that one is done by hand:
+![rundot checking and running hello.md](docs/demo.svg)
 
-```
-VERSION (The version to release, e.g. 1.2.0): 1.2.0
-╭─ Release my-package ─────────────────────╮
-│ directory  /home/you/Projects/my-package │
-│ inputs     VERSION=1.2.0                 │
-│ steps      1. Run the tests              │
-│            2. Tag the release            │
-│            3. Publish on GitHub          │
-│ blocks     2 run blocks                  │
-╰──────────────────────────────────────────╯
-Start? [y/N] y
+The command `check` will validate the formatting of your Markdown file to make sure it will work with Rundot. 
 
-1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+When running a runbook, rundot asks for the inputs, shows the plan, and runs each step in order.
 
-  ┌ sh · 10:02:13.482
-  │ ...
-  └ ✓ exit 0 · 4.2s
-
-2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ┌ sh · 10:02:17.705
-  │ ...
-  └ ✓ exit 0 · 1.3s
-
-3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-╭─ confirm ───────────────────────────────╮
-│ Create a GitHub release from tag 1.2.0. │
-╰─────────────────────────────────────────╯
-Continue? [y/N] y
-
-╭───────────────────────╮
-│ ✓ finished ok · 12.8s │
-╰───────────────────────╯
-transcript: logs/release-1.2.0.md
-```
-
-Every run is also recorded in `logs/release-1.2.0.md`, so you can see afterwards exactly what ran and what it printed.
+You can run through each step one at a time with `--step` and even show the code that will run with each step with `--show-code`.
 
 ## Your runbook library
 
@@ -113,19 +91,18 @@ $ cd ~/Projects/website
 $ rundot rebuild-frontend
 ```
 
-A book runs in the folder you're in, so one book works for every project. See [Your runbook library](library.md).
+A book runs in the folder you're in, so one book works for every project. See [Your runbook library](https://docs.rundot.dev/library/).
 
 ## Why use rundot?
 
-Release steps get forgotten. Writing them down helps; making the written-down version run itself fixes it.
-
 - **It's just markdown** - A runbook reads like documentation, renders on GitHub, and works fine without rundot.
 - **Check before you run** - `rundot check` finds broken frontmatter, undeclared placeholders and syntax errors.
-- **See what would happen** - `rundot --dry RELEASING.md` shows every command with its inputs filled in, and runs nothing.
-- **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets off the screen and out of the log.
-- **Manual steps too** - `confirm` blocks pause for the things only a person can do.
+- **See what would happen** - `rundot --dry RELEASING.md` shows every command that would run with its inputs filled in.
+- **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets off the screen / log.
+- **Manual steps** - `confirm` blocks pause for the things only a person can do.
 - **A record of every run** - An optional transcript keeps every command, its output and how it finished.
 - **More than shell** - Shell and Python blocks are built in, and other languages can be added as backends.
+
 
 ## Next steps
 
