@@ -19,7 +19,7 @@
         
       
       
-      <link rel="icon" href="./assets/images/favicon.png">
+      <link rel="icon" href="./assets/favicon.svg">
       <meta name="generator" content="zensical-0.1.0">
     
     
@@ -50,10 +50,12 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
-        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Geist:300,300i,400,400i,500,500i,700,700i%7CGeist+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Geist";--md-code-font:"Geist Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="./stylesheets/extra.css">
     
     <script>__md_scope=new URL(".",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
@@ -71,7 +73,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="pink" data-md-color-accent="pink">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -93,8 +95,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="" title="rundot" class="md-header__button md-logo" aria-label="rundot" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+  <img src="./assets/favicon.svg" alt="rundot">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -125,7 +126,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="pink" data-md-color-accent="pink"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -135,7 +136,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="pink" data-md-color-accent="pink"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -287,8 +288,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="" title="rundot" class="md-nav__button md-logo" aria-label="rundot" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+  <img src="./assets/favicon.svg" alt="rundot">
 
     </a>
     rundot
@@ -374,10 +374,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-rundot" class="md-nav__link">
+  <a href="#what-people-use-it-for" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What is Rundot?
+        What people use it for
       </span>
     </span>
   </a>
@@ -385,10 +385,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example-runbook" class="md-nav__link">
+  <a href="#its-just-markdown" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Example runbook
+        It's just markdown
       </span>
     </span>
   </a>
@@ -396,10 +396,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-runbook-library" class="md-nav__link">
+  <a href="#know-it-works-before-it-runs" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Your runbook library
+        Know it works before it runs
       </span>
     </span>
   </a>
@@ -407,10 +407,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#why-use-rundot" class="md-nav__link">
+  <a href="#pause-for-the-bits-only-a-person-can-do" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Why use rundot?
+        Pause for the bits only a person can do
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-runbooks-everywhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Your runbooks, everywhere
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agents-improvise-runbooks-dont" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Agents improvise. Runbooks don't.
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#also-in-rundot" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Also in rundot
       </span>
     </span>
   </a>
@@ -694,10 +727,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-rundot" class="md-nav__link">
+  <a href="#what-people-use-it-for" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What is Rundot?
+        What people use it for
       </span>
     </span>
   </a>
@@ -705,10 +738,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example-runbook" class="md-nav__link">
+  <a href="#its-just-markdown" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Example runbook
+        It's just markdown
       </span>
     </span>
   </a>
@@ -716,10 +749,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-runbook-library" class="md-nav__link">
+  <a href="#know-it-works-before-it-runs" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Your runbook library
+        Know it works before it runs
       </span>
     </span>
   </a>
@@ -727,10 +760,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#why-use-rundot" class="md-nav__link">
+  <a href="#pause-for-the-bits-only-a-person-can-do" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Why use rundot?
+        Pause for the bits only a person can do
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-runbooks-everywhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Your runbooks, everywhere
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agents-improvise-runbooks-dont" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Agents improvise. Runbooks don't.
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#also-in-rundot" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Also in rundot
       </span>
     </span>
   </a>
@@ -768,28 +834,26 @@
   
 
 
-<h1 id="rundot">🏃‍♂️‍➡️📕 Rundot</h1>
+<h1 id="rundot">Rundot</h1>
 <p><a href="https://pypi.org/project/rundot"><img alt="Package version" src="https://img.shields.io/pypi/v/rundot?color=%2334D058&amp;label=latest%20version" /></a>
 <img alt="Python versions" src="https://img.shields.io/badge/python-3.12+-blue" />
 <img alt="PyPI - License" src="https://img.shields.io/pypi/l/rundot" /></p>
-<h2 id="what-is-rundot">What is Rundot?</h2>
-<p>Rundot reads markdown files and executes the code blocks in a rich CLI output; turning your markdown files into repeatable procedures.</p>
+<p><strong>Markdown that runs.</strong></p>
+<p>Rundot runs the code blocks in a markdown file, one step at a time. Write a release checklist, a deploy or a setup guide once, and run it the same way every time.</p>
 <p><img alt="rundot checking and running hello.md" src="demo.svg" /></p>
-<p>Use Runbot to build:</p>
+<p>🌐 <a href="https://rundot.dev">rundot.dev</a> · 🚀 <a href="install/">Install</a> · 🤖 <a href="https://rundot.dev/prompt.txt">Prompt for your LLM</a></p>
+<h2 id="what-people-use-it-for">What people use it for</h2>
 <ul>
-<li>Automated installation scripts.</li>
-<li>Incident runbooks.</li>
-<li>Repeatable tedious multi-step tasks.</li>
-<li>Deterministic procedures for your LLMs to follow.</li>
-<li>Release and publishing checklists.</li>
-<li>Onboarding guides that new contributors can run, not just read.</li>
-<li>Dev environment setup that works the same on every machine.</li>
-<li>Database migrations and backups with the safety checks built in.</li>
-<li>Deploys scripts that ask before they touch anything destructive.</li>
-<li>Living documentation that breaks loudly when it goes stale.</li>
-<li>One-off ops chores you only do twice a year - but always forget!</li>
+<li><strong>Release checklists</strong> - Tag, build, publish, announce. In order, every time.</li>
+<li><strong>Incident runbooks</strong> - The steps you need at 3am, already checked.</li>
+<li><strong>Dev setup</strong> - One setup guide that works the same on every machine.</li>
+<li><strong>Onboarding</strong> - Guides new contributors can run, not just read.</li>
+<li><strong>Deploys</strong> - Ask before anything destructive happens.</li>
+<li><strong>Database migrations</strong> - Backups and safety checks built into the steps.</li>
+<li><strong>Agent procedures</strong> - Fixed steps for your LLM to follow.</li>
+<li><strong>Rare chores</strong> - The job you do twice a year and always forget.</li>
 </ul>
-<h2 id="example-runbook">Example runbook</h2>
+<h2 id="its-just-markdown">It's just markdown</h2>
 <p>Save this as <code>hello.md</code>:</p>
 <div class="highlight"><pre><span></span><code>---
 title: Say hello
@@ -826,11 +890,19 @@ A runbook is just markdown. rundot runs the blocks marked <span class="sb">`run`
 <div class="highlight"><pre><span></span><code>rundot<span class="w"> </span>check<span class="w"> </span>hello.md
 rundot<span class="w"> </span>hello.md
 </code></pre></div>
-<p><img alt="rundot checking and running hello.md" src="demo.svg" /></p>
-<p>The command <code>check</code> will validate the formatting of your Markdown file to make sure it will work with Rundot. </p>
-<p>When running a runbook, rundot asks for the inputs, shows the plan, and runs each step in order.</p>
-<p>You can run through each step one at a time with <code>--step</code> and even show the code that will run with each step with <code>--show-code</code>.</p>
-<h2 id="your-runbook-library">Your runbook library</h2>
+<p>rundot asks for the inputs, shows the plan, and runs each step in order. A runbook reads like documentation and renders on GitHub, so it's still useful without rundot installed.</p>
+<h2 id="know-it-works-before-it-runs">Know it works before it runs</h2>
+<p><code>rundot check</code> catches broken frontmatter, undeclared placeholders, and shell or Python syntax errors, with line numbers.</p>
+<p><code>rundot --dry hello.md</code> prints every command with its inputs filled in, and runs nothing.</p>
+<p>Go one step at a time with <code>--step</code>, and see each block's code as it runs with <code>--show-code</code>.</p>
+<h2 id="pause-for-the-bits-only-a-person-can-do">Pause for the bits only a person can do</h2>
+<p>A <code>confirm</code> block stops the run until someone answers <code>y</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="sb">```confirm</span>
+<span class="s">Publish the GitHub release notes for v&lt;VERSION&gt;.</span>
+<span class="sb">```</span>
+</code></pre></div>
+<p>Inputs can be checked against a pattern or a list of choices. Secrets are hidden as you type them and shown as <code>****</code> in the output and the transcript.</p>
+<h2 id="your-runbooks-everywhere">Your runbooks, everywhere</h2>
 <p>Keep runbooks you use across projects in <code>~/runbooks</code>, and run them by name from anywhere:</p>
 <div class="highlight"><pre><span></span><code>$ rundot library
 library: /home/you/runbooks
@@ -840,16 +912,13 @@ update-project-deps  Update a project's dependencies
 $ cd ~/Projects/website
 $ rundot rebuild-frontend
 </code></pre></div>
-<p>A book runs in the folder you're in, so one book works for every project. See <a href="library/">Your runbook library</a>.</p>
-<h2 id="why-use-rundot">Why use rundot?</h2>
+<p>A book runs in the folder you're in, so the same one works in every project. See <a href="library/">Your runbook library</a>.</p>
+<h2 id="agents-improvise-runbooks-dont">Agents improvise. Runbooks don't.</h2>
+<p>A runbook gives an agent a fixed set of steps to follow instead of working them out each time. Paste <a href="https://rundot.dev/prompt.txt">this prompt</a> into your chat, or into your <code>CLAUDE.md</code> or <code>AGENTS.md</code>. It teaches the format and asks the agent to check and dry-run every runbook before running it.</p>
+<h2 id="also-in-rundot">Also in rundot</h2>
 <ul>
-<li><strong>It's just markdown</strong> - A runbook reads like documentation, renders on GitHub, and works fine without rundot.</li>
-<li><strong>Check before you run</strong> - <code>rundot check</code> finds broken frontmatter, undeclared placeholders and syntax errors.</li>
-<li><strong>See what would happen</strong> - <code>rundot --dry RELEASING.md</code> shows every command that would run with its inputs filled in.</li>
-<li><strong>Inputs and secrets</strong> - Ask for values once, check them against a pattern, and keep secrets off the screen / log.</li>
-<li><strong>Manual steps</strong> - <code>confirm</code> blocks pause for the things only a person can do.</li>
-<li><strong>A record of every run</strong> - An optional transcript keeps every command, its output and how it finished.</li>
-<li><strong>More than shell</strong> - Shell and Python blocks are built in, and other languages can be added as backends.</li>
+<li><strong>Transcripts</strong> - Set <code>output_path</code> to keep every command, its output and how the run ended.</li>
+<li><strong>More than shell</strong> - Shell and Python are built in. Other languages can be added as backends.</li>
 </ul>
 <h2 id="next-steps">Next steps</h2>
 <ul>
