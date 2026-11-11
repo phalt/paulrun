@@ -42,5 +42,8 @@ clean:  ## Clear any cache files and test files
 test:  ## Run tests
 	uv run pytest -vvv -x --cov=rundot --cov-report=term-missing --cov-report=html --cov-config=pyproject.toml
 
+test-quiet: ## Quiet output of tests
+	uv run pytest -x --cov=rundot --cov-report=term-missing --cov-report=html --cov-config=pyproject.toml
+
 shell:  ## Run an ipython shell
 	uv run ipython

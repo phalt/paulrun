@@ -58,7 +58,7 @@ fi
 
 ```sh run
 make ty
-make test
+make test-quiet
 ```
 
 ## Update the version
