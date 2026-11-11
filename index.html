@@ -377,7 +377,7 @@
   <a href="#what-is-rundot" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What is rundot?
+        What is Rundot?
       </span>
     </span>
   </a>
@@ -697,7 +697,7 @@
   <a href="#what-is-rundot" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What is rundot?
+        What is Rundot?
       </span>
     </span>
   </a>
@@ -768,92 +768,68 @@
   
 
 
-<h1 id="rundot">🏃‍♂️‍➡️📕 rundot</h1>
-<h2 id="what-is-rundot">What is rundot?</h2>
-<p>rundot executes the code blocks in your markdown file, turning them into runbooks.</p>
-<p>A runbook is just a normal markdown file that a person can read and write, but if you annotate a code block <code>run</code>, then rundot can execute the code blocks for you, helping you to automate tedious multi-step tasks.</p>
-<div style="text-align: center; padding-top:10px;">
-<p>
-    <a href="https://pypi.org/project/rundot">
-    <img alt="Package version" src="https://img.shields.io/pypi/v/rundot?color=%2334D058&label=latest%20version">
-    </a>
-    <img alt="Python versions" src="https://img.shields.io/badge/python-3.12+-blue">
-    <img alt="PyPI - License" src="https://img.shields.io/pypi/l/rundot">
-</p>
-</div>
-
-<p><img alt="rundot checking and running hello.md" src="demo.svg" /></p>
+<h1 id="rundot">🏃‍♂️‍➡️📕 Rundot</h1>
+<p><a href="https://pypi.org/project/rundot"><img alt="Package version" src="https://img.shields.io/pypi/v/rundot?color=%2334D058&amp;label=latest%20version" /></a>
+<img alt="Python versions" src="https://img.shields.io/badge/python-3.12+-blue" />
+<img alt="PyPI - License" src="https://img.shields.io/pypi/l/rundot" /></p>
+<h2 id="what-is-rundot">What is Rundot?</h2>
+<p>Rundot reads markdown files and executes the code blocks in a rich CLI output; turning your markdown files into repeatable procedures.</p>
+<p><img alt="rundot checking and running hello.md" src="docs/demo.svg" /></p>
+<p>Use Runbot to build:</p>
+<ul>
+<li>Automated installation scripts.</li>
+<li>Incident runbooks.</li>
+<li>Repeatable tedious multi-step tasks.</li>
+<li>Deterministic procedures for your LLMs to follow.</li>
+<li>Release and publishing checklists.</li>
+<li>Onboarding guides that new contributors can run, not just read.</li>
+<li>Dev environment setup that works the same on every machine.</li>
+<li>Database migrations and backups with the safety checks built in.</li>
+<li>Deploys scripts that ask before they touch anything destructive.</li>
+<li>Living documentation that breaks loudly when it goes stale.</li>
+<li>One-off ops chores you only do twice a year - but always forget!</li>
+</ul>
 <h2 id="example-runbook">Example runbook</h2>
+<p>Save this as <code>hello.md</code>:</p>
 <div class="highlight"><pre><span></span><code>---
-title: Release my-package
-output_path: logs/release-&lt;VERSION&gt;.md
+title: Say hello
 inputs:
-<span class="w">  </span><span class="k">-</span><span class="w"> </span>name: VERSION
-    description: The version to release, e.g. 1.2.0
-<span class="gu">    pattern: '^\d+\.\d+\.\d+$'</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>name: NAME
+<span class="gu">    description: Who to say hello to</span>
 <span class="gu">---</span>
 
-<span class="gh"># Releasing my-package</span>
+<span class="gh"># Say hello</span>
 
-<span class="gu">## Run the tests</span>
+A runbook is just markdown. rundot runs the blocks marked <span class="sb">`run`</span>, shows the
+<span class="sb">`docstring`</span> ones, and leaves everything else alone, like this paragraph.
 
-<span class="sb">```sh</span><span class="w"> </span>run
-make<span class="w"> </span><span class="nb">test</span>
+<span class="gu">## Greet</span>
+
+<span class="sb">```docstring</span>
+<span class="s">Saying hello to &lt;NAME&gt;.</span>
 <span class="sb">```</span>
 
-<span class="gu">## Tag the release</span>
-
 <span class="sb">```sh</span><span class="w"> </span>run
-git<span class="w"> </span>tag<span class="w"> </span>&lt;VERSION&gt;
-git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>&lt;VERSION&gt;
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"Hello, &lt;NAME&gt;!"</span>
 <span class="sb">```</span>
 
-<span class="gu">## Publish on GitHub</span>
+<span class="gu">## Count the letters</span>
 
-<span class="sb">```confirm</span>
-<span class="s">Create a GitHub release from tag &lt;VERSION&gt;.</span>
+<span class="sb">```python</span><span class="w"> </span>run
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="n">name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"NAME"</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> letters"</span><span class="p">)</span>
 <span class="sb">```</span>
 </code></pre></div>
 <p>Check it, then run it:</p>
-<div class="highlight"><pre><span></span><code>rundot<span class="w"> </span>check<span class="w"> </span>RELEASING.md
-rundot<span class="w"> </span>RELEASING.md
+<div class="highlight"><pre><span></span><code>rundot<span class="w"> </span>check<span class="w"> </span>hello.md
+rundot<span class="w"> </span>hello.md
 </code></pre></div>
-<p>rundot asks for the version, shows you the plan, and runs each step in order, streaming every command's output as it goes. It stops at the first command that fails, and waits for you at the GitHub step, since that one is done by hand:</p>
-<div class="highlight"><pre><span></span><code>VERSION (The version to release, e.g. 1.2.0): 1.2.0
-╭─ Release my-package ─────────────────────╮
-│ directory  /home/you/Projects/my-package │
-│ inputs     VERSION=1.2.0                 │
-│ steps      1. Run the tests              │
-│            2. Tag the release            │
-│            3. Publish on GitHub          │
-│ blocks     2 run blocks                  │
-╰──────────────────────────────────────────╯
-Start? [y/N] y
-
-1/3  Run the tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ┌ sh · 10:02:13.482
-  │ ...
-  └ ✓ exit 0 · 4.2s
-
-2/3  Tag the release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ┌ sh · 10:02:17.705
-  │ ...
-  └ ✓ exit 0 · 1.3s
-
-3/3  Publish on GitHub ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-╭─ confirm ───────────────────────────────╮
-│ Create a GitHub release from tag 1.2.0. │
-╰─────────────────────────────────────────╯
-Continue? [y/N] y
-
-╭───────────────────────╮
-│ ✓ finished ok · 12.8s │
-╰───────────────────────╯
-transcript: logs/release-1.2.0.md
-</code></pre></div>
-<p>Every run is also recorded in <code>logs/release-1.2.0.md</code>, so you can see afterwards exactly what ran and what it printed.</p>
+<p><img alt="rundot checking and running hello.md" src="docs/demo.svg" /></p>
+<p>The command <code>check</code> will validate the formatting of your Markdown file to make sure it will work with Rundot. </p>
+<p>When running a runbook, rundot asks for the inputs, shows the plan, and runs each step in order.</p>
+<p>You can run through each step one at a time with <code>--step</code> and even show the code that will run with each step with <code>--show-code</code>.</p>
 <h2 id="your-runbook-library">Your runbook library</h2>
 <p>Keep runbooks you use across projects in <code>~/runbooks</code>, and run them by name from anywhere:</p>
 <div class="highlight"><pre><span></span><code>$ rundot library
@@ -864,15 +840,14 @@ update-project-deps  Update a project's dependencies
 $ cd ~/Projects/website
 $ rundot rebuild-frontend
 </code></pre></div>
-<p>A book runs in the folder you're in, so one book works for every project. See <a href="library/">Your runbook library</a>.</p>
+<p>A book runs in the folder you're in, so one book works for every project. See <a href="https://docs.rundot.dev/library/">Your runbook library</a>.</p>
 <h2 id="why-use-rundot">Why use rundot?</h2>
-<p>Release steps get forgotten. Writing them down helps; making the written-down version run itself fixes it.</p>
 <ul>
 <li><strong>It's just markdown</strong> - A runbook reads like documentation, renders on GitHub, and works fine without rundot.</li>
 <li><strong>Check before you run</strong> - <code>rundot check</code> finds broken frontmatter, undeclared placeholders and syntax errors.</li>
-<li><strong>See what would happen</strong> - <code>rundot --dry RELEASING.md</code> shows every command with its inputs filled in, and runs nothing.</li>
-<li><strong>Inputs and secrets</strong> - Ask for values once, check them against a pattern, and keep secrets off the screen and out of the log.</li>
-<li><strong>Manual steps too</strong> - <code>confirm</code> blocks pause for the things only a person can do.</li>
+<li><strong>See what would happen</strong> - <code>rundot --dry RELEASING.md</code> shows every command that would run with its inputs filled in.</li>
+<li><strong>Inputs and secrets</strong> - Ask for values once, check them against a pattern, and keep secrets off the screen / log.</li>
+<li><strong>Manual steps</strong> - <code>confirm</code> blocks pause for the things only a person can do.</li>
 <li><strong>A record of every run</strong> - An optional transcript keeps every command, its output and how it finished.</li>
 <li><strong>More than shell</strong> - Shell and Python blocks are built in, and other languages can be added as backends.</li>
 </ul>
