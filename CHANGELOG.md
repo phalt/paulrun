@@ -1,13 +1,13 @@
 # Change log
 
-## Unreleased
-
-- **Breaking:** paulrun is now called rundot. Install it as `rundot`, and run it as `rundot` instead of `paulrun`. Subcommands and flags are unchanged.
-    - The package is `rundot`, so imports are `from rundot.backends import ...`.
-    - Backends register in the `rundot.backends` entry point group, which was `paulrun.backends`.
-    - `PAULRUN_LIBRARY` is now `RUNDOT_LIBRARY`.
-    - `PAULRUN_RUNBOOK_DIR`, set for blocks, is now `RUNDOT_RUNBOOK_DIR`.
-    - The docs are at [docs.rundot.dev](https://docs.rundot.dev/) and the code at [github.com/phalt/rundot](https://github.com/phalt/rundot).
+> **paulrun is now rundot.** The project was renamed from paulrun to rundot. Nothing else changed: subcommands, flags and the runbook format all work as before. To move over:
+>
+> - Install `rundot` instead of `paulrun`, and run `rundot` instead of `paulrun`.
+> - Imports start with `rundot` instead of `paulrun`, and backends register in the `rundot.backends` entry point group, which was `paulrun.backends`.
+> - `PAULRUN_LIBRARY` is now `RUNDOT_LIBRARY`, and blocks get `RUNDOT_RUNBOOK_DIR` instead of `PAULRUN_RUNBOOK_DIR`.
+> - The docs are at [docs.rundot.dev](https://docs.rundot.dev/) and the code at [github.com/phalt/rundot](https://github.com/phalt/rundot).
+>
+> Entries below this note use the old name, as they were written at the time.
 
 ## 0.6.0
 
