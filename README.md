@@ -4,28 +4,26 @@
 ![Python versions](https://img.shields.io/badge/python-3.12+-blue)
 ![PyPI - License](https://img.shields.io/pypi/l/rundot)
 
-## What is Rundot?
+**Markdown that runs.**
 
-Rundot reads markdown files and executes the code blocks in a rich CLI output; turning your markdown files into repeatable procedures.
+Rundot runs the code blocks in a markdown file, one step at a time. Write a release checklist, a deploy or a setup guide once, and run it the same way every time.
 
 ![rundot checking and running hello.md](docs/demo.svg)
 
-Use Runbot to build:
+🌐 [rundot.dev](https://rundot.dev) · 📚 [Documentation](https://docs.rundot.dev/) · 🤖 [Prompt for your LLM](https://rundot.dev/prompt.txt)
 
-- Automated installation scripts.
-- Incident runbooks.
-- Repeatable tedious multi-step tasks.
-- Deterministic procedures for your LLMs to follow.
-- Release and publishing checklists.
-- Onboarding guides that new contributors can run, not just read.
-- Dev environment setup that works the same on every machine.
-- Database migrations and backups with the safety checks built in.
-- Deploys scripts that ask before they touch anything destructive.
-- Living documentation that breaks loudly when it goes stale.
-- One-off ops chores you only do twice a year - but always forget!
+## What people use it for
 
+- **Release checklists** - Tag, build, publish, announce. In order, every time.
+- **Incident runbooks** - The steps you need at 3am, already checked.
+- **Dev setup** - One setup guide that works the same on every machine.
+- **Onboarding** - Guides new contributors can run, not just read.
+- **Deploys** - Ask before anything destructive happens.
+- **Database migrations** - Backups and safety checks built into the steps.
+- **Agent procedures** - Fixed steps for your LLM to follow.
+- **Rare chores** - The job you do twice a year and always forget.
 
-## Example runbook
+## It's just markdown
 
 Save this as `hello.md`:
 
@@ -69,15 +67,29 @@ rundot check hello.md
 rundot hello.md
 ```
 
-![rundot checking and running hello.md](docs/demo.svg)
+rundot asks for the inputs, shows the plan, and runs each step in order. A runbook reads like documentation and renders on GitHub, so it's still useful without rundot installed.
 
-The command `check` will validate the formatting of your Markdown file to make sure it will work with Rundot. 
+## Know it works before it runs
 
-When running a runbook, rundot asks for the inputs, shows the plan, and runs each step in order.
+`rundot check` catches broken frontmatter, undeclared placeholders, and shell or Python syntax errors, with line numbers.
 
-You can run through each step one at a time with `--step` and even show the code that will run with each step with `--show-code`.
+`rundot --dry hello.md` prints every command with its inputs filled in, and runs nothing.
 
-## Your runbook library
+Go one step at a time with `--step`, and see each block's code as it runs with `--show-code`.
+
+## Pause for the bits only a person can do
+
+A `confirm` block stops the run until someone answers `y`:
+
+````md
+```confirm
+Publish the GitHub release notes for v<VERSION>.
+```
+````
+
+Inputs can be checked against a pattern or a list of choices. Secrets are hidden as you type them and shown as `****` in the output and the transcript.
+
+## Your runbooks, everywhere
 
 Keep runbooks you use across projects in `~/runbooks`, and run them by name from anywhere:
 
@@ -91,17 +103,16 @@ $ cd ~/Projects/website
 $ rundot rebuild-frontend
 ```
 
-A book runs in the folder you're in, so one book works for every project. See [Your runbook library](https://docs.rundot.dev/library/).
+A book runs in the folder you're in, so the same one works in every project. See [Your runbook library](https://docs.rundot.dev/library/).
 
-## Why use rundot?
+## Agents improvise. Runbooks don't.
 
-- **It's just markdown** - A runbook reads like documentation, renders on GitHub, and works fine without rundot.
-- **Check before you run** - `rundot check` finds broken frontmatter, undeclared placeholders and syntax errors.
-- **See what would happen** - `rundot --dry RELEASING.md` shows every command that would run with its inputs filled in.
-- **Inputs and secrets** - Ask for values once, check them against a pattern, and keep secrets off the screen / log.
-- **Manual steps** - `confirm` blocks pause for the things only a person can do.
-- **A record of every run** - An optional transcript keeps every command, its output and how it finished.
-- **More than shell** - Shell and Python blocks are built in, and other languages can be added as backends.
+A runbook gives an agent a fixed set of steps to follow instead of working them out each time. Paste [this prompt](https://rundot.dev/prompt.txt) into your chat, or into your `CLAUDE.md` or `AGENTS.md`. It teaches the format and asks the agent to check and dry-run every runbook before running it.
+
+## Also in rundot
+
+- **Transcripts** - Set `output_path` to keep every command, its output and how the run ended.
+- **More than shell** - Shell and Python are built in. Other languages can be added as backends.
 
 ## Install
 
