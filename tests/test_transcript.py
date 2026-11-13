@@ -488,3 +488,22 @@ def test_transcript_records_each_input_block_where_it_was_asked(tmp_path, monkey
     assert "=== Open the pull request ===\ninput: PR=42\ninput: OTP=****\n" in text
     assert "PR 42 with ****\n" in text
     assert "123456" not in text
+
+
+def test_transcript_records_a_run_that_needs_human_input(tmp_path):
+    """A run stopped for human input finishes the transcript at its step, after the confirm it stopped at."""
+    output = tmp_path / "transcript.md"
+    transcript = Transcript(output, "PUBLISHING.md", clock=lambda: STARTED)
+    step = parse(write_runbook(tmp_path, "## Publish\n\n```confirm\nPublish the notes.\n```\n")).steps[0]
+    [block] = step.blocks
+
+    with transcript:
+        for event in [
+            runner.Overview("T", (step,), 0, (), tmp_path),
+            runner.StepStarted(step),
+            runner.Confirm(block, "Publish the notes.\n"),
+            runner.RunFinished("needs_human_input", 0.1, step, block=block, message="Publish the notes. Run again."),
+        ]:
+            transcript(event)
+
+    assert output.read_text().endswith('=== Publish ===\n\n--- finished: needs human input at "Publish"\n')

@@ -14,13 +14,13 @@ Every task is done test-first, in red-green slices, and also clears the standing
 **Description:** `runner.run` takes `start: tuple[int, int] = (0, 0)` and `saved: Mapping[str, str] = {}`. Steps before `start[0]` and blocks before `start[1]` are neither sent nor run. A `confirm` at `start` is answered yes without asking. `Overview` gains `resuming_at`. Inputs are collected from the environment, then `saved`, then by asking. Also add `ask_to_start: bool = True`.
 
 **Acceptance criteria:**
-- [ ] With `start=(2, 0)`, only steps 3 onwards are sent, and `Overview.resuming_at == 2`
-- [ ] `Overview.run_blocks` counts only the blocks that will run
-- [ ] With `start` at a confirm, `ConfirmAnswered(yes=True)` is sent and the prompter isn't asked
-- [ ] A saved value is used when the environment has none, and is checked against `pattern` and `choices`
-- [ ] The environment wins over a saved value; secrets are never taken from `saved`
-- [ ] `ask_to_start=False` doesn't ask `Start?`
-- [ ] With the defaults, behaviour is unchanged (existing tests pass untouched)
+- [x] With `start=(2, 0)`, only steps 3 onwards are sent, and `Overview.resuming_at == 2`
+- [x] `Overview.run_blocks` counts only the blocks that will run
+- [x] With `start` at a confirm, `ConfirmAnswered(yes=True)` is sent and the prompter isn't asked
+- [x] A saved value is used when the environment has none, and is checked against `pattern` and `choices`
+- [x] The environment wins over a saved value; secrets are never taken from `saved`
+- [x] `ask_to_start=False` doesn't ask `Start?`
+- [x] With the defaults, behaviour is unchanged (existing tests pass untouched)
 
 **Files likely touched:** `rundot/runner.py`, `rundot/inputs.py` (`collect` takes `saved`), `tests/test_runner.py`, `tests/test_inputs.py`
 

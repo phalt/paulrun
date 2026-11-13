@@ -18,8 +18,16 @@ class Input:
     choices: tuple[str, ...] = ()  # if any, the only values accepted; never set for a secret
 
 
+class NeedsHumanInput(Exception):
+    """Raised by a prompter that can't ask, e.g. under --no-input, when only a person can give the answer."""
+
+
 class Prompter(Protocol):
-    """Asks the person running the runbook for values and answers."""
+    """Asks the person running the runbook for values and answers.
+
+    Either method may raise NeedsHumanInput when there's nobody to ask. The runner stops the run for it at
+    a confirm or an input block.
+    """
 
     def ask(self, input: Input, problem: str | None) -> str:
         """Ask for an input's value, hiding what's typed if it's secret.
