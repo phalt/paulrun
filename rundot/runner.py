@@ -21,7 +21,7 @@ class Overview:
     run_blocks: int
     inputs: tuple[tuple[str, str], ...]  # (name, value) in declared order, with **** for each secret
     directory: Path  # where blocks run, so it's seen before anything starts
-    resuming_at: int | None = None  # the index of the step the run starts part way at; None from the start
+    resuming_at: int | None = None  # the index of the step a resumed run starts at; None for a run from the start
 
 
 @dataclass(frozen=True)
@@ -124,7 +124,7 @@ def run(
     cwd: Path,
     dry: bool = False,
     step_by_step: bool = False,
-    start: tuple[int, int] = (0, 0),
+    start: tuple[int, int] | None = None,
     saved: Mapping[str, str] = {},
     ask_to_start: bool = True,
 ) -> RunFinished:
@@ -147,7 +147,8 @@ def run(
     Ctrl-C once the run has started finishes it as interrupted, so whatever is listening still gets a
     RunFinished. A block that was running has already stopped and had its output and exit code sent.
 
-    start is the (step, block) to start at, counting from 0, to resume a run that stopped part way. Steps
+    start is the (step, block) to resume a run that stopped part way at, counting from 0, or None to run from
+    the start. Any start resumes, (0, 0) included, since a run can stop at the very first block. Steps
     before it, and blocks before it in its step, are neither sent nor run, though the overview still lists
     every step. A confirm at start was what the run stopped at, so it's answered yes without asking. Input
     blocks before start are still collected, with the frontmatter inputs and without being sent, so later
@@ -155,8 +156,11 @@ def run(
     set an input and before asking. Secrets are never taken from it. With ask_to_start off, the run starts
     without asking Start?.
     """
-    start_step, start_block = start
-    if not (0 <= start_step < len(runbook.steps) and 0 <= start_block < len(runbook.steps[start_step].blocks)):
+    resuming = start is not None
+    start_step, start_block = start = start or (0, 0)
+    if resuming and not (
+        0 <= start_step < len(runbook.steps) and 0 <= start_block < len(runbook.steps[start_step].blocks)
+    ):
         raise RunnerError(f"can't start at block {start_block} of step {start_step}: the runbook has no such block")
     run_blocks = [block for step in runbook.steps for block in step.blocks if block.kind == "run"]
     for block in run_blocks:
@@ -186,22 +190,24 @@ def run(
     # Steps keep their blocks as written, so blocks still run as written; only the names sent are masked.
     steps = tuple(replace(step, name=mask(step.name, secrets)) for step in runbook.steps)
     to_run = len(run_blocks) - len([block for block in skipped if block.kind == "run"])
-    resuming_at = None if start == (0, 0) else start_step
+    resuming_at = start_step if resuming else None
     sink(Overview(mask(runbook.title or runbook.path.name, secrets), steps, to_run, shown, cwd, resuming_at))
     try:
         if not dry and ask_to_start and not _yes(prompter.confirm("Start? [y/N]")):
             return _finish(sink, RunFinished("aborted", 0.0))
     except KeyboardInterrupt:
         return _finish(sink, RunFinished("interrupted", 0.0))
-    return _steps(runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step, start, saved)
+    return _steps(
+        runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step, start, resuming, saved
+    )
 
 
 def _before(steps: tuple[Step, ...], start: tuple[int, int]) -> list[Block]:
     """Every block that comes before start, in order."""
     start_step, start_block = start
-    return [block for step in steps[:start_step] for block in step.blocks] + list(
-        steps[start_step].blocks[:start_block]
-    )
+    return [block for step in steps[:start_step] for block in step.blocks] + [
+        block for step in steps[start_step : start_step + 1] for block in step.blocks[:start_block]
+    ]
 
 
 def _steps(
@@ -217,6 +223,7 @@ def _steps(
     dry: bool,
     step_by_step: bool,
     start: tuple[int, int],
+    resuming: bool,
     saved: Mapping[str, str],
 ) -> RunFinished:
     """Go through each step's blocks in order from start, finishing the run as interrupted at the step Ctrl-C
@@ -228,7 +235,7 @@ def _steps(
     start_step, start_block = start
     for index, step in enumerate(steps[start_step:], start_step):
         first = start_block if index == start_step else 0
-        resume_at = first if index == start_step and start != (0, 0) else None
+        resume_at = first if index == start_step and resuming else None
         try:
             finished = _step(
                 runbook,

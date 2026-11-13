@@ -1777,3 +1777,37 @@ def test_dry_run_does_not_collect_skipped_input_blocks(tmp_path, resume_env):
     _, result = run(path, FakePrompter(answers=["3"]), dry=True, start=(2, 0))
 
     assert result.status == "dry"
+
+
+def test_run_resuming_at_the_very_first_block_answers_a_confirm_there_yes(tmp_path):
+    """Any start resumes, (0, 0) included, so a run that stopped at a first-block confirm carries on after it."""
+    path = write_runbook(tmp_path, "## A\n\n```confirm\nDo it.\n```\n\n```sh run\necho ran\n```\n")
+    prompter = FakePrompter()
+
+    events, result = run(path, prompter, start=(0, 0))
+
+    assert result.status == "ok"
+    assert prompter.questions == ["Start? [y/N]"]
+    assert isinstance(events[0], runner.Overview)
+    assert events[0].resuming_at == 0
+
+
+def test_run_from_the_start_asks_at_a_first_block_confirm(tmp_path):
+    """Without a start, the run isn't resuming, and a confirm at the first block is asked as usual."""
+    path = write_runbook(tmp_path, "## A\n\n```confirm\nDo it.\n```\n")
+    prompter = FakePrompter()
+
+    run(path, prompter)
+
+    assert prompter.questions == ["Start? [y/N]", "Continue? [y/N]"]
+
+
+def test_run_runs_a_runbook_with_no_steps(tmp_path):
+    """A runbook that's only prose has nothing to run, and finishes ok."""
+    path = write_runbook(tmp_path, "---\ntitle: Prose\n---\n\nNothing to run.\n")
+
+    events, result = run(path)
+
+    assert result.status == "ok"
+    assert isinstance(events[0], runner.Overview)
+    assert events[0].run_blocks == 0
