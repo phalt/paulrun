@@ -12,7 +12,7 @@ Runs that can stop part way and pick up where they left off, for people and for 
 Two features:
 
 1. **Resume.** A run that stops part way, because a block failed, a confirm was answered no or Ctrl-C was pressed, can be picked up at the step it stopped in. The steps before it aren't run again.
-2. **`--no-input` and `--json`.** rundot never asks a question, and can print its events as JSON lines, so an agent or a CI job can run a runbook. When a run needs a person, for a `confirm` or an `input` block, it stops, and the next run carries on from there.
+2. **`--no-input` and `--json`.** rundot never asks a question, and can print its events as JSON lines, so an agent or a CI job can run a runbook. When a run needs human input, for a `confirm` or an `input` block, it stops, and the next run carries on from there.
 
 The runbook format doesn't change.
 
@@ -24,7 +24,7 @@ The runbook format doesn't change.
 - As Paul, I can start over instead, with `s` at the question or with `--restart`.
 - As Paul, I'm told if the runbook has changed since the run I'm resuming.
 - As an agent, I run `VERSION=1.2.0 rundot release.md --no-input` and nothing waits for an answer. A missing input fails at once and names every input I need to set.
-- As an agent, when the run reaches a `confirm`, it stops with exit code 3 and tells me what the person has to do. Once they've done it, I run the same command again and the run carries on after the confirm.
+- As an agent, when the run reaches a `confirm`, it stops with exit code 3 and tells me what a person has to do. Once they've done it, I run the same command again and the run carries on after the confirm.
 - As an agent, `--json` gives me one JSON object per line, so I can read each step, each line of output and how the run finished without parsing boxes.
 
 ## Decisions
@@ -38,9 +38,9 @@ The runbook format doesn't change.
 7. **A changed runbook warns but still resumes.** If a step that's about to be skipped has changed, or the step being resumed has a different name, rundot says which and still offers to resume. If the runbook now has fewer steps than the one being resumed, it can't resume and starts over.
 8. **Interactively, rundot asks before resuming,** with no default: `[r]esume / [s]tart over / [q]uit`. `--resume` resumes without asking, and is an error if there's nothing to resume. `--restart` deletes the state and starts over.
 9. **`--no-input` never asks anything.** `Start?` is taken as yes, inputs come from the environment, saved state or their `default`, and stepping is off.
-10. **`--no-input` resumes by itself** when there's state, and says so. `--restart` starts over.
+10. **`--no-input` resumes by itself** when there's state, whatever stopped the run, and says so, so an agent can fix a failure and run the same command again. `--restart` starts over. Paul chose this (2026-11-13).
 11. **A missing frontmatter input under `--no-input` fails before anything runs,** naming every missing input, not just the first. Exit 1.
-12. **Under `--no-input`, a `confirm` or an `input` block with no value stops the run with exit code 3,** which means "a person is needed". The state points at that block. The next run, when it resumes, treats the confirm as answered yes, or reads the input from the environment. Exit code 2 isn't used, since Click already uses it for usage errors.
+12. **Under `--no-input`, a `confirm` or an `input` block with no value stops the run with exit code 3,** which means "human input is needed". The state points at that block. The next run, when it resumes, treats the confirm as answered yes, or reads the input from the environment. Exit code 2 isn't used, since Click already uses it for usage errors. Paul chose the name `needs_human_input` over `needs_person`, `paused` and `waiting` (2026-11-13).
 13. **`--json` implies `--no-input`,** since a prompt would put text that isn't JSON on stdout.
 14. **Under `--json`, stdout is JSON lines only.** Errors still go to stderr as text. The transcript is unchanged.
 15. **Flags that contradict each other are a usage error** (exit 2): `--no-input` with `--step`, `--resume` with `--restart`, and `--dry` with `--resume`, `--restart`, `--no-input` or `--json`.
@@ -73,7 +73,7 @@ The runbook format doesn't change.
 ```
 
 - `step` is the index of the step to resume at, counting from 0. `block` is the index of the block in it to start at: 0, unless the run stopped under `--no-input` at a `confirm` or `input` block (decision 12).
-- `stopped` is how the run stopped: `failed`, `aborted`, `interrupted`, `needs_person` or `running`. `running` means it was still going when the file was last written, e.g. the process was killed.
+- `stopped` is how the run stopped: `failed`, `aborted`, `interrupted`, `needs_human_input` or `running`. `running` means it was still going when the file was last written, e.g. the process was killed.
 - A step's `hash` is the SHA-256 of its name and every block's language, kind and content, in order.
 - `inputs` holds plain values only. A secret's name is never a key.
 - A state file that can't be read, or has another `version`, is ignored with a warning, as if there were none.
@@ -132,12 +132,12 @@ A resumed run is recorded like any run, with one extra header line:
 | A frontmatter input | Environment, then saved state, then `default`. Otherwise it fails before anything runs: `missing inputs: VERSION, BRANCH. Set them in the environment.` Exit 1. |
 | `Start? [y/N]` | Yes. |
 | `Run this block?` | Never asked: stepping is off, even with `step: true` in the runbook. |
-| A `confirm` block | Stops the run: `needs a person: Publish the GitHub release notes for v1.2.0. Run again once it's done.` Exit 3. On resume, it's taken as answered yes. |
-| An `input` block | Environment, then saved state, then `default`. Otherwise it stops the run: `needs a person: set PR (The number GitHub gave the pull request) and run again.` Exit 3. |
+| A `confirm` block | Stops the run: `needs human input: Publish the GitHub release notes for v1.2.0. Run again once it's done.` Exit 3. On resume, it's taken as answered yes. |
+| An `input` block | Environment, then saved state, then `default`. Otherwise it stops the run: `needs human input: set PR (The number GitHub gave the pull request) and run again.` Exit 3. |
 
 A value from the environment or state that doesn't fit the input's `pattern` or `choices` fails as it does today, exit 1.
 
-`--no-input` can also be set with `RUNDOT_NO_INPUT=1`, for CI jobs that run rundot through scripts they don't control. Any other value, including empty, leaves it off.
+`--no-input` can also be set with `RUNDOT_NO_INPUT=1`, for CI jobs that run rundot through scripts they don't control. Any other value, including empty, leaves it off. Paul chose to have it (2026-11-13).
 
 ## `--json`
 
@@ -150,7 +150,7 @@ One JSON object per line on stdout, one per runner event, as it happens. Every o
 {"event": "output", "at": "…", "text": "Uploading rundot-0.7.0.whl", "stderr": false}
 {"event": "block_finished", "at": "…", "line": 41, "exit_code": 0, "duration": 1.2}
 {"event": "confirm", "at": "…", "line": 50, "text": "Publish the GitHub release notes for v1.2.0."}
-{"event": "run_finished", "at": "…", "status": "needs_person", "step": "Announce", "exit_code": null, "duration": 3.4}
+{"event": "run_finished", "at": "…", "status": "needs_human_input", "step": "Announce", "exit_code": null, "duration": 3.4}
 ```
 
 | `event` | From | Fields besides `event` and `at` |
@@ -169,7 +169,7 @@ One JSON object per line on stdout, one per runner event, as it happens. Every o
 | `run_finished` | `RunFinished` | `status`, `step` (name, or `null`), `exit_code`, `duration` |
 
 - `line` is the block's line in the runbook, so an agent can point at it.
-- `status` is `ok`, `failed`, `aborted`, `interrupted` or `needs_person`.
+- `status` is `ok`, `failed`, `aborted`, `interrupted` or `needs_human_input`.
 - `check` problems that stop a run go to stderr as text, as today, and nothing is printed on stdout.
 - Adding a field later isn't a breaking change. Removing or renaming one is.
 
@@ -186,15 +186,15 @@ rundot run [RUNBOOK] …the same options…
 - `--json`: print events as JSON lines. Implies `--no-input`.
 - `rundot run` with no runbook, the picker, is a usage error with `--no-input` or `--json`, since picking is asking.
 
-Exit codes: 0 success, 1 failure, 2 usage error, **3 a person is needed** (new).
+Exit codes: 0 success, 1 failure, 2 usage error, **3 human input is needed** (new).
 
 ## Runner changes
 
 So the design can be checked against the code:
 
 - `runner.run` takes a `start: tuple[int, int] = (0, 0)` (step, block) and a `saved: Mapping[str, str]` of plain values used after the environment. Steps before `start` aren't sent or run.
-- `RunFinished.status` gains `needs_person`.
-- The `Prompter` protocol is unchanged. `--no-input` is a new prompter, and it raises a `NeedsPerson` exception from `confirm` and `ask`, which the runner turns into `RunFinished("needs_person", …)`. `Start?` never reaches it, since the runner is told not to ask under `--no-input`.
+- `RunFinished.status` gains `needs_human_input`.
+- The `Prompter` protocol is unchanged. `--no-input` is a new prompter, and it raises a `NeedsHumanInput` exception from `confirm` and `ask`, which the runner turns into `RunFinished("needs_human_input", …)`. `Start?` never reaches it, since the runner is told not to ask under `--no-input`.
 - Run state is a new module, `rundot/state.py`: a listener on the runner's events, like `Transcript`, plus reading, matching and deleting state files.
 - `--json` is a new sink in place of `_Printer`.
 
@@ -215,7 +215,7 @@ As the earlier specs, with 100% line and branch coverage.
 - A test that no secret's value ever appears in a state file, including from a secret `input` block.
 - Each `--json` event type tested by parsing every stdout line with `json.loads`.
 - `--no-input` tested with `CliRunner` and no `input=`, so any prompt fails the test.
-- New readable fixtures: `tests/runbooks/resume-example.md` and `tests/runbooks/needs-person-example.md`.
+- New readable fixtures: `tests/runbooks/resume-example.md` and `tests/runbooks/needs-human-input-example.md`.
 
 ## Out of scope for 0.7.0
 
@@ -243,6 +243,4 @@ As the earlier specs, with 100% line and branch coverage.
 
 ## Open questions
 
-1. Is `needs_person` the right word, for the status and the message? Alternatives: `paused`, `waiting`.
-2. Should a `failed` run under `--no-input` also resume by itself? This spec says yes (decision 10), so an agent can fix the problem and rerun the same command. The risk is an agent rerunning without fixing anything, which just fails again at the same step.
-3. Is `RUNDOT_NO_INPUT=1` worth having, or is the flag enough?
+None.
