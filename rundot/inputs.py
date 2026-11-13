@@ -36,13 +36,20 @@ class InputError(Exception):
 
 
 def collect(
-    inputs: Iterable[Input], env: Mapping[str, str], prompter: Prompter, *, skip_secrets: bool = False
+    inputs: Iterable[Input],
+    env: Mapping[str, str],
+    prompter: Prompter,
+    *,
+    skip_secrets: bool = False,
+    saved: Mapping[str, str] = {},
 ) -> dict[str, str]:
-    """Get a value for each input, from env if it's set there, otherwise by asking until the answer is accepted.
+    """Get a value for each input, from env if it's set there, then saved, otherwise by asking until it's accepted.
 
-    A value is accepted if it's one of the input's choices, if it has any, and matches its pattern. An empty
-    answer to an input with a default is the default, which is checked like any answer. With skip_secrets,
-    secrets are left out entirely: not read from env, not asked for, and not in the result.
+    saved holds plain values from the last run, so a resumed run doesn't ask for them again. Secrets are never
+    taken from saved. A value is accepted if it's one of the input's choices, if it has any, and matches its
+    pattern. A value from env or saved that isn't accepted is an error, since asking wouldn't fix where it came
+    from. An empty answer to an input with a default is the default, which is checked like any answer. With
+    skip_secrets, secrets are left out entirely: not read from env, not asked for, and not in the result.
     """
     values = {}
     for input in inputs:
@@ -52,6 +59,9 @@ def collect(
         if value := env.get(input.name):
             if (problem := _problem(input, value)) is not None:
                 raise InputError(f"{input.name} from the environment {problem}")
+        elif not input.secret and (value := saved.get(input.name)):
+            if (problem := _problem(input, value)) is not None:
+                raise InputError(f"{input.name} from the last run {problem}")
         else:
             value = _answer(input, prompter.ask(input, None))
             while (problem := _problem(input, value)) is not None:

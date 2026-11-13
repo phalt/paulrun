@@ -63,6 +63,7 @@ def run(
     cwd: Path | None = None,
     dry: bool = False,
     step_by_step: bool = False,
+    **options,
 ) -> tuple[list[runner.Event], runner.RunFinished]:
     """Run the runbook at path with the installed backends, returning every event sent and the result.
 
@@ -78,6 +79,7 @@ def run(
         cwd=cwd or path.parent,
         dry=dry,
         step_by_step=step_by_step,
+        **options,
     )
     return events, result
 
@@ -1514,3 +1516,264 @@ def test_run_rejects_an_input_block_that_is_not_a_valid_input_before_running_any
     assert str(error.value) == "line 9: input block isn't a valid input; run rundot check to see why"
     assert events == []
     assert not (tmp_path / "ran").exists()
+
+
+# Three steps, so a run can start part way. The second step's blocks are a confirm, an input and a run block.
+RESUME_RUNBOOK = """\
+---
+title: Resume
+inputs:
+  - name: VERSION
+    description: The version
+    pattern: '\\d+'
+---
+
+## First
+
+```sh run
+echo "first"
+```
+
+## Second
+
+```confirm
+Check the release notes.
+```
+
+```input
+name: PR
+description: The pull request number
+pattern: '\\d+'
+```
+
+```sh run
+echo "second PR <PR>"
+```
+
+## Third
+
+```sh run
+echo "third <VERSION> $PR"
+```
+"""
+
+
+@pytest.fixture
+def resume_env(monkeypatch):
+    """Neither input is set in the environment, so each comes from saved or is asked for."""
+    monkeypatch.delenv("VERSION", raising=False)
+    monkeypatch.delenv("PR", raising=False)
+
+
+def test_run_overview_is_not_resuming_by_default(tmp_path):
+    """A run from the start isn't resuming."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\ntrue\n```\n")
+
+    events, _ = run(path)
+
+    assert isinstance(events[0], runner.Overview)
+    assert events[0].resuming_at is None
+
+
+def test_run_takes_frontmatter_inputs_from_saved(tmp_path, resume_env):
+    """A plain value saved from the last run is used without asking."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    events, result = run(path, FakePrompter(answers=["7"]), saved={"VERSION": "3"})
+
+    assert result.status == "ok"
+    assert output(events)[-1] == "third 3 7"
+
+
+def test_run_rejects_a_saved_value_that_does_not_match(tmp_path, resume_env):
+    """A saved value is checked like any other, before anything is sent."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+    events: list[runner.Event] = []
+
+    with pytest.raises(InputError, match="VERSION from the last run"):
+        runner.run(parse(path), load_backends(), events.append, FakePrompter(), cwd=tmp_path, saved={"VERSION": "x"})
+
+    assert events == []
+
+
+def test_run_starts_at_a_later_step_without_sending_or_running_earlier_ones(tmp_path, resume_env):
+    """Steps before start aren't sent or run, and the overview says which step the run resumes at."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    events, result = run(path, start=(2, 0), saved={"VERSION": "3", "PR": "7"})
+
+    assert result.status == "ok"
+    assert [event.step.name for event in events if isinstance(event, runner.StepStarted)] == ["Third"]
+    assert output(events) == ["third 3 7"]
+    overview = events[0]
+    assert isinstance(overview, runner.Overview)
+    assert overview.resuming_at == 2
+    assert [step.name for step in overview.steps] == ["First", "Second", "Third"]  # every step, to show done ones
+    assert overview.run_blocks == 1
+
+
+def test_run_starts_at_a_later_block_in_the_start_step(tmp_path, resume_env):
+    """Blocks before start in its step aren't sent or run, and only the run blocks that will run are counted."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    events, result = run(path, start=(1, 2), saved={"VERSION": "3", "PR": "7"})
+
+    assert result.status == "ok"
+    assert [event.step.name for event in events if isinstance(event, runner.StepStarted)] == ["Second", "Third"]
+    assert not [event for event in events if isinstance(event, (runner.Confirm, runner.InputBlock))]
+    assert output(events) == ["second PR 7", "third 3 7"]
+    assert isinstance(events[0], runner.Overview)
+    assert events[0].resuming_at == 1
+    assert events[0].run_blocks == 2
+
+
+def test_run_counts_a_later_step_as_resuming_at_its_first_block(tmp_path, resume_env):
+    """Starting at block 0 of the first step is a run from the start, but block 1 of it is resuming."""
+    path = write_runbook(tmp_path, "## Only\n\n```sh run\necho a\n```\n\n```sh run\necho b\n```\n")
+
+    events, _ = run(path, start=(0, 1))
+
+    assert isinstance(events[0], runner.Overview)
+    assert events[0].resuming_at == 0
+    assert events[0].run_blocks == 1
+    assert output(events) == ["b"]
+
+
+def test_run_answers_a_confirm_at_start_yes_without_asking(tmp_path, resume_env):
+    """A run that stopped at a confirm carries on after it, recording that it was answered yes."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+    prompter = FakePrompter()
+
+    events, result = run(path, prompter, start=(1, 0), saved={"VERSION": "3", "PR": "7"})
+
+    assert result.status == "ok"
+    assert prompter.questions == ["Start? [y/N]"]
+    [confirm] = [event for event in events if isinstance(event, runner.Confirm)]
+    [answered] = [event for event in events if isinstance(event, runner.ConfirmAnswered)]
+    assert answered == runner.ConfirmAnswered(confirm.block, "Check the release notes.\n", True)
+    assert events.index(confirm) + 1 == events.index(answered)
+
+
+def test_run_asks_at_a_confirm_after_start(tmp_path, resume_env):
+    """Only the confirm at start itself is answered yes; a later one is asked as usual."""
+    path = write_runbook(
+        tmp_path, "## A\n\n```sh run\ntrue\n```\n\n```sh run\ntrue\n```\n\n## B\n\n```confirm\nDo it.\n```\n"
+    )
+    prompter = FakePrompter(replies=["y", "n"])
+
+    _, result = run(path, prompter, start=(0, 1))
+
+    assert result.status == "aborted"
+    assert prompter.questions == ["Start? [y/N]", "Continue? [y/N]"]
+
+
+def test_run_collects_an_input_block_at_start_from_saved(tmp_path, resume_env):
+    """An input block at start is collected as usual: the environment, then saved, then asking."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    events, _ = run(path, start=(1, 1), saved={"VERSION": "3", "PR": "7"})
+
+    [collected] = [event for event in events if isinstance(event, runner.InputCollected)]
+    assert (collected.name, collected.value) == ("PR", "7")
+    assert output(events) == ["second PR 7", "third 3 7"]
+
+
+def test_run_asks_for_an_input_block_at_start_with_no_saved_value(tmp_path, resume_env):
+    """With nothing in the environment or saved, an input block at start is asked for."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+    prompter = FakePrompter(answers=["9"])
+
+    events, _ = run(path, prompter, start=(1, 1), saved={"VERSION": "3"})
+
+    assert prompter.asked == ["PR"]
+    assert output(events) == ["second PR 9", "third 3 9"]
+
+
+def test_run_collects_skipped_input_blocks_up_front_without_sending_them(tmp_path, resume_env):
+    """An input block before start still gives later blocks its value, taken from saved before the overview."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    events, _ = run(path, start=(2, 0), saved={"VERSION": "3", "PR": "7"})
+
+    assert not [event for event in events if isinstance(event, (runner.InputBlock, runner.InputCollected))]
+    assert output(events) == ["third 3 7"]
+
+
+def test_run_takes_a_skipped_input_block_from_the_environment_first(tmp_path, resume_env, monkeypatch):
+    """The environment wins over saved for a skipped input block too."""
+    monkeypatch.setenv("PR", "8")
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    events, _ = run(path, start=(2, 0), saved={"VERSION": "3", "PR": "7"})
+
+    assert output(events) == ["third 3 8"]
+
+
+def test_run_asks_for_a_skipped_secret_input_block_again_before_the_overview(tmp_path, monkeypatch):
+    """Secrets are never saved, so a secret input block before start is asked for again, and masked from then on."""
+    monkeypatch.delenv("OTP", raising=False)
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Log in
+
+        ```input
+        name: OTP
+        description: A one-time password
+        secret: true
+        ```
+
+        ## Use it
+
+        ```sh run
+        echo "otp $OTP"
+        ```
+        """,
+    )
+    events: list[runner.Event] = []
+    asked_at: list[int] = []
+
+    class RecordingPrompter(FakePrompter):
+        def ask(self, input: Input, problem: str | None) -> str:
+            asked_at.append(len(events))
+            return "123456"
+
+    runner.run(
+        parse(path), load_backends(), events.append, RecordingPrompter(), cwd=tmp_path, start=(1, 0), saved={"OTP": "1"}
+    )
+
+    assert asked_at == [0]
+    assert output(events) == ["otp ****"]
+
+
+def test_run_without_asking_to_start_starts_straight_away(tmp_path):
+    """With ask_to_start off, Start? isn't asked, but later questions still are."""
+    path = write_runbook(tmp_path, "## A\n\n```confirm\nDo it.\n```\n\n```sh run\necho ran\n```\n")
+    prompter = FakePrompter()
+
+    events, result = run(path, prompter, ask_to_start=False)
+
+    assert result.status == "ok"
+    assert prompter.questions == ["Continue? [y/N]"]
+    assert output(events) == ["ran"]
+
+
+@pytest.mark.parametrize("start", [(3, 0), (-1, 0), (1, 3), (1, -1)])
+def test_run_rejects_a_start_outside_the_runbook_before_asking_anything(tmp_path, resume_env, start):
+    """A start that isn't a step and block of the runbook is an error, raised before any input is asked for."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+    prompter = FakePrompter()
+
+    with pytest.raises(runner.RunnerError, match="can't start at"):
+        run(path, prompter, start=start)
+
+    assert prompter.asked == []
+
+
+def test_dry_run_does_not_collect_skipped_input_blocks(tmp_path, resume_env):
+    """A dry run never asks for input blocks, so it doesn't for those before start either."""
+    path = write_runbook(tmp_path, RESUME_RUNBOOK)
+
+    _, result = run(path, FakePrompter(answers=["3"]), dry=True, start=(2, 0))
+
+    assert result.status == "dry"
