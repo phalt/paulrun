@@ -135,5 +135,8 @@ def _finished(event: runner.RunFinished) -> str:
             # A transcript is only open once a step has started, so a run that stopped early always has a step.
             assert step is not None
             return f'{status} at "{step.name}"'
+        case runner.RunFinished(status="needs_human_input", step=step):
+            assert step is not None  # it stops at a confirm or input block, which is always in a step
+            return f'needs human input at "{step.name}"'
         case _:
             return f"ok ({runner.format_duration(event.duration)})"

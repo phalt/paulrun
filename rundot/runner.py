@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 from rundot.backends import Backend, Interrupted
-from rundot.inputs import MASK, Input, Prompter, collect, mask, substitute
+from rundot.inputs import MASK, Input, NeedsHumanInput, Prompter, collect, mask, substitute
 from rundot.runbook import Block, Runbook, Step
 
 # Blocks print to a pipe rather than a terminal. Python would hold its output back until it exits,
@@ -87,10 +87,12 @@ class BlockFinished:
 
 @dataclass(frozen=True)
 class RunFinished:
-    status: Literal["ok", "failed", "aborted", "interrupted", "dry"]
+    status: Literal["ok", "failed", "aborted", "interrupted", "needs_human_input", "dry"]
     duration: float  # seconds
     step: Step | None = None  # the step it stopped at; None if the run was never started
     exit_code: int | None = None  # the failed block's exit code
+    block: Block | None = None  # the confirm or input block a run that needs human input stopped at
+    message: str | None = None  # for needs_human_input, what a person has to do, with secrets masked
 
 
 Event = (
@@ -146,6 +148,11 @@ def run(
 
     Ctrl-C once the run has started finishes it as interrupted, so whatever is listening still gets a
     RunFinished. A block that was running has already stopped and had its output and exit code sent.
+
+    A prompter that raises NeedsHumanInput at a confirm or an input block finishes the run as
+    needs_human_input there, with the block and a message saying what a person has to do. Raised anywhere
+    else, while collecting the frontmatter inputs or input blocks before start, or at Start? or step_by_step's
+    question, it isn't caught, so a caller that can't ask must check inputs first and turn both questions off.
 
     start is the (step, block) to resume a run that stopped part way at, counting from 0, or None to run from
     the start. Any start resumes, (0, 0) included, since a run can stop at the very first block. Steps
@@ -295,7 +302,11 @@ def _step(
             sink(Confirm(block, text))
             if dry:
                 continue
-            yes = index == resume_at or _yes(prompter.confirm("Continue? [y/N]"))
+            try:
+                yes = index == resume_at or _yes(prompter.confirm("Continue? [y/N]"))
+            except NeedsHumanInput:
+                message = f"{_first_line(text)} Run again once it's done."
+                return _finish(sink, _needs_human_input(started, step, block, message))
             sink(ConfirmAnswered(block, text, yes))
             if not yes:
                 return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
@@ -305,7 +316,11 @@ def _step(
             sink(InputBlock(block, block.input))
             if dry:  # the value may not exist yet, so later blocks show <NAME> as written
                 continue
-            value = collect([block.input], os.environ, prompter, saved=saved)[block.input.name]
+            try:
+                value = collect([block.input], os.environ, prompter, saved=saved)[block.input.name]
+            except NeedsHumanInput:
+                message = f"set {block.input.name} ({block.input.description}) and run again."
+                return _finish(sink, _needs_human_input(started, step, block, message))
             env[block.input.name] = value
             if block.input.secret:
                 secrets.append(value)
@@ -369,6 +384,15 @@ def _step_answer(prompter: Prompter) -> str:
     while (answer := prompter.confirm(STEP_QUESTION).strip()) not in ("y", "s", "q"):
         pass
     return answer
+
+
+def _needs_human_input(started: float, step: Step, block: Block, message: str) -> RunFinished:
+    return RunFinished("needs_human_input", time.monotonic() - started, step, block=block, message=message)
+
+
+def _first_line(text: str) -> str:
+    """The first line of a confirm's text, stripped."""
+    return (text.strip().splitlines() or [""])[0]
 
 
 def _finish(sink: Callable[[Event], None], finished: RunFinished) -> RunFinished:

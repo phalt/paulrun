@@ -9,7 +9,7 @@ import pytest
 
 from rundot import runner
 from rundot.backends import Interrupted, load_backends
-from rundot.inputs import Input, InputError
+from rundot.inputs import Input, InputError, NeedsHumanInput
 from rundot.runbook import parse
 
 # A runbook with one plain input and one secret, for the input tests.
@@ -1811,3 +1811,119 @@ def test_run_runs_a_runbook_with_no_steps(tmp_path):
     assert result.status == "ok"
     assert isinstance(events[0], runner.Overview)
     assert events[0].run_blocks == 0
+
+
+class NoAnswerPrompter(FakePrompter):
+    """Answers Start? with y, and raises NeedsHumanInput for every other question and every input."""
+
+    def ask(self, input: Input, problem: str | None) -> str:
+        raise NeedsHumanInput
+
+    def confirm(self, question: str) -> str:
+        if question == "Start? [y/N]":
+            return "y"
+        raise NeedsHumanInput
+
+
+HUMAN_RUNBOOK = """\
+---
+title: Human
+inputs:
+  - name: VERSION
+    description: The version
+  - name: TOKEN
+    description: A token
+    secret: true
+---
+
+## Build
+
+```sh run
+echo "build"
+```
+
+## Release
+
+```confirm
+Publish the release notes for v<VERSION> with TOKEN.
+Then tell the team.
+```
+
+```input
+name: PR
+description: The pull request number
+```
+
+```sh run
+echo "released"
+```
+"""
+
+
+@pytest.fixture
+def human_env(monkeypatch):
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.setenv("TOKEN", "TOKEN")  # its value is in the confirm's text, so it's masked there
+    monkeypatch.delenv("PR", raising=False)
+
+
+def test_run_stops_for_human_input_at_a_confirm(tmp_path, human_env):
+    """A prompter that can't answer a confirm stops the run there, saying what a person has to do."""
+    path = write_runbook(tmp_path, HUMAN_RUNBOOK)
+
+    events, result = run(path, NoAnswerPrompter())
+
+    assert result.status == "needs_human_input"
+    assert result.step is not None and result.step.name == "Release"
+    assert result.block is not None and result.block.kind == "confirm"
+    assert result.message == "Publish the release notes for v1.2.0 with ****. Run again once it's done."
+    assert events[-1] is result
+    assert not [event for event in events if isinstance(event, runner.ConfirmAnswered)]
+    assert isinstance(events[-2], runner.Confirm)
+    assert output(events) == ["build"]
+
+
+def test_run_stops_for_human_input_at_an_input_block(tmp_path, human_env):
+    """A prompter that can't answer an input block stops the run there, naming the input to set."""
+    path = write_runbook(tmp_path, HUMAN_RUNBOOK)
+
+    events, result = run(path, NoAnswerPrompter(), start=(1, 1))
+
+    assert result.status == "needs_human_input"
+    assert result.step is not None and result.step.name == "Release"
+    assert result.block is not None and result.block.kind == "input"
+    assert result.message == "set PR (The pull request number) and run again."
+    assert not [event for event in events if isinstance(event, runner.InputCollected)]
+    assert isinstance(events[-2], runner.InputBlock)
+    assert output(events) == []
+
+
+def test_run_carries_on_once_the_input_block_has_a_value(tmp_path, human_env, monkeypatch):
+    """Run again with the value set, from the block it stopped at, the run carries on."""
+    monkeypatch.setenv("PR", "42")
+    path = write_runbook(tmp_path, HUMAN_RUNBOOK)
+
+    events, result = run(path, NoAnswerPrompter(), start=(1, 1))
+
+    assert result.status == "ok"
+    assert output(events) == ["released"]
+
+
+@pytest.mark.parametrize("status", ["ok", "failed", "aborted", "interrupted", "dry"])
+def test_run_finished_has_no_block_or_message_unless_it_needs_human_input(status):
+    """Only a run stopped for human input points at a block and says what to do."""
+    finished = runner.RunFinished(status, 0.0)
+
+    assert (finished.block, finished.message) == (None, None)
+
+
+def test_run_lets_needs_human_input_from_frontmatter_inputs_end_the_run_unhandled(tmp_path, monkeypatch):
+    """Before the run starts there's no step to stop at, so the caller must check inputs up front."""
+    monkeypatch.delenv("VERSION", raising=False)
+    path = write_runbook(tmp_path, HUMAN_RUNBOOK)
+    events: list[runner.Event] = []
+
+    with pytest.raises(NeedsHumanInput):
+        runner.run(parse(path), load_backends(), events.append, NoAnswerPrompter(), cwd=tmp_path)
+
+    assert events == []
