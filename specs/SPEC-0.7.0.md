@@ -1,6 +1,6 @@
 # Spec: rundot 0.7.0
 
-Status: draft (2026-11-13)
+Status: approved (2026-11-13)
 Version target: 0.7.0
 
 This builds on [SPEC-0.6.0.md](SPEC-0.6.0.md), [SPEC-0.3.0.md](SPEC-0.3.0.md), [SPEC-0.2.0.md](SPEC-0.2.0.md) and [SPEC.md](SPEC.md). Anything not mentioned here is unchanged.
