@@ -31,10 +31,10 @@ Every task is done test-first, in red-green slices, and also clears the standing
 **Description:** Add `NeedsHumanInput` to `rundot/inputs.py`, next to `Prompter`. When a prompter raises it from `confirm` or `ask` during a step, the run finishes as `RunFinished("needs_human_input", …, step)`. The message says what's needed. Add `needs_human_input` to the transcript's `--- finished:` line.
 
 **Acceptance criteria:**
-- [ ] Raised at a `confirm`, the run finishes `needs_human_input` at that step, with the block it stopped at
-- [ ] Raised at an `input` block, the same
-- [ ] The transcript records `--- finished: needs human input at "<step>"`
-- [ ] `RunFinished` carries the block it stopped at, `block: Block | None`, so the state can point at it
+- [x] Raised at a `confirm`, the run finishes `needs_human_input` at that step, with the block it stopped at
+- [x] Raised at an `input` block, the same
+- [x] The transcript records `--- finished: needs human input at "<step>"`
+- [x] `RunFinished` carries the block it stopped at, `block: Block | None`, so the state can point at it
 
 **Files likely touched:** `rundot/inputs.py`, `rundot/runner.py`, `rundot/transcript.py`, matching tests
 
