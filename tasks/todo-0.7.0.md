@@ -80,14 +80,14 @@ Every task is done test-first, in red-green slices, and also clears the standing
 **Description:** A `NoInputPrompter` that raises `NeedsHumanInput` with the spec's messages. `--no-input`, or `RUNDOT_NO_INPUT=1`, uses it, passes `ask_to_start=False`, turns stepping off, resumes by itself when there's state, and checks for missing inputs up front. Exit code 3 for `needs_human_input`.
 
 **Acceptance criteria:**
-- [ ] Tested with `CliRunner` and no `input=`: no prompt is ever shown
-- [ ] Missing frontmatter inputs are all named in one error, exit 1, before anything runs; defaults and saved values count as present
-- [ ] A `confirm` exits 3 with `needs human input: <first line>`; the next run resumes after it and records `confirm: … -> yes`
-- [ ] An `input` block with no value exits 3; the next run, with the value set, resumes at it
-- [ ] With state from a failed run, `--no-input` resumes by itself and prints `resuming at n/total Name`
-- [ ] `RUNDOT_NO_INPUT=1` acts like the flag; any other value doesn't
-- [ ] `--no-input` with `--step`, or with `--dry`, is a usage error; the picker with `--no-input` is a usage error
-- [ ] `step: true` in the runbook is ignored under `--no-input`
+- [x] Tested with `CliRunner` and no `input=`: no prompt is ever shown
+- [x] Missing frontmatter inputs are all named in one error, exit 1, before anything runs; defaults and saved values count as present
+- [x] A `confirm` exits 3 with `needs human input: <first line>`; the next run resumes after it and records `confirm: … -> yes`
+- [x] An `input` block with no value exits 3; the next run, with the value set, resumes at it
+- [x] With state from a failed run, `--no-input` resumes by itself and prints `resuming at n/total Name`
+- [x] `RUNDOT_NO_INPUT=1` acts like the flag; any other value doesn't
+- [x] `--no-input` with `--step`, or with `--dry`, is a usage error; the picker with `--no-input` is a usage error
+- [x] `step: true` in the runbook is ignored under `--no-input`
 
 **Files likely touched:** `rundot/cli.py`, `tests/test_cli.py`, `tests/runbooks/needs-human-input-example.md`
 
