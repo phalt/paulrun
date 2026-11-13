@@ -1,12 +1,14 @@
 """Tests for CLI commands."""
 
 import importlib.metadata
+import os
 import re
 import shutil
 import subprocess
 import sys
 import textwrap
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from importlib.metadata import EntryPoint
 from pathlib import Path
@@ -17,7 +19,9 @@ from click.testing import CliRunner
 
 from rundot import backends, cli
 from rundot import runner as runner_module
+from rundot import state as state_module
 from rundot.backends import BackendError, Problem
+from rundot.runbook import parse
 from tests.output import finished, normalized, overview, printed, title
 
 RUNBOOKS = Path(__file__).parent / "runbooks"
@@ -1283,7 +1287,8 @@ def test_run_shows_a_transcript_outside_where_it_was_started_in_full(runner, tmp
 def test_run_appends_a_second_run_to_the_transcript(runner, transcript_runbook, started_in):
     """Running twice keeps both runs, so a failed attempt and its rerun are both in the file."""
     runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\nn\n")
-    runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="y\ny\n")
+    # The first run stopped part way, so the second is asked whether to resume it, and starts over.
+    runner.invoke(cli.cli, ["run", str(transcript_runbook)], input="s\ny\ny\n")
 
     text = (started_in / "logs" / "release-1.2.0.md").read_text()
     assert text.count("--- rundot transcript-example.md @") == 2
@@ -2038,3 +2043,355 @@ def test_inputs_still_lists_frontmatter_inputs_when_the_body_cannot_be_read(runn
 def test_a_blocks_time_is_local_to_the_millisecond():
     """A bracket shows the time its block started, to the millisecond, with leading zeros kept."""
     assert cli.block_time(datetime(2026, 11, 4, 9, 5, 7, 4999, tzinfo=timezone.utc)) == "09:05:07.004"
+
+
+# --- Resuming a run ---
+
+
+@pytest.fixture
+def resume_runbook(tmp_path, monkeypatch):
+    """A copy of the resume example, whose Publish step fails until there's a file called fixed where rundot runs.
+
+    VERSION is set in the environment for the first run; PUBLISH_TOKEN is asked for.
+    """
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.delenv("PUBLISH_TOKEN", raising=False)
+    return Path(shutil.copy(RUNBOOKS / "resume-example.md", tmp_path))
+
+
+def saved_state(runbook: Path, cwd: Path) -> state_module.RunState | None:
+    return state_module.RunState.load(state_module.state_path(os.environ, runbook, cwd), warn=pytest.fail)
+
+
+def fail_once(runner, runbook: Path) -> None:
+    """Run the resume example until it fails at Publish, leaving its state behind."""
+    result = runner.invoke(cli.cli, ["run", str(runbook)], input="s3cret\ny\n")
+    assert result.exit_code == 1, result.output
+    assert finished(normalized(result.output)) == '✗ failed at "Publish" (exit 1) · Xs'
+
+
+def test_a_failed_run_resumes_at_the_step_it_stopped_in(runner, resume_runbook, started_in, monkeypatch):
+    """Once it's fixed, answering r runs only the step that failed and those after it, and asks for secrets again."""
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+    monkeypatch.delenv("VERSION")  # saved from the first run
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="r\nagain\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert re.search(
+        r"^Last run stopped at 3/4 Publish: failed \(exit 1\), \d{4}-\d\d-\d\d \d\d:\d\d\.$", result.output, re.M
+    )
+    assert "[r]esume / [s]tart over / [q]uit:" in result.output
+    assert "PUBLISH_TOKEN (Token for the package index)" in result.output
+    assert printed(result.output) == ["Publishing 1.2.0 with ****", "Announced 1.2.0"]
+    assert "1/4  Build" not in result.output
+    assert "3/4  Publish" in result.output
+    assert saved_state(resume_runbook, started_in) is None  # finished ok
+
+
+def test_a_resumed_run_shows_where_it_resumes_and_the_steps_already_done(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="r\nagain\ny\n")
+
+    rows = overview(result.output)
+    assert rows["resuming"] == ["3/4 Publish"]
+    assert [row.split() for row in rows["steps"]] == [
+        ["1.", "Build", "done"],
+        ["2.", "Test", "done"],
+        ["3.", "Publish"],
+        ["4.", "Announce"],
+    ]
+    assert rows["blocks"] == ["2 run blocks"]
+
+
+def test_the_question_asks_again_until_the_answer_is_r_s_or_q(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="x\n\nq\n")
+
+    assert result.exit_code == 1
+    assert result.output.count("[r]esume / [s]tart over / [q]uit:") == 3
+
+
+def test_quitting_at_the_question_runs_nothing_and_keeps_the_state(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    before = saved_state(resume_runbook, started_in)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="q\n")
+
+    assert result.exit_code == 1
+    assert "Start?" not in result.output
+    assert saved_state(resume_runbook, started_in) == before
+
+
+def test_ctrl_c_at_the_question_runs_nothing_and_keeps_the_state(runner, resume_runbook, started_in, monkeypatch):
+    fail_once(runner, resume_runbook)
+    before = saved_state(resume_runbook, started_in)
+
+    def interrupted(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "_prompt", interrupted)
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)])
+
+    assert result.exit_code == 1
+    assert saved_state(resume_runbook, started_in) == before
+
+
+def test_starting_over_at_the_question_deletes_the_state_and_runs_from_the_first_step(
+    runner, resume_runbook, started_in
+):
+    """s deletes the state straight away, so it's gone even if the new run is then declined at Start?."""
+    fail_once(runner, resume_runbook)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="s\nagain\nn\n")
+
+    assert result.exit_code == 1
+    assert "resuming" not in overview(result.output)
+    assert saved_state(resume_runbook, started_in) is None
+
+
+def test_starting_over_runs_from_the_first_step(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="s\nagain\ny\n")
+
+    assert result.exit_code == 0
+    assert printed(result.output)[0] == "Building 1.2.0"
+
+
+def test_restart_deletes_the_state_without_asking(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--restart"], input="again\nn\n")
+
+    assert result.exit_code == 1
+    assert "Last run stopped" not in result.output
+    assert "[r]esume" not in result.output
+    assert saved_state(resume_runbook, started_in) is None
+
+
+def test_resume_resumes_without_asking(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--resume"], input="again\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Last run stopped at 3/4 Publish" in result.output
+    assert "[r]esume" not in result.output
+    assert printed(result.output) == ["Publishing 1.2.0 with ****", "Announced 1.2.0"]
+
+
+def test_resume_with_nothing_to_resume_is_an_error(runner, resume_runbook, started_in):
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--resume"])
+
+    assert result.exit_code == 1
+    assert f"nothing to resume for {resume_runbook.name} in {started_in}" in result.output
+
+
+@pytest.mark.parametrize(
+    "flags", [["--resume", "--restart"], ["--dry", "--resume"], ["--dry", "--restart"]], ids=" ".join
+)
+def test_contradicting_flags_are_a_usage_error(runner, resume_runbook, flags):
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), *flags])
+
+    assert result.exit_code == 2
+    assert "can't be used together" in result.output
+
+
+def test_a_dry_run_never_reads_or_writes_state(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    before = saved_state(resume_runbook, started_in)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--dry"])
+
+    assert result.exit_code == 0
+    assert "Last run stopped" not in result.output
+    assert saved_state(resume_runbook, started_in) == before
+
+
+def test_a_dry_run_writes_no_state(runner, resume_runbook, started_in):
+    runner.invoke(cli.cli, ["run", str(resume_runbook), "--dry"])
+
+    assert not state_module.state_dir(os.environ).exists()
+    assert saved_state(resume_runbook, started_in) is None
+
+
+def test_a_run_that_finishes_ok_leaves_no_state(runner, resume_runbook, started_in):
+    (started_in / "fixed").touch()
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="s3cret\ny\n")
+
+    assert result.exit_code == 0
+    assert saved_state(resume_runbook, started_in) is None
+
+
+def test_the_same_runbook_in_another_directory_has_its_own_state(runner, resume_runbook, started_in, monkeypatch):
+    fail_once(runner, resume_runbook)
+    elsewhere = started_in / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="s3cret\nn\n")
+
+    assert "Last run stopped" not in result.output
+
+
+def edit_step(runbook: Path, old: str, new: str) -> None:
+    runbook.write_text(runbook.read_text().replace(old, new, 1))
+
+
+def test_a_changed_skipped_step_warns_before_resuming(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    edit_step(resume_runbook, 'echo "Testing <VERSION>"', 'echo "Testing <VERSION> again"')
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="q\n")
+
+    assert f'{resume_runbook.name} has changed since that run: "Test" is different.' in result.output
+
+
+def test_several_changed_steps_are_all_named(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    edit_step(resume_runbook, 'echo "Building <VERSION>"', 'echo "Building <VERSION> again"')
+    edit_step(resume_runbook, 'echo "Testing <VERSION>"', 'echo "Testing <VERSION> again"')
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="q\n")
+
+    assert 'has changed since that run: "Build" and "Test" are different.' in result.output
+
+
+def test_a_renamed_resume_step_warns_before_resuming(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    edit_step(resume_runbook, "## Publish", "## Publish to the index")
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="q\n")
+
+    assert 'has changed since that run: step 3 was "Publish" and is now "Publish to the index".' in result.output
+
+
+def test_a_changed_resume_step_or_later_step_does_not_warn(runner, resume_runbook, started_in):
+    """Those steps run again anyway, so a fix to them is expected."""
+    fail_once(runner, resume_runbook)
+    edit_step(resume_runbook, "test -f fixed", "test -f fixed-now")
+    edit_step(resume_runbook, 'echo "Announced', 'echo "Told everyone about')
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="q\n")
+
+    assert "has changed" not in result.output
+
+
+def test_a_runbook_with_fewer_steps_starts_over(runner, resume_runbook, started_in):
+    fail_once(runner, resume_runbook)
+    text = resume_runbook.read_text()
+    resume_runbook.write_text(text[: text.index("## Announce")])
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="s3cret\nn\n")
+
+    assert f"{resume_runbook.name} now has fewer steps than that run, so it starts over." in result.output
+    assert "[r]esume" not in result.output
+    assert saved_state(resume_runbook, started_in) is None
+
+
+def test_a_broken_state_file_warns_and_runs_from_the_start(runner, resume_runbook, started_in):
+    path = state_module.state_path(os.environ, resume_runbook, started_in)
+    path.parent.mkdir(parents=True)
+    path.write_text("{not json")
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="s3cret\nn\n")
+
+    assert f"ignoring the saved run at {path}: it isn't valid JSON" in result.output
+    assert "[r]esume" not in result.output
+
+
+def write_state(runbook: Path, cwd: Path, **changes) -> None:
+    """Save a state for runbook in cwd, as a run that failed at Publish would, with changes made to it."""
+    stopped = state_module.RunState(
+        runbook=str(runbook.resolve()),
+        directory=str(cwd.resolve()),
+        started_at="2026-11-13T14:02:11+00:00",
+        stopped="failed",
+        step=2,
+        block=0,
+        steps=tuple((step.name, state_module.step_hash(step)) for step in parse(runbook).steps),
+        inputs={"VERSION": "1.2.0"},
+    )
+    replace(stopped, **changes).save(state_module.state_path(os.environ, runbook, cwd))
+
+
+@pytest.mark.parametrize(
+    ("stopped", "said"),
+    [
+        ("aborted", "aborted"),
+        ("interrupted", "interrupted"),
+        ("needs_human_input", "needs human input"),
+        ("running", "killed while running"),
+    ],
+)
+def test_the_question_says_how_the_last_run_stopped(runner, resume_runbook, started_in, stopped, said):
+    write_state(resume_runbook, started_in, stopped=stopped)
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook)], input="q\n")
+
+    assert f"Last run stopped at 3/4 Publish: {said}, " in result.output
+
+
+CONFIRM_RUNBOOK = """\
+## First
+
+```sh run
+echo first
+```
+
+```confirm
+Publish the notes.
+```
+
+```sh run
+echo after the confirm
+```
+"""
+
+
+def test_a_run_stopped_for_human_input_resumes_at_its_block(runner, tmp_path, started_in):
+    """The confirm it stopped at counts as answered yes, and the blocks before it in its step don't run."""
+    path = write_runbook(tmp_path, CONFIRM_RUNBOOK)
+    write_state(path, started_in, stopped="needs_human_input", step=0, block=1, inputs={})
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="r\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert printed(result.output) == ["after the confirm"]
+    assert "Continue?" not in result.output
+
+
+def test_a_run_stopped_for_human_input_in_a_changed_step_resumes_at_its_first_block(runner, tmp_path, started_in):
+    """The saved block may not be the same block any more, so the whole step runs again."""
+    path = write_runbook(tmp_path, CONFIRM_RUNBOOK)
+    write_state(path, started_in, stopped="needs_human_input", step=0, block=1, inputs={})
+    edit_step(path, "echo first", "echo first, changed")
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="r\ny\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert printed(result.output) == ["first, changed", "after the confirm"]
+
+
+def test_a_resumed_runs_transcript_says_where_it_resumed_from(runner, resume_runbook, started_in):
+    text = resume_runbook.read_text().replace("---\n\n#", "output_path: run.log\n---\n\n#", 1)
+    resume_runbook.write_text(text)
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+    stopped = saved_state(resume_runbook, started_in)
+    assert stopped is not None
+
+    runner.invoke(cli.cli, ["run", str(resume_runbook)], input="r\nagain\ny\n")
+
+    second = (started_in / "run.log").read_text().split("\n\n--- rundot ")[1]
+    lines = second.splitlines()
+    assert lines[1] == f'--- resumed at "Publish", from the run at {stopped.started_at}'
+    assert lines[2] == "--- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****"

@@ -45,14 +45,14 @@ Every task is done test-first, in red-green slices, and also clears the standing
 **Description:** `rundot/state.py` with `state_dir(env)`, `key(runbook_path, cwd)`, `step_hash(step)`, `RunState` (load, save, delete) and `StateRecorder`, a listener on runner events. Add it to the import-linter layers.
 
 **Acceptance criteria:**
-- [ ] `state_dir` is `$XDG_STATE_HOME/rundot/runs`, or `~/.local/state/rundot/runs` when that's unset or empty
-- [ ] `key` is the same for a path and its symlink, and different for two directories
-- [ ] `step_hash` changes when a step's name or any block's language, kind or content changes
-- [ ] `StateRecorder` writes `running` at each `StepStarted`, adds plain `InputCollected` values, writes the stop reason, step and block at `RunFinished`, and deletes the file on `ok`
-- [ ] A run that's aborted before its first step writes nothing and leaves an existing file alone
-- [ ] No secret's value is ever in the file, including from a secret `input` block
-- [ ] Files are mode `0600` and written by renaming a temporary file
-- [ ] A file that can't be parsed, or has another `version`, loads as `None` with a warning
+- [x] `state_dir` is `$XDG_STATE_HOME/rundot/runs`, or `~/.local/state/rundot/runs` when that's unset or empty
+- [x] `key` is the same for a path and its symlink, and different for two directories
+- [x] `step_hash` changes when a step's name or any block's language, kind or content changes
+- [x] `StateRecorder` writes `running` at each `StepStarted`, adds plain `InputCollected` values, writes the stop reason, step and block at `RunFinished`, and deletes the file on `ok`
+- [x] A run that's aborted before its first step writes nothing and leaves an existing file alone
+- [x] No secret's value is ever in the file, including from a secret `input` block
+- [x] Files are mode `0600` and written by renaming a temporary file
+- [x] A file that can't be parsed, or has another `version`, loads as `None` with a warning
 
 **Files likely touched:** `rundot/state.py`, `pyproject.toml` (import-linter layers), `tests/test_state.py`
 

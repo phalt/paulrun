@@ -156,6 +156,7 @@ def test_a_saved_state_is_the_documented_json(tmp_path):
         "block": 0,
         "steps": [{"name": "Run the tests", "hash": "9f2c"}, {"name": "Publish", "hash": "e5d1"}],
         "inputs": {"VERSION": "1.2.0"},
+        "exit_code": None,
     }
 
 
@@ -550,3 +551,49 @@ def test_recorder_times_the_run_by_the_local_clock_by_default(tmp_path, monkeypa
     saved = state.RunState.load(saved_at, warn=pytest.fail)
     assert saved is not None
     assert datetime.fromisoformat(saved.started_at) >= before.replace(microsecond=0)
+
+
+def test_a_saved_state_keeps_the_failed_blocks_exit_code(tmp_path):
+    """So the next run can say how the last one failed."""
+    path = tmp_path / "key.json"
+
+    a_state(exit_code=3).save(path)
+
+    assert json.loads(path.read_text())["exit_code"] == 3
+    assert state.RunState.load(path, warn=pytest.fail) == a_state(exit_code=3)
+
+
+def test_a_saved_state_without_an_exit_code_loads(tmp_path):
+    """exit_code is null, or left out, for a run that didn't fail."""
+    path = tmp_path / "key.json"
+    data = documented()
+    del data["exit_code"]
+    path.write_text(json.dumps(data))
+
+    loaded = state.RunState.load(path, warn=pytest.fail)
+
+    assert loaded is not None and loaded.exit_code is None
+
+
+@pytest.mark.parametrize("exit_code", ["1", True, 1.5])
+def test_a_state_with_an_exit_code_that_is_not_an_int_warns_and_loads_as_none(tmp_path, exit_code):
+    path = tmp_path / "key.json"
+    path.write_text(json.dumps(documented() | {"exit_code": exit_code}))
+    warnings: list[str] = []
+
+    assert state.RunState.load(path, warn=warnings.append) is None
+    assert warnings
+
+
+def test_recorder_saves_the_exit_code_of_a_failed_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("FAIL", "4")
+    saved_at, _, _ = record(tmp_path, monkeypatch)
+
+    saved = state.RunState.load(saved_at, warn=pytest.fail)
+    assert saved is not None and saved.exit_code == 4
+
+
+def test_recorder_saves_no_exit_code_while_running(tmp_path, monkeypatch):
+    _, events, _ = record(tmp_path, monkeypatch)
+
+    assert {seen["exit_code"] for seen in printed(events)} == {None}
