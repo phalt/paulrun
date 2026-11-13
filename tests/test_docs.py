@@ -17,6 +17,7 @@ from rundot.backends import Backend, Problem, load_backends
 from rundot.runbook import parse
 from rundot.validate import validate
 from tests.output import overview, printed
+from tests.test_jsonlines import EXAMPLES
 
 ROOT = Path(__file__).parent.parent
 DOCS = ROOT / "docs"
@@ -172,3 +173,23 @@ def test_the_input_block_examples_are_valid(tmp_path, without_shellcheck):
         body = snippet if snippet.startswith("## ") else "## Publish\n\n" + snippet
 
         assert check_example(f"---\ntitle: T\n{inputs}---\n\n{body}", tmp_path) == [], snippet
+
+
+def test_the_json_event_table_matches_what_json_prints():
+    """Each event in the command line page's --json table, with exactly the fields --json prints for it."""
+    page = (DOCS / "cli.md").read_text()
+    section = page[page.index("### --json") :]
+    rows = re.findall(r"^\| `([a-z_]+)` \| `\w+` \| (.*) \|$", section, re.MULTILINE)
+    # Notes in brackets, such as (or `null`), aren't fields.
+    documented = {event: set(re.findall(r"`(\w+)`", re.sub(r"\(.*?\)", "", fields))) for event, fields in rows}
+    printed_fields = {expected["event"]: set(expected) - {"event", "at"} for _, expected in EXAMPLES}
+
+    assert documented == printed_fields
+
+
+def test_every_run_option_is_on_the_command_line_page():
+    """So a new flag can't go undocumented."""
+    page = (DOCS / "cli.md").read_text()
+    options = [option for param in cli.run_runbook.params for option in [*param.opts, *param.secondary_opts]]
+
+    assert [option for option in options if option.startswith("--") and f"`{option}`" not in page] == []

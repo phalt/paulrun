@@ -109,6 +109,8 @@ A book runs in the folder you're in, so the same one works in every project. See
 
 A runbook gives an agent a fixed set of steps to follow instead of working them out each time. Paste [this prompt](https://rundot.dev/prompt.txt) into your chat, or into your `CLAUDE.md` or `AGENTS.md`. It teaches the format and asks the agent to check and dry-run every runbook before running it.
 
+An agent runs a runbook with `--no-input --json`: nothing waits for an answer, and each event is a line of JSON. When a step needs a person, such as a `confirm`, the run stops with exit code 3 and says what to do. Once it's done, the agent runs the same command again, and the run carries on from there.
+
 ## Also in rundot
 
 - **Transcripts** - Set `output_path` to keep every command, its output and how the run ended.

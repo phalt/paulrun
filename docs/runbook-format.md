@@ -236,6 +236,16 @@ python: uv run python
 
 A block can still ask on the terminal, the way `git` and `ssh` ask for a password. But output is shown a line at a time, so a question with no newline after it isn't shown until you answer. Use [inputs](#inputs) for values instead.
 
+## Resuming a run
+
+A run that stops part way can be resumed at the step it stopped in, so the steps already done aren't run again. See [Resuming a run](cli.md#resuming-a-run) for how to resume one.
+
+- **Where it's kept.** rundot notes where each run has got to in `$XDG_STATE_HOME/rundot/runs/`, or `~/.local/state/rundot/runs/` if that isn't set. Nothing is written to your project. A run is known by its runbook and the directory its blocks run in, so the same runbook run in two projects is resumed separately.
+- **When.** It's noted as each step starts, so even a run that was killed outright can be resumed. It's deleted when the run finishes ok. `--dry` never reads or writes it, and a run you decline at `Start?` leaves the last one as it was.
+- **What's kept.** Plain input values, from the frontmatter and from `input` blocks, are kept and used again, after the environment. Secrets are never kept: they're read from the environment or asked for again.
+- **Where it resumes.** At the start of the step the run stopped in, so a step is always run whole. Its `confirm` blocks are asked again. The one exception is a run stopped under [`--no-input`](cli.md#-no-input) at a `confirm` or an `input` block, which carries on at that block: the `confirm` counts as done, and the `input` is read from the environment.
+- **A changed runbook.** If a step that's done has changed since, or the step it resumes at has a new name, rundot warns and still offers to resume. If the runbook now has fewer steps, it starts over.
+
 ## Transcript
 
 Set `output_path`, and each run is added to the end of that file, so a failed attempt and the rerun that fixed it are both kept:
@@ -274,6 +284,15 @@ The last line says how the run ended:
 | `--- finished: failed at "<step>" (exit N)` | A block exited with N. |
 | `--- finished: aborted at "<step>"` | A `confirm` wasn't answered `y`, or you quit with [`--step`](cli.md#-step). |
 | `--- finished: interrupted at "<step>"` | You pressed Ctrl-C. |
+| `--- finished: needs human input at "<step>"` | Under `--no-input`, the run reached a `confirm`, or an `input` block with no value. |
+
+A [resumed run](#resuming-a-run) has one more line at the top, saying which step it resumed at and which run it resumed:
+
+```
+--- rundot RELEASING.md @ 2026-10-12T15:20:03+01:00
+--- resumed at "Publish to PyPI", from the run at 2026-10-12T15:11:27+01:00
+--- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****
+```
 
 ## Known limits
 

@@ -22,10 +22,12 @@
     - A `confirm`, or an `input` block with no value, stops the run with exit code 3 and says what a person has to do, e.g. `needs human input: Publish the release notes for v1.2.0. Run again once it's done.` The next run carries on from there, taking the confirm as answered yes.
     - `--no-input` with `--step` or `--dry`, or with no runbook to run, is a usage error.
 - Exit code 3 means human input is needed.
+- The transcript records a run stopped for human input as `--- finished: needs human input at "<step>"`.
 - `--json` prints each of the run's events as one line of JSON on stdout, so an agent can follow a run without parsing boxes. Every object has `event` and `at`, then fields of its own: `overview`, `step_started`, `docstring`, `confirm`, `confirm_answered`, `input_block`, `input_collected`, `block_started`, `block_skipped`, `output`, `block_finished` and `run_finished`. `run_finished` has the run's `status`, and for `needs_human_input` a `message` saying what a person has to do. Secrets are `****`, as everywhere else.
     - stdout is JSON lines only. Everything else rundot says, such as `check` problems, `resuming at` and `needs human input`, goes to stderr as text. The transcript is unchanged.
     - `--json` implies `--no-input`. With `--dry`, `--step` or no runbook to run, it's a usage error.
 - Where each run got to is kept in `$XDG_STATE_HOME/rundot/runs/`, or `~/.local/state/rundot/runs/`, never in your project. It's deleted when the run finishes ok. `--dry` never reads or writes it.
+- Docs: the command line page has a [Running from an agent or CI](https://docs.rundot.dev/cli/#running-from-an-agent-or-ci) section, and the runbook format page explains [resuming a run](https://docs.rundot.dev/runbook-format/#resuming-a-run).
 
 ## 0.6.0
 
