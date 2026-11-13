@@ -41,6 +41,17 @@ def empty_library(tmp_path_factory, monkeypatch) -> Path:
     return directory
 
 
+@pytest.fixture(autouse=True)
+def state_home(tmp_path_factory, monkeypatch) -> Path:
+    """Point XDG_STATE_HOME at an empty directory for every test, and return it.
+
+    So no test ever reads or writes run state in the real ~/.local/state.
+    """
+    directory = tmp_path_factory.mktemp("state")
+    monkeypatch.setenv("XDG_STATE_HOME", str(directory))
+    return directory
+
+
 @pytest.fixture
 def without_shellcheck(monkeypatch):
     """Make the shell backend act as if shellcheck isn't installed, without changing PATH.
