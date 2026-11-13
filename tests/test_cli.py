@@ -2801,3 +2801,40 @@ def test_json_cannot_pick_a_book(runner, monkeypatch):
 
     assert result.exit_code == 2
     assert "--json can't pick a book from the library" in result.output
+
+
+@pytest.mark.parametrize("reply", ["n", "x"])
+def test_a_confirm_answered_no_is_asked_again_on_resume(runner, human_runbook, started_in, monkeypatch, reply):
+    """Someone said no, so resuming must ask again rather than go ahead."""
+    monkeypatch.setenv("PR", "42")
+    first = runner.invoke(cli.cli, ["run", str(human_runbook)], input=f"y\n{reply}\n")
+    assert finished(normalized(first.output)) == '✗ aborted at "Release notes"'
+
+    result = runner.invoke(cli.cli, ["run", str(human_runbook)], input="r\ny\nn\n")
+
+    assert result.exit_code == 1
+    assert "Continue? [y/N]" in result.output
+    assert finished(normalized(result.output)) == '✗ aborted at "Release notes"'
+
+
+def test_a_confirm_after_a_failure_in_its_step_is_asked_again_on_resume(runner, tmp_path, started_in):
+    path = write_runbook(tmp_path, "## A\n\n```confirm\nDo it.\n```\n\n```sh run\ntest -f fixed\n```\n")
+    runner.invoke(cli.cli, ["run", str(path)], input="y\ny\n")
+    (started_in / "fixed").touch()
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="r\ny\ny\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Continue? [y/N]" in result.output
+
+
+def test_a_confirm_stopped_at_for_human_input_in_a_changed_step_is_asked_again(runner, tmp_path, started_in):
+    """The step changed, so it runs again from its first block, and the confirm may not be the one that was done."""
+    path = write_runbook(tmp_path, "## A\n\n```sh run\necho a\n```\n\n```confirm\nDo it.\n```\n")
+    write_state(path, started_in, stopped="needs_human_input", step=0, block=1, inputs={})
+    edit_step(path, "echo a", "echo b")
+
+    result = runner.invoke(cli.cli, ["run", str(path)], input="r\ny\nn\n")
+
+    assert result.exit_code == 1
+    assert "Continue? [y/N]" in result.output

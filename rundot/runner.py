@@ -129,6 +129,7 @@ def run(
     start: tuple[int, int] | None = None,
     saved: Mapping[str, str] = {},
     ask_to_start: bool = True,
+    confirmed: bool = False,
 ) -> RunFinished:
     """Collect the runbook's inputs, ask to start, then go through each step's blocks in order.
 
@@ -157,7 +158,8 @@ def run(
     start is the (step, block) to resume a run that stopped part way at, counting from 0, or None to run from
     the start. Any start resumes, (0, 0) included, since a run can stop at the very first block. Steps
     before it, and blocks before it in its step, are neither sent nor run, though the overview still lists
-    every step. A confirm at start was what the run stopped at, so it's answered yes without asking. Input
+    every step. A confirm at start is asked like any other, unless confirmed says it's the one a run stopped
+    at for human input, which a person has since done: then it's answered yes without asking. Input
     blocks before start are still collected, with the frontmatter inputs and without being sent, so later
     blocks have their values. saved holds plain values from the last run, used when the environment doesn't
     set an input and before asking. Secrets are never taken from it. With ask_to_start off, the run starts
@@ -169,6 +171,10 @@ def run(
         0 <= start_step < len(runbook.steps) and 0 <= start_block < len(runbook.steps[start_step].blocks)
     ):
         raise RunnerError(f"can't start at block {start_block} of step {start_step}: the runbook has no such block")
+    if confirmed and not resuming:
+        raise RunnerError("confirmed needs a start: the confirm a stopped run is resuming at")
+    if confirmed and runbook.steps[start_step].blocks[start_block].kind != "confirm":
+        raise RunnerError(f"can't take block {start_block} of step {start_step} as confirmed: it isn't a confirm")
     run_blocks = [block for step in runbook.steps for block in step.blocks if block.kind == "run"]
     for block in run_blocks:
         if block.language not in backends:
@@ -205,7 +211,7 @@ def run(
     except KeyboardInterrupt:
         return _finish(sink, RunFinished("interrupted", 0.0))
     return _steps(
-        runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step, start, resuming, saved
+        runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step, start, confirmed, saved
     )
 
 
@@ -230,7 +236,7 @@ def _steps(
     dry: bool,
     step_by_step: bool,
     start: tuple[int, int],
-    resuming: bool,
+    confirmed: bool,
     saved: Mapping[str, str],
 ) -> RunFinished:
     """Go through each step's blocks in order from start, finishing the run as interrupted at the step Ctrl-C
@@ -242,7 +248,7 @@ def _steps(
     start_step, start_block = start
     for index, step in enumerate(steps[start_step:], start_step):
         first = start_block if index == start_step else 0
-        resume_at = first if index == start_step and resuming else None
+        confirmed_at = first if index == start_step and confirmed else None
         try:
             finished = _step(
                 runbook,
@@ -258,7 +264,7 @@ def _steps(
                 dry,
                 step_by_step,
                 first,
-                resume_at,
+                confirmed_at,
                 saved,
             )
         except KeyboardInterrupt:
@@ -283,14 +289,14 @@ def _step(
     dry: bool,
     step_by_step: bool,
     first: int,
-    resume_at: int | None,
+    confirmed_at: int | None,
     saved: Mapping[str, str],
 ) -> RunFinished | None:
     """Go through one step's blocks from the one at index first. Returns how the run finished if it stops here,
     or None to carry on.
 
-    resume_at is the index of the block a stopped run resumes at, if it's in this step. A confirm there is
-    what the run stopped at, so it counts as answered yes.
+    confirmed_at is the index of a confirm in this step that a run stopped at for human input, and that a
+    person has since done, so it counts as answered yes.
     """
     sink(StepStarted(step))
     for index, block in enumerate(step.blocks[first:], first):
@@ -303,7 +309,7 @@ def _step(
             if dry:
                 continue
             try:
-                yes = index == resume_at or _yes(prompter.confirm("Continue? [y/N]"))
+                yes = index == confirmed_at or _yes(prompter.confirm("Continue? [y/N]"))
             except NeedsHumanInput:
                 message = f"{_first_line(text)} Run again once it's done."
                 return _finish(sink, _needs_human_input(started, step, block, message))
