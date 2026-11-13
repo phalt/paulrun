@@ -98,12 +98,12 @@ Every task is done test-first, in red-green slices, and also clears the standing
 **Description:** `rundot/jsonlines.py` turns each runner event into the dict in the spec's table, with `event` and `at`. `--json` uses it as the sink in place of `_Printer`, and implies `--no-input`. Every other message (`resuming at`, `needs human input`, the transcript path) goes to stderr under `--json`.
 
 **Acceptance criteria:**
-- [ ] One test per event type pins its fields exactly
-- [ ] End to end, every stdout line parses with `json.loads`, and nothing else is on stdout
-- [ ] `check` problems go to stderr and nothing goes to stdout
-- [ ] Secrets are `****` in every field
-- [ ] `--json` without `--no-input` still never asks anything
-- [ ] `--json` with `--dry` is a usage error
+- [x] One test per event type pins its fields exactly
+- [x] End to end, every stdout line parses with `json.loads`, and nothing else is on stdout
+- [x] `check` problems go to stderr and nothing goes to stdout
+- [x] Secrets are `****` in every field
+- [x] `--json` without `--no-input` still never asks anything
+- [x] `--json` with `--dry` is a usage error
 
 **Files likely touched:** `rundot/jsonlines.py`, `rundot/cli.py`, `pyproject.toml` (import-linter layers), `tests/test_jsonlines.py`, `tests/test_cli.py`
 

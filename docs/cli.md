@@ -40,9 +40,10 @@ rundot RELEASING.md
 You don't need to type `run`: anything after `rundot` that isn't a command is a runbook. Options go before or after it, so `rundot RELEASING.md --dry` is the same as `rundot --dry RELEASING.md`. Use `rundot run check` to run a book called `check.md`, since `rundot check` is the command.
 
 1. **Checks the runbook**, as [`rundot check`](#rundot-check) does. Errors stop it here.
-2. **Collects the inputs**. See [Inputs](runbook-format.md#inputs).
-3. **Shows the plan** and asks `Start? [y/N]`.
-4. **Runs each step in order**, streaming each block's output as it's printed. Each block shows its language and when it started, then what it printed, then its exit code and how long it took. A line it wrote to stderr has a red `│`.
+2. **Asks whether to resume**, if the last run of this runbook in this directory stopped part way. See [Resuming a run](#resuming-a-run).
+3. **Collects the inputs**. See [Inputs](runbook-format.md#inputs).
+4. **Shows the plan** and asks `Start? [y/N]`.
+5. **Runs each step in order**, streaming each block's output as it's printed. Each block shows its language and when it started, then what it printed, then its exit code and how long it took. A line it wrote to stderr has a red `│`.
 
 ```
 VERSION (The version to release, e.g. 1.2.0): 1.2.0
@@ -208,6 +209,104 @@ A runbook that should always be run this way can set [`step: true`](runbook-form
 - If a block ignores it, press Ctrl-C again to stop the block and everything it started.
 - The run ends as `✗ interrupted at "<step>"`.
 
+### Resuming a run
+
+A run that stops part way, because a block failed, a `confirm` was answered no or you pressed Ctrl-C, can be picked up at the step it stopped in. Fix what went wrong, run the same command again, and answer `r`:
+
+```
+$ rundot RELEASING.md
+Last run stopped at 4/5 Publish: failed (exit 1), 2026-11-13 14:02.
+[r]esume / [s]tart over / [q]uit: r
+PUBLISH_TOKEN (Token for the package index):
+╭─ Release my-package ────────────────────────╮
+│ directory  /home/you/Projects/my-package    │
+│ resuming   4/5 Publish                      │
+│ inputs     VERSION=1.2.0 PUBLISH_TOKEN=**** │
+│ steps      1. Run the tests       done      │
+│            2. Bump the version    done      │
+│            3. Tag and push        done      │
+│            4. Publish                       │
+│            5. Announce                      │
+│ blocks     2 run blocks                     │
+╰─────────────────────────────────────────────╯
+Start? [y/N] y
+
+4/5  Publish ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+- `r` resumes: the steps already done are skipped, and the step it stopped in runs again from its start. Plain inputs are kept from the last run, but secrets are asked for again.
+- `s` starts over from the first step, and forgets the stopped run.
+- `q`, or Ctrl-C, runs nothing and keeps the stopped run for next time. rundot exits 1.
+
+If a step the last run did has changed since, or the step it resumes at has a new name, rundot warns before asking, e.g. `RELEASING.md has changed since that run: "Tag and push" is different.` A runbook that now has fewer steps can't be resumed, so it starts over and says so. A stopped run is only ever resumed in the directory it ran in. See [Resuming a run](runbook-format.md#resuming-a-run) for what's kept, and where.
+
+### --resume and --restart
+
+`--resume` resumes without asking. It's an error, exit 1, if there's nothing to resume. `--restart` forgets any stopped run and starts from the first step. They can't be used together, or with `--dry`, which never reads or changes a stopped run.
+
+### --no-input
+
+rundot never asks anything, so an agent or a CI job can run a runbook:
+
+```sh
+VERSION=1.2.0 rundot RELEASING.md --no-input
+```
+
+| What rundot would ask | With `--no-input` |
+|---|---|
+| Resume, start over or quit | Resumes, and prints `resuming at 4/5 Publish`. `--restart` starts over instead. |
+| A frontmatter input | The environment, then the stopped run, then its `default`. If any inputs are still missing, the run fails before anything runs and names every one: `missing inputs: VERSION, BRANCH. Set them in the environment.` Exit 1. |
+| `Start? [y/N]` | Yes. |
+| `Run this block?` | Never asked: stepping is off, even with `step: true` in the runbook. |
+| A `confirm` block | Stops the run: `needs human input: Publish the GitHub release notes for v1.2.0. Run again once it's done.` Exit 3. The next run carries on after the confirm, as if it had been answered yes. |
+| An `input` block | The environment, then the stopped run, then its `default`. Otherwise it stops the run: `needs human input: set PR (The number GitHub gave the pull request) and run again.` Exit 3. The next run, with it set, carries on from that block. |
+
+A value from the environment or the stopped run that doesn't fit the input's `pattern` or `choices` fails, exit 1.
+
+`RUNDOT_NO_INPUT=1` does the same as `--no-input`, for CI jobs that run rundot through scripts you don't control. Any other value, including an empty one, leaves it off.
+
+`--no-input` can't be used with `--step` or `--dry`, or without a runbook, since picking a book is asking. Those are usage errors, exit 2, whether it's turned on by the flag or the variable.
+
+### --json
+
+Prints each of the run's events as one line of JSON on stdout, as it happens, so an agent can follow a run without reading boxes. `--json` implies [`--no-input`](#-no-input), since a prompt would put text that isn't JSON on stdout.
+
+```json
+{"event": "overview", "at": "2026-11-13T14:20:03.104+00:00", "title": "Release my-package", "directory": "/home/you/Projects/my-package", "inputs": {"VERSION": "1.2.0", "PUBLISH_TOKEN": "****"}, "steps": ["Run the tests", "Bump the version", "Tag and push", "Publish", "Announce"], "resuming_at": 3}
+{"event": "step_started", "at": "2026-11-13T14:20:03.106+00:00", "number": 4, "name": "Publish"}
+{"event": "block_started", "at": "2026-11-13T14:20:03.106+00:00", "line": 41, "language": "sh", "code": "uv publish --token \"$PUBLISH_TOKEN\"\n"}
+{"event": "output", "at": "2026-11-13T14:20:03.512+00:00", "text": "Uploading rundot-0.7.0.whl", "stderr": false}
+{"event": "block_finished", "at": "2026-11-13T14:20:04.307+00:00", "line": 41, "exit_code": 0, "duration": 1.201}
+{"event": "step_started", "at": "2026-11-13T14:20:04.308+00:00", "number": 5, "name": "Announce"}
+{"event": "confirm", "at": "2026-11-13T14:20:04.308+00:00", "line": 50, "text": "Publish the GitHub release notes for v1.2.0.\n"}
+{"event": "run_finished", "at": "2026-11-13T14:20:04.309+00:00", "status": "needs_human_input", "step": "Announce", "exit_code": null, "duration": 1.205, "message": "Publish the GitHub release notes for v1.2.0. Run again once it's done."}
+```
+
+stdout is JSON lines only. Everything else rundot says, such as `check` problems, `resuming at`, `missing inputs` and `needs human input`, goes to stderr as text. The transcript is written as usual.
+
+Every object has `event` and `at`, when it happened, in ISO 8601 with milliseconds. Secrets are `****`, as everywhere else.
+
+| `event` | From | Fields besides `event` and `at` |
+|---|---|---|
+| `overview` | `Overview` | `title`, `directory`, `inputs`, `steps`, `resuming_at` (the index of the step a resumed run starts at, or `null`) |
+| `step_started` | `StepStarted` | `number` (from 1), `name` |
+| `docstring` | `Docstring` | `line`, `text` |
+| `confirm` | `Confirm` | `line`, `text` |
+| `confirm_answered` | `ConfirmAnswered` | `line`, `yes` |
+| `input_block` | `InputBlock` | `line`, `name`, `description` |
+| `input_collected` | `InputCollected` | `line`, `name`, `value` |
+| `block_started` | `BlockStarted` | `line`, `language`, `code` |
+| `block_skipped` | `BlockSkipped` | `line` |
+| `output` | `OutputLine` | `text`, `stderr` |
+| `block_finished` | `BlockFinished` | `line`, `exit_code`, `duration` (seconds) |
+| `run_finished` | `RunFinished` | `status`, `step` (its name, or `null`), `exit_code`, `duration`, `message` (what a person has to do, or `null`) |
+
+- `line` is the block's line in the runbook, so an agent can point at it.
+- `status` is `ok`, `failed`, `aborted`, `interrupted` or `needs_human_input`.
+- A field may be added in a later version. One is never removed or renamed without a major version.
+
+`--json` can't be used with `--dry` or `--step`, or without a runbook. Those are usage errors, exit 2.
+
 ## rundot check
 
 Finds problems in a runbook without running anything.
@@ -297,10 +396,27 @@ python  python, py       rundot.backends.python:PythonBackend (rundot 0.2.0)
 shell   sh, bash, shell  rundot.backends.shell:ShellBackend (rundot 0.2.0)
 ```
 
+## Running from an agent or CI
+
+Run with `--no-input --json`, and set the runbook's inputs in the environment:
+
+```sh
+VERSION=1.2.0 rundot RELEASING.md --no-input --json
+```
+
+Nothing waits for an answer. Read stdout line by line for what's happening, and the exit code for how it ended:
+
+- **0**: the run finished.
+- **1**: something failed. stderr says what, e.g. a failed block or missing inputs. Fix it and run the same command again: the run resumes at the step that failed.
+- **3**: a person has to do something, such as a `confirm` step or setting an input. Hand them the `needs human input:` line from stderr, which is also `message` in the last JSON line. Once they've done it, run the same command again, and the run carries on from there.
+
+`--restart` starts from the first step instead of resuming.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | The run finished, or `check` found no errors. |
-| `1` | A block failed, the run was aborted or interrupted, `check` found errors, or the runbook couldn't be read. |
-| `2` | The command was used wrongly, e.g. a runbook that doesn't exist. |
+| `1` | A block failed, the run was aborted or interrupted, `check` found errors, inputs were missing under `--no-input`, or the runbook couldn't be read. |
+| `2` | The command was used wrongly, e.g. a runbook that doesn't exist, or flags that can't be used together, such as `--dry` with `--resume`. |
+| `3` | Human input is needed: the run stopped under `--no-input` at a `confirm`, or at an `input` block with no value. Run again once it's done. |
