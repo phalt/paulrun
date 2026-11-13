@@ -112,11 +112,11 @@ Every task is done test-first, in red-green slices, and also clears the standing
 ## Task 7: Docs and changelog
 
 **Acceptance criteria:**
-- [ ] `docs/cli.md`: `--resume`, `--restart`, `--no-input`, `--json`, `RUNDOT_NO_INPUT`, exit code 3, and a "Running from an agent or CI" section
-- [ ] `docs/runbook-format.md`: a "Resuming a run" section near the transcript
-- [ ] `README.md`: the agents section mentions `--no-input` and exit code 3
-- [ ] `CHANGELOG.md` and `docs/CHANGELOG.md` have a `## 0.7.0` section
-- [ ] A note for Paul on what to change in rundot.dev/prompt.txt, which isn't in this repo
+- [x] `docs/cli.md`: `--resume`, `--restart`, `--no-input`, `--json`, `RUNDOT_NO_INPUT`, exit code 3, and a "Running from an agent or CI" section
+- [x] `docs/runbook-format.md`: a "Resuming a run" section near the transcript
+- [x] `README.md`: the agents section mentions `--no-input` and exit code 3
+- [x] `CHANGELOG.md` and `docs/CHANGELOG.md` have a `## 0.7.0` section
+- [x] A note for Paul on what to change in rundot.dev/prompt.txt, which isn't in this repo
 
 **Files likely touched:** `docs/cli.md`, `docs/runbook-format.md`, `README.md`, `CHANGELOG.md`, `docs/CHANGELOG.md`
 
