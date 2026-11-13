@@ -1640,11 +1640,11 @@ def test_run_counts_a_later_step_as_resuming_at_its_first_block(tmp_path, resume
 
 
 def test_run_answers_a_confirm_at_start_yes_without_asking(tmp_path, resume_env):
-    """A run that stopped at a confirm carries on after it, recording that it was answered yes."""
+    """A run that stopped at a confirm for human input carries on after it, recording that it was answered yes."""
     path = write_runbook(tmp_path, RESUME_RUNBOOK)
     prompter = FakePrompter()
 
-    events, result = run(path, prompter, start=(1, 0), saved={"VERSION": "3", "PR": "7"})
+    events, result = run(path, prompter, start=(1, 0), saved={"VERSION": "3", "PR": "7"}, confirmed=True)
 
     assert result.status == "ok"
     assert prompter.questions == ["Start? [y/N]"]
@@ -1784,7 +1784,7 @@ def test_run_resuming_at_the_very_first_block_answers_a_confirm_there_yes(tmp_pa
     path = write_runbook(tmp_path, "## A\n\n```confirm\nDo it.\n```\n\n```sh run\necho ran\n```\n")
     prompter = FakePrompter()
 
-    events, result = run(path, prompter, start=(0, 0))
+    events, result = run(path, prompter, start=(0, 0), confirmed=True)
 
     assert result.status == "ok"
     assert prompter.questions == ["Start? [y/N]"]
@@ -1927,3 +1927,44 @@ def test_run_lets_needs_human_input_from_frontmatter_inputs_end_the_run_unhandle
         runner.run(parse(path), load_backends(), events.append, NoAnswerPrompter(), cwd=tmp_path)
 
     assert events == []
+
+
+CONFIRM_FIRST = "## A\n\n```confirm\nDo it.\n```\n\n```sh run\necho ran\n```\n"
+
+
+@pytest.mark.parametrize("start", [None, (0, 0)], ids=["from the start", "resuming"])
+def test_run_asks_at_a_confirm_at_start_unless_it_was_confirmed(tmp_path, start):
+    """A run resumed after a failure, an abort or Ctrl-C starts its step again, so its confirms are asked again."""
+    path = write_runbook(tmp_path, CONFIRM_FIRST)
+    prompter = FakePrompter(replies=["y", "n"])
+
+    _, result = run(path, prompter, start=start)
+
+    assert result.status == "aborted"
+    assert prompter.questions == ["Start? [y/N]", "Continue? [y/N]"]
+
+
+def test_run_takes_a_confirmed_confirm_at_start_as_answered_yes(tmp_path):
+    """The run stopped at it for human input, and the person has done it since."""
+    path = write_runbook(tmp_path, CONFIRM_FIRST)
+    prompter = FakePrompter()
+
+    events, result = run(path, prompter, start=(0, 0), confirmed=True)
+
+    assert result.status == "ok"
+    assert prompter.questions == ["Start? [y/N]"]
+    assert [event.yes for event in events if isinstance(event, runner.ConfirmAnswered)] == [True]
+
+
+def test_run_rejects_confirmed_without_a_start(tmp_path):
+    path = write_runbook(tmp_path, CONFIRM_FIRST)
+
+    with pytest.raises(runner.RunnerError, match="confirmed needs a start"):
+        run(path, confirmed=True)
+
+
+def test_run_rejects_confirmed_when_start_is_not_a_confirm(tmp_path):
+    path = write_runbook(tmp_path, CONFIRM_FIRST)
+
+    with pytest.raises(runner.RunnerError, match="isn't a confirm"):
+        run(path, start=(0, 1), confirmed=True)

@@ -11,7 +11,7 @@
 
 ## 0.7.0
 
-- A run that stops part way, because a block failed, a confirm was answered no or Ctrl-C was pressed, can be resumed at the step it stopped in. The next time you run the same runbook in the same directory, rundot says where the last run stopped and asks `[r]esume / [s]tart over / [q]uit`. Resuming skips the steps already done. Plain inputs are kept from the last run, but secrets are asked for again.
+- A run that stops part way, because a block failed, a confirm was answered no or Ctrl-C was pressed, can be resumed at the step it stopped in. The next time you run the same runbook in the same directory, rundot says where the last run stopped and asks `[r]esume / [s]tart over / [q]uit`. Resuming skips the steps already done, and runs the step it stopped in from its start, asking its confirms again. Plain inputs are kept from the last run, but secrets are asked for again.
 - `--resume` resumes without asking, and is an error if there's nothing to resume. `--restart` forgets the stopped run and starts from step 1.
 - If a step the last run did has changed since, or the step it resumes at has been renamed, rundot warns before asking. A runbook that now has fewer steps starts over.
 - The overview shows `resuming` and marks the steps already done. A resumed run's transcript says where it resumed and which run it resumed.

@@ -172,8 +172,8 @@ def run_runbook(
     cwd = Path.cwd()
     # Dry runs never read or write state, so a dry run can't lose or change a run that stopped.
     saved_at = state.state_path(os.environ, runbook, cwd)
-    resuming = (
-        None
+    resuming, confirmed = (
+        (None, False)
         if dry
         else _resuming(console, parsed, runbook, cwd, saved_at, resume=resume, restart=restart, ask=not no_input_by)
     )
@@ -214,6 +214,7 @@ def run_runbook(
                 start=start,
                 saved=saved,
                 ask_to_start=not no_input_by,
+                confirmed=confirmed,
             )
     except (runner.RunnerError, InputError, TranscriptError, StateError) as e:
         raise click.ClickException(str(e)) from e
@@ -272,26 +273,29 @@ def _resuming(
     resume: bool,
     restart: bool,
     ask: bool = True,
-) -> RunState | None:
-    """The stopped run to resume, or None to run from the start.
+) -> tuple[RunState | None, bool]:
+    """The stopped run to resume, or None to run from the start, and whether the confirm it resumes at is done.
 
     --restart forgets the stopped run. Otherwise, if there's one, say where it stopped, warn about steps it
     did that have changed since, then resume it with --resume or ask. Quitting exits 1 and keeps it; starting
     over forgets it. A runbook that's now shorter than the stopped run can't be resumed, so it starts over.
     Without ask, as under --no-input, it resumes by itself and says so.
+
+    Only a run that stopped for human input at a confirm resumes with it done: the person was told to do it
+    first. A run that failed, was aborted or was interrupted starts its step again, confirms and all.
     """
     if restart:
         RunState.delete(saved_at)
-        return None
+        return None, False
     stopped = RunState.load(saved_at, warn=lambda warning: console.out(warning, style="yellow"))
     if stopped is None:
         if resume:
             raise click.ClickException(f"nothing to resume for {given.name} in {cwd}")
-        return None
+        return None, False
     if len(runbook.steps) < len(stopped.steps):
         console.out(f"{given.name} now has fewer steps than that run, so it starts over.", style="yellow")
         RunState.delete(saved_at)
-        return None
+        return None, False
     name, _ = stopped.steps[stopped.step]
     how = f"failed (exit {stopped.exit_code})" if stopped.stopped == "failed" else _STOPPED[stopped.stopped]
     when = datetime.fromisoformat(stopped.started_at).astimezone().strftime("%Y-%m-%d %H:%M")
@@ -302,11 +306,12 @@ def _resuming(
         console.out(f"resuming at {stopped.step + 1}/{len(runbook.steps)} {name}")
     elif not resume and _resume_answer() != "r":
         RunState.delete(saved_at)
-        return None
-    if stopped.block and state.step_hash(runbook.steps[stopped.step]) != stopped.steps[stopped.step][1]:
+        return None, False
+    if state.step_hash(runbook.steps[stopped.step]) != stopped.steps[stopped.step][1]:
         # The step has changed, so the block it stopped at may not be the same block. Run all of it again.
-        return replace(stopped, block=0)
-    return stopped
+        return replace(stopped, block=0), False
+    at = runbook.steps[stopped.step].blocks[stopped.block]
+    return stopped, stopped.stopped == "needs_human_input" and at.kind == "confirm"
 
 
 def _changes(runbook: Runbook, stopped: RunState) -> str:
