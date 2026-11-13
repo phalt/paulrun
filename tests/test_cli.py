@@ -16,11 +16,13 @@ from pathlib import Path
 import click
 import pytest
 from click.testing import CliRunner
+from rich.console import Console
 
 from rundot import backends, cli
 from rundot import runner as runner_module
 from rundot import state as state_module
 from rundot.backends import BackendError, Problem
+from rundot.inputs import Input, InputError, NeedsHumanInput, collect
 from rundot.runbook import parse
 from tests.output import finished, normalized, overview, printed, title
 
@@ -2395,3 +2397,282 @@ def test_a_resumed_runs_transcript_says_where_it_resumed_from(runner, resume_run
     lines = second.splitlines()
     assert lines[1] == f'--- resumed at "Publish", from the run at {stopped.started_at}'
     assert lines[2] == "--- inputs: VERSION=1.2.0 PUBLISH_TOKEN=****"
+
+
+# --- Running with --no-input ---
+
+
+@pytest.fixture
+def human_runbook(tmp_path, monkeypatch):
+    """A copy of the needs human input example, with VERSION set and PR not, away from where its state is."""
+    monkeypatch.setenv("VERSION", "1.2.0")
+    monkeypatch.delenv("PR", raising=False)
+    monkeypatch.delenv("RUNDOT_NO_INPUT", raising=False)
+    return Path(shutil.copy(RUNBOOKS / "needs-human-input-example.md", tmp_path))
+
+
+def no_input(runner, *arguments: str, **options):
+    """Run rundot with no input at all, so any prompt reads end of input and the run can't go on."""
+    return runner.invoke(cli.cli, ["run", *arguments], **options)
+
+
+def test_no_input_never_asks_to_start(runner, resume_runbook, started_in, monkeypatch):
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+    (started_in / "fixed").touch()
+
+    result = no_input(runner, str(resume_runbook), "--no-input")
+
+    assert result.exit_code == 0, result.output
+    assert "Start?" not in result.output
+    assert printed(result.output)[-1] == "Announced 1.2.0"
+
+
+def test_rundot_no_input_1_acts_like_the_flag(runner, resume_runbook, started_in, monkeypatch):
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+    monkeypatch.setenv("RUNDOT_NO_INPUT", "1")
+    (started_in / "fixed").touch()
+
+    result = no_input(runner, str(resume_runbook))
+
+    assert result.exit_code == 0, result.output
+    assert "Start?" not in result.output
+
+
+@pytest.mark.parametrize("value", ["", "0", "yes", "true"])
+def test_rundot_no_input_is_off_for_any_value_but_1(runner, resume_runbook, monkeypatch, value):
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+    monkeypatch.setenv("RUNDOT_NO_INPUT", value)
+
+    result = no_input(runner, str(resume_runbook), input="n\n")
+
+    assert "Start? [y/N]" in result.output
+
+
+def test_no_input_names_every_missing_input_and_runs_nothing(runner, resume_runbook, started_in, monkeypatch):
+    monkeypatch.delenv("VERSION")
+
+    result = no_input(runner, str(resume_runbook), "--no-input")
+
+    assert result.exit_code == 1
+    assert "missing inputs: VERSION, PUBLISH_TOKEN. Set them in the environment." in result.output
+    assert "╭─" not in result.output  # no overview: nothing has started
+
+
+def test_no_input_takes_a_default_for_a_missing_input(runner, tmp_path, monkeypatch):
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    path = write_runbook(
+        tmp_path,
+        """\
+        ---
+        title: Defaults
+        inputs:
+          - name: ENVIRONMENT
+            description: Where to deploy
+            default: staging
+        ---
+
+        ## Deploy
+
+        ```sh run
+        echo "deploying to <ENVIRONMENT>"
+        ```
+        """,
+    )
+
+    result = no_input(runner, str(path), "--no-input")
+
+    assert result.exit_code == 0, result.output
+    assert printed(result.output) == ["deploying to staging"]
+
+
+def test_no_input_fails_on_a_default_that_does_not_fit_its_pattern():
+    """check reports it too; a run that goes ahead anyway fails rather than asking again."""
+    with pytest.raises(InputError, match="COUNT must match"):
+        collect([Input("COUNT", "How many", pattern=r"\d+", default="many")], {}, cli.NoInputPrompter())
+
+
+def test_no_input_prompter_needs_a_person_for_every_question_and_input_without_a_default():
+    prompter = cli.NoInputPrompter()
+
+    with pytest.raises(NeedsHumanInput):
+        prompter.confirm("Continue? [y/N]")
+    with pytest.raises(NeedsHumanInput):
+        prompter.ask(Input("PR", "The pull request"), None)
+    assert prompter.ask(Input("ENV", "Where", default="staging"), None) == ""
+
+
+def test_no_input_stops_at_a_confirm_with_exit_3_and_says_what_to_do(runner, human_runbook, started_in):
+    result = no_input(runner, str(human_runbook), "--no-input")
+
+    assert result.exit_code == 3, result.output
+    assert finished(normalized(result.output)) == '⏸ needs human input at "Release notes"'
+    assert result.output.rstrip().splitlines()[-1] == (
+        "needs human input: Publish the GitHub release notes for v1.2.0. Run again once it's done."
+    )
+    assert printed(result.output) == ["Building 1.2.0"]
+
+
+def test_no_input_carries_on_after_the_confirm_it_stopped_at(runner, human_runbook, started_in):
+    no_input(runner, str(human_runbook), "--no-input")
+
+    result = no_input(runner, str(human_runbook), "--no-input")
+
+    assert result.exit_code == 3, result.output
+    assert "resuming at 2/3 Release notes" in result.output
+    assert "Building 1.2.0" not in printed(result.output)
+    assert result.output.rstrip().splitlines()[-1] == (
+        "needs human input: set PR (The number GitHub gave the pull request) and run again."
+    )
+
+
+def test_no_input_carries_on_at_the_input_block_once_it_is_set(runner, human_runbook, started_in, monkeypatch):
+    no_input(runner, str(human_runbook), "--no-input")
+    no_input(runner, str(human_runbook), "--no-input")
+    monkeypatch.setenv("PR", "42")
+
+    result = no_input(runner, str(human_runbook), "--no-input")
+
+    assert result.exit_code == 0, result.output
+    assert "resuming at 3/3 Announce" in result.output
+    assert printed(result.output) == ["Announcing 1.2.0 in PR 42"]
+    assert saved_state(human_runbook, started_in) is None
+
+
+def test_no_input_records_the_confirm_as_answered_yes_on_resume(runner, human_runbook, started_in, monkeypatch):
+    text = human_runbook.read_text().replace("---\n\n#", "output_path: run.log\n---\n\n#", 1)
+    human_runbook.write_text(text)
+    no_input(runner, str(human_runbook), "--no-input")
+    monkeypatch.setenv("PR", "42")
+
+    no_input(runner, str(human_runbook), "--no-input")
+
+    log = (started_in / "run.log").read_text()
+    assert '--- finished: needs human input at "Release notes"' in log
+    assert "confirm: Publish the GitHub release notes for v1.2.0. ... -> yes" in log
+
+
+def test_no_input_resumes_a_failed_run_by_itself(runner, resume_runbook, started_in, monkeypatch):
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+    monkeypatch.setenv("PUBLISH_TOKEN", "again")
+
+    result = no_input(runner, str(resume_runbook), "--no-input")
+
+    assert result.exit_code == 0, result.output
+    assert "resuming at 3/4 Publish" in result.output
+    assert printed(result.output) == ["Publishing 1.2.0 with ****", "Announced 1.2.0"]
+
+
+def test_no_input_with_restart_starts_over(runner, resume_runbook, started_in, monkeypatch):
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+    monkeypatch.setenv("PUBLISH_TOKEN", "again")
+
+    result = no_input(runner, str(resume_runbook), "--no-input", "--restart")
+
+    assert result.exit_code == 0, result.output
+    assert "resuming" not in result.output
+    assert printed(result.output)[0] == "Building 1.2.0"
+
+
+def test_no_input_counts_saved_values_as_present(runner, resume_runbook, started_in, monkeypatch):
+    fail_once(runner, resume_runbook)
+    monkeypatch.delenv("VERSION")
+    monkeypatch.setenv("PUBLISH_TOKEN", "again")
+
+    result = no_input(runner, str(resume_runbook), "--no-input")
+
+    assert "missing inputs" not in result.output
+    assert "resuming at 3/4 Publish" in result.output
+
+
+def test_no_input_names_a_secret_input_block_in_a_skipped_step(runner, tmp_path, started_in, monkeypatch):
+    """Secrets aren't saved, so one asked for in a step that's done must be set again for the rest of the run."""
+    monkeypatch.delenv("OTP", raising=False)
+    path = write_runbook(
+        tmp_path,
+        """\
+        ## Log in
+
+        ```input
+        name: OTP
+        description: A one-time password
+        secret: true
+        ```
+
+        ## Use it
+
+        ```sh run
+        echo "otp $OTP"
+        ```
+        """,
+    )
+    write_state(path, started_in, step=1, inputs={})
+
+    result = no_input(runner, str(path), "--no-input")
+
+    assert result.exit_code == 1
+    assert "missing inputs: OTP. Set them in the environment." in result.output
+
+
+def test_no_input_ignores_step_true_in_the_runbook(runner, tmp_path):
+    path = write_runbook(tmp_path, "---\ntitle: T\nstep: true\n---\n\n## One\n\n```sh run\necho ran\n```\n")
+
+    result = no_input(runner, str(path), "--no-input")
+
+    assert result.exit_code == 0, result.output
+    assert "Run this block?" not in result.output
+
+
+@pytest.mark.parametrize(
+    ("arguments", "environment", "message"),
+    [
+        (["--no-input", "--step"], {}, "--no-input and --step can't be used together"),
+        (["--no-input", "--dry"], {}, "--no-input and --dry can't be used together"),
+        (["--step"], {"RUNDOT_NO_INPUT": "1"}, "RUNDOT_NO_INPUT=1 and --step can't be used together"),
+        (["--dry"], {"RUNDOT_NO_INPUT": "1"}, "RUNDOT_NO_INPUT=1 and --dry can't be used together"),
+    ],
+)
+def test_no_input_contradicting_flags_are_a_usage_error(
+    runner, resume_runbook, monkeypatch, arguments, environment, message
+):
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+
+    result = no_input(runner, str(resume_runbook), *arguments)
+
+    assert result.exit_code == 2
+    assert message in result.output
+
+
+def test_no_input_with_no_step_is_fine(runner, resume_runbook, started_in, monkeypatch):
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+    (started_in / "fixed").touch()
+
+    result = no_input(runner, str(resume_runbook), "--no-input", "--no-step")
+
+    assert result.exit_code == 0, result.output
+
+
+@pytest.mark.parametrize("environment", [{}, {"RUNDOT_NO_INPUT": "1"}])
+def test_no_input_cannot_pick_a_book(runner, monkeypatch, environment):
+    """Picking a book is asking, so a runbook must be given."""
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+
+    result = no_input(runner, *([] if environment else ["--no-input"]))
+
+    assert result.exit_code == 2
+    assert "give a runbook to run" in result.output
+
+
+def test_a_run_that_needs_human_input_shows_it_at_the_end_without_no_input():
+    """The printer's end box, for a prompter that can't answer even without --no-input."""
+    console = Console(width=80, record=True, force_terminal=False)
+    printer = cli._Printer(console)
+    step = parse(RUNBOOKS / "needs-human-input-example.md").steps[1]
+
+    printer(runner_module.RunFinished("needs_human_input", 1.0, step, block=step.blocks[0], message="Do it."))
+
+    assert '⏸ needs human input at "Release notes"' in console.export_text()
