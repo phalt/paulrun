@@ -247,3 +247,60 @@ def test_mask_ignores_empty_secrets():
 def test_mask_without_secrets_returns_text_unchanged():
     """With no secrets there is nothing to mask."""
     assert mask("plain text", []) == "plain text"
+
+
+def test_collect_uses_a_saved_value_when_the_environment_has_none():
+    """A value saved from the last run is used without asking when the environment doesn't set the input."""
+    prompter = FakePrompter(answers=[])
+
+    values = collect([VERSION], {}, prompter, saved={"VERSION": "1.2.0"})
+
+    assert values == {"VERSION": "1.2.0"}
+    assert prompter.asked == []
+
+
+def test_collect_prefers_the_environment_over_a_saved_value():
+    """The environment comes first, so a value set for this run wins over the last run's."""
+    prompter = FakePrompter(answers=[])
+
+    values = collect([VERSION], {"VERSION": "2.0.0"}, prompter, saved={"VERSION": "1.2.0"})
+
+    assert values == {"VERSION": "2.0.0"}
+
+
+def test_collect_asks_when_a_saved_value_is_empty():
+    """An empty saved value counts as unset, as an empty variable does."""
+    prompter = FakePrompter(answers=["1.2.0"])
+
+    values = collect([VERSION], {}, prompter, saved={"VERSION": ""})
+
+    assert values == {"VERSION": "1.2.0"}
+    assert prompter.asked == [("VERSION", None)]
+
+
+@pytest.mark.parametrize(
+    ("input", "value", "problem"),
+    [
+        (VERSION, "latest", r"VERSION from the last run must match \\d\+"),
+        (Input(name="ENV", description="Where", choices=("staging", "prod")), "dev", "must be one of: staging, prod"),
+    ],
+)
+def test_collect_rejects_a_saved_value_that_does_not_fit(input, value, problem):
+    """A saved value is checked against the input's pattern and choices like any other, and isn't asked for again."""
+    prompter = FakePrompter(answers=[])
+
+    with pytest.raises(InputError, match=problem):
+        collect([input], {}, prompter, saved={input.name: value})
+
+    assert prompter.asked == []
+
+
+def test_collect_never_takes_a_secret_from_saved():
+    """Secrets are never saved, so a secret found in saved is ignored and asked for."""
+    token = Input(name="TOKEN", description="A token", secret=True)
+    prompter = FakePrompter(answers=["s3cret"])
+
+    values = collect([token], {}, prompter, saved={"TOKEN": "stale"})
+
+    assert values == {"TOKEN": "s3cret"}
+    assert prompter.asked == [("TOKEN", None)]

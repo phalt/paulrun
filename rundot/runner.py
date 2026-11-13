@@ -21,6 +21,7 @@ class Overview:
     run_blocks: int
     inputs: tuple[tuple[str, str], ...]  # (name, value) in declared order, with **** for each secret
     directory: Path  # where blocks run, so it's seen before anything starts
+    resuming_at: int | None = None  # the index of the step the run starts part way at; None from the start
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,9 @@ def run(
     cwd: Path,
     dry: bool = False,
     step_by_step: bool = False,
+    start: tuple[int, int] = (0, 0),
+    saved: Mapping[str, str] = {},
+    ask_to_start: bool = True,
 ) -> RunFinished:
     """Collect the runbook's inputs, ask to start, then go through each step's blocks in order.
 
@@ -142,7 +146,18 @@ def run(
 
     Ctrl-C once the run has started finishes it as interrupted, so whatever is listening still gets a
     RunFinished. A block that was running has already stopped and had its output and exit code sent.
+
+    start is the (step, block) to start at, counting from 0, to resume a run that stopped part way. Steps
+    before it, and blocks before it in its step, are neither sent nor run, though the overview still lists
+    every step. A confirm at start was what the run stopped at, so it's answered yes without asking. Input
+    blocks before start are still collected, with the frontmatter inputs and without being sent, so later
+    blocks have their values. saved holds plain values from the last run, used when the environment doesn't
+    set an input and before asking. Secrets are never taken from it. With ask_to_start off, the run starts
+    without asking Start?.
     """
+    start_step, start_block = start
+    if not (0 <= start_step < len(runbook.steps) and 0 <= start_block < len(runbook.steps[start_step].blocks)):
+        raise RunnerError(f"can't start at block {start_block} of step {start_step}: the runbook has no such block")
     run_blocks = [block for step in runbook.steps for block in step.blocks if block.kind == "run"]
     for block in run_blocks:
         if block.language not in backends:
@@ -151,21 +166,42 @@ def run(
         for block in step.blocks:
             if block.kind == "input" and block.input is None:
                 raise RunnerError(f"line {block.line}: input block isn't a valid input; run rundot check to see why")
-    values = collect(runbook.inputs, os.environ, prompter, skip_secrets=dry)
+    values = collect(runbook.inputs, os.environ, prompter, skip_secrets=dry, saved=saved)
     secrets = [values[input.name] for input in runbook.inputs if input.secret and not dry]
     plain = {input.name: values[input.name] for input in runbook.inputs if not input.secret}
+    skipped = _before(runbook.steps, start)
+    # Input blocks the run starts after won't be reached, but later blocks may still use their values. A dry
+    # run never collects input blocks, since their values may not exist yet.
+    for block in [] if dry else skipped:
+        if block.input is not None:
+            value = collect([block.input], os.environ, prompter, saved=saved)[block.input.name]
+            values[block.input.name] = value
+            if block.input.secret:
+                secrets.append(value)
+            else:
+                plain[block.input.name] = value
     # A runbook keeps files next to itself by reading them from $RUNDOT_RUNBOOK_DIR, since blocks run elsewhere.
     env = {**os.environ, **_BLOCK_ENV, "RUNDOT_RUNBOOK_DIR": str(runbook.path.parent.resolve()), **values}
     shown = tuple((input.name, MASK if input.secret else values[input.name]) for input in runbook.inputs)
     # Steps keep their blocks as written, so blocks still run as written; only the names sent are masked.
     steps = tuple(replace(step, name=mask(step.name, secrets)) for step in runbook.steps)
-    sink(Overview(mask(runbook.title or runbook.path.name, secrets), steps, len(run_blocks), shown, cwd))
+    to_run = len(run_blocks) - len([block for block in skipped if block.kind == "run"])
+    resuming_at = None if start == (0, 0) else start_step
+    sink(Overview(mask(runbook.title or runbook.path.name, secrets), steps, to_run, shown, cwd, resuming_at))
     try:
-        if not dry and not _yes(prompter.confirm("Start? [y/N]")):
+        if not dry and ask_to_start and not _yes(prompter.confirm("Start? [y/N]")):
             return _finish(sink, RunFinished("aborted", 0.0))
     except KeyboardInterrupt:
         return _finish(sink, RunFinished("interrupted", 0.0))
-    return _steps(runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step)
+    return _steps(runbook, backends, sink, prompter, steps, plain, secrets, env, cwd, dry, step_by_step, start, saved)
+
+
+def _before(steps: tuple[Step, ...], start: tuple[int, int]) -> list[Block]:
+    """Every block that comes before start, in order."""
+    start_step, start_block = start
+    return [block for step in steps[:start_step] for block in step.blocks] + list(
+        steps[start_step].blocks[:start_block]
+    )
 
 
 def _steps(
@@ -180,16 +216,36 @@ def _steps(
     cwd: Path,
     dry: bool,
     step_by_step: bool,
+    start: tuple[int, int],
+    saved: Mapping[str, str],
 ) -> RunFinished:
-    """Go through each step's blocks in order, finishing the run as interrupted at the step Ctrl-C arrives in.
+    """Go through each step's blocks in order from start, finishing the run as interrupted at the step Ctrl-C
+    arrives in.
 
     plain, secrets and env grow as input blocks are answered, so every later block sees their values.
     """
     started = time.monotonic()
-    for step in steps:
+    start_step, start_block = start
+    for index, step in enumerate(steps[start_step:], start_step):
+        first = start_block if index == start_step else 0
+        resume_at = first if index == start_step and start != (0, 0) else None
         try:
             finished = _step(
-                runbook, backends, sink, prompter, step, plain, secrets, env, cwd, started, dry, step_by_step
+                runbook,
+                backends,
+                sink,
+                prompter,
+                step,
+                plain,
+                secrets,
+                env,
+                cwd,
+                started,
+                dry,
+                step_by_step,
+                first,
+                resume_at,
+                saved,
             )
         except KeyboardInterrupt:
             # A block that was running has already stopped and had its output and exit code sent.
@@ -212,10 +268,18 @@ def _step(
     started: float,
     dry: bool,
     step_by_step: bool,
+    first: int,
+    resume_at: int | None,
+    saved: Mapping[str, str],
 ) -> RunFinished | None:
-    """Go through one step's blocks. Returns how the run finished if it stops here, or None to carry on."""
+    """Go through one step's blocks from the one at index first. Returns how the run finished if it stops here,
+    or None to carry on.
+
+    resume_at is the index of the block a stopped run resumes at, if it's in this step. A confirm there is
+    what the run stopped at, so it counts as answered yes.
+    """
     sink(StepStarted(step))
-    for block in step.blocks:
+    for index, block in enumerate(step.blocks[first:], first):
         text = mask(substitute(block.content, plain), secrets)
         if block.kind == "docstring":
             sink(Docstring(block, text))
@@ -224,7 +288,7 @@ def _step(
             sink(Confirm(block, text))
             if dry:
                 continue
-            yes = _yes(prompter.confirm("Continue? [y/N]"))
+            yes = index == resume_at or _yes(prompter.confirm("Continue? [y/N]"))
             sink(ConfirmAnswered(block, text, yes))
             if not yes:
                 return _finish(sink, RunFinished("aborted", time.monotonic() - started, step))
@@ -234,7 +298,7 @@ def _step(
             sink(InputBlock(block, block.input))
             if dry:  # the value may not exist yet, so later blocks show <NAME> as written
                 continue
-            value = collect([block.input], os.environ, prompter)[block.input.name]
+            value = collect([block.input], os.environ, prompter, saved=saved)[block.input.name]
             env[block.input.name] = value
             if block.input.secret:
                 secrets.append(value)
