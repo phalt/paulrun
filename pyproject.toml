@@ -1,6 +1,6 @@
 [project]
 name = "rundot"
-version = "0.6.0"
+version = "0.7.0"
 description = "Run hand-written markdown runbooks"
 readme = "README.md"
 authors = [{ name = "Paul Hallett", email = "paulandrewhallett@gmail.com" }]
