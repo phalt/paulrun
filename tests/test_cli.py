@@ -1,6 +1,7 @@
 """Tests for CLI commands."""
 
 import importlib.metadata
+import json
 import os
 import re
 import shutil
@@ -2676,3 +2677,127 @@ def test_a_run_that_needs_human_input_shows_it_at_the_end_without_no_input():
     printer(runner_module.RunFinished("needs_human_input", 1.0, step, block=step.blocks[0], message="Do it."))
 
     assert '⏸ needs human input at "Release notes"' in console.export_text()
+
+
+# --- Printing events as JSON lines with --json ---
+
+
+def json_lines(stdout: str) -> list[dict]:
+    """Every line on stdout, parsed: each must be valid JSON, and nothing else may be there."""
+    return [json.loads(line) for line in stdout.splitlines()]
+
+
+def test_json_prints_one_object_per_event_and_nothing_else_on_stdout(runner, human_runbook, started_in, monkeypatch):
+    monkeypatch.setenv("PR", "42")
+    write_state(human_runbook, started_in, stopped="needs_human_input", step=1, block=0)
+
+    result = runner.invoke(cli.cli, ["run", str(human_runbook), "--json"])
+
+    assert result.exit_code == 0, result.output
+    events = json_lines(result.stdout)
+    assert [event["event"] for event in events] == [
+        "overview",
+        "step_started",
+        "confirm",
+        "confirm_answered",
+        "step_started",
+        "input_block",
+        "input_collected",
+        "block_started",
+        "output",
+        "block_finished",
+        "run_finished",
+    ]
+    assert events[0]["resuming_at"] == 1
+    assert events[0]["inputs"] == {"VERSION": "1.2.0"}
+    assert events[1] == {"event": "step_started", "at": events[1]["at"], "number": 2, "name": "Release notes"}
+    assert events[8]["text"] == "Announcing 1.2.0 in PR 42"
+    assert events[-1]["status"] == "ok"
+    assert all(set(event) >= {"event", "at"} for event in events)
+
+
+def test_json_sends_everything_else_to_stderr(runner, human_runbook, started_in, monkeypatch):
+    """resuming at, the transcript path and needs human input are text on stderr, so stdout stays JSON."""
+    human_runbook.write_text(human_runbook.read_text().replace("---\n\n#", "output_path: run.log\n---\n\n#", 1))
+    write_state(human_runbook, started_in, stopped="needs_human_input", step=1, block=0)
+
+    result = runner.invoke(cli.cli, ["run", str(human_runbook), "--json"])
+
+    assert result.exit_code == 3, result.output
+    assert "resuming at 2/3 Release notes" in result.stderr
+    assert "transcript: run.log" in result.stderr
+    message = "set PR (The number GitHub gave the pull request) and run again."
+    assert result.stderr.rstrip().splitlines()[-1] == f"needs human input: {message}"
+    finished_event = json_lines(result.stdout)[-1]
+    assert (finished_event["status"], finished_event["message"]) == ("needs_human_input", message)
+
+
+def test_json_check_problems_go_to_stderr_with_nothing_on_stdout(runner, tmp_path):
+    path = tmp_path / "broken.md"
+    path.write_text("## No title\n\n```sh run\ntrue\n```\n")
+
+    result = runner.invoke(cli.cli, ["run", str(path), "--json"])
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "error" in result.stderr
+
+
+def test_json_missing_inputs_go_to_stderr(runner, resume_runbook, monkeypatch):
+    monkeypatch.delenv("VERSION")
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--json"])
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "missing inputs: VERSION, PUBLISH_TOKEN" in result.stderr
+
+
+def test_json_masks_secrets_in_every_field(runner, resume_runbook, started_in, monkeypatch):
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+    (started_in / "fixed").touch()
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert "s3cret" not in result.stdout
+    events = json_lines(result.stdout)
+    assert events[0]["inputs"]["PUBLISH_TOKEN"] == "****"
+    assert "Publishing 1.2.0 with ****" in [event.get("text") for event in events]
+
+
+def test_json_never_asks_anything(runner, resume_runbook, started_in, monkeypatch):
+    """--json implies --no-input, since a prompt would put text that isn't JSON on stdout."""
+    fail_once(runner, resume_runbook)
+    (started_in / "fixed").touch()
+    monkeypatch.setenv("PUBLISH_TOKEN", "s3cret")
+
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert "Start?" not in result.output
+    assert "[r]esume" not in result.output
+    assert json_lines(result.stdout)[0]["resuming_at"] == 2
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (["--json", "--dry"], "--json and --dry can't be used together"),
+        (["--json", "--step"], "--json and --step can't be used together"),
+    ],
+)
+def test_json_contradicting_flags_are_a_usage_error(runner, resume_runbook, arguments, message):
+    result = runner.invoke(cli.cli, ["run", str(resume_runbook), *arguments])
+
+    assert result.exit_code == 2
+    assert message in result.output
+
+
+def test_json_cannot_pick_a_book(runner, monkeypatch):
+    monkeypatch.setenv("RUNDOT_LIBRARY", str(LIBRARY))
+
+    result = runner.invoke(cli.cli, ["run", "--json"])
+
+    assert result.exit_code == 2
+    assert "--json can't pick a book from the library" in result.output

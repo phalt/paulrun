@@ -19,6 +19,7 @@ from rich.text import Text
 from rundot import library, runner, settings, state
 from rundot.backends import Backend, BackendError, load_backend_sources, load_backends
 from rundot.inputs import Input, InputError, NeedsHumanInput
+from rundot.jsonlines import JsonLines
 from rundot.runbook import Runbook, RunbookError, Step, parse, parse_inputs, read_frontmatter
 from rundot.state import RunState, StateError, StateRecorder
 from rundot.transcript import Transcript, TranscriptError
@@ -108,6 +109,13 @@ class RunbookArgument(click.ParamType):
     "their default. A confirm, or an input block with no value, stops the run with exit code 3. "
     "RUNDOT_NO_INPUT=1 does the same.",
 )
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    help="Print each event as a line of JSON on stdout, for agents. Everything else goes to stderr. "
+    "Implies --no-input.",
+)
 def run_runbook(
     runbook: Path | None,
     dry: bool,
@@ -116,6 +124,7 @@ def run_runbook(
     resume: bool,
     restart: bool,
     no_input: bool,
+    as_json: bool,
 ) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
@@ -126,7 +135,16 @@ def run_runbook(
     in the same directory. Exit codes: 0 success, 1 failure, 2 usage error, 3 human input is needed.
     """
     # Only exactly 1, so a stray RUNDOT_NO_INPUT= or =0 can't turn it on.
-    no_input_by = "--no-input" if no_input else "RUNDOT_NO_INPUT=1" if os.environ.get(NO_INPUT_VARIABLE) == "1" else ""
+    # --json implies --no-input, since a prompt would put text that isn't JSON on stdout.
+    no_input_by = (
+        "--json"
+        if as_json
+        else "--no-input"
+        if no_input
+        else "RUNDOT_NO_INPUT=1"
+        if os.environ.get(NO_INPUT_VARIABLE) == "1"
+        else ""
+    )
     # Named for the error: the flag, or the variable if that's what turned it on.
     no_input_name = no_input_by or "--no-input"
     flags = {
@@ -142,7 +160,8 @@ def run_runbook(
             raise click.UsageError(f"{first} and {second} can't be used together")
     if no_input_by and runbook is None:
         raise click.UsageError(f"{no_input_by} can't pick a book from the library: give a runbook to run")
-    console = Console(highlight=False)
+    # Under --json, stdout is JSON lines only, so everything rundot says goes to stderr.
+    console = Console(highlight=False, stderr=as_json)
     if runbook is None:
         runbook = _pick(console)
     parsed, backends, report = _validated(runbook)
@@ -171,7 +190,9 @@ def run_runbook(
 
     # --step or --no-step wins; with neither, the runbook's step key decides. Nobody answers under --no-input.
     step_by_step = False if no_input_by else parsed.step if step is None else step
-    printer = _Printer(console, dry=dry, show_code=show_code or dry)
+    printer = (
+        JsonLines(lambda line: click.echo(line)) if as_json else _Printer(console, dry=dry, show_code=show_code or dry)
+    )
 
     def sink(event: runner.Event) -> None:
         printer(event)

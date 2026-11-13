@@ -70,6 +70,8 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
     "@abstractmethod",
+    # Unreachable by design: ty checks a match ending in it covers every case.
+    "assert_never\\(",
 ]
 
 [tool.pytest.ini_options]
@@ -94,7 +96,7 @@ name = "Module layers, from cli down to inputs"
 type = "layers"
 layers = [
     "rundot.cli",
-    "rundot.transcript | rundot.state",
+    "rundot.transcript | rundot.state | rundot.jsonlines",
     "rundot.runner | rundot.validate | rundot.library",
     "rundot.backends | rundot.runbook",
     "rundot.inputs | rundot.settings",
@@ -141,6 +143,7 @@ type = "forbidden"
 source_modules = [
     "rundot.transcript",
     "rundot.state",
+    "rundot.jsonlines",
     "rundot.runner",
     "rundot.validate",
     "rundot.library",
