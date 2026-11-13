@@ -63,13 +63,13 @@ Every task is done test-first, in red-green slices, and also clears the standing
 **Description:** Wire `StateRecorder` into `run_runbook`. Before collecting inputs, if there's state, ask `[r]esume / [s]tart over / [q]uit`. Add `--resume` and `--restart`. Warn about a changed runbook. Show `resuming` and `done` in the overview, and add the `--- resumed at` line to the transcript.
 
 **Acceptance criteria:**
-- [ ] End to end: a runbook whose step 3 fails until a file exists fails, then, once the file exists, resumes at step 3 on `r`, and steps 1–2 don't run
-- [ ] `s` and `--restart` start at step 1 and delete the state; `q` exits 1 and keeps it
-- [ ] `--resume` with no state exits 1 with a clear message
-- [ ] Secrets are asked for again on resume
-- [ ] A changed skipped step gives a yellow warning; a runbook with fewer steps starts over and says so
-- [ ] `--dry` never reads or writes state; `--dry` with `--resume` or `--restart` is a usage error, and so is `--resume` with `--restart`
-- [ ] The overview shows `resuming n/total Name` and marks earlier steps `done`; the transcript has `--- resumed at "<step>", from the run at <time>`
+- [x] End to end: a runbook whose step 3 fails until a file exists fails, then, once the file exists, resumes at step 3 on `r`, and steps 1–2 don't run
+- [x] `s` and `--restart` start at step 1 and delete the state; `q` exits 1 and keeps it
+- [x] `--resume` with no state exits 1 with a clear message
+- [x] Secrets are asked for again on resume
+- [x] A changed skipped step gives a yellow warning; a runbook with fewer steps starts over and says so
+- [x] `--dry` never reads or writes state; `--dry` with `--resume` or `--restart` is a usage error, and so is `--resume` with `--restart`
+- [x] The overview shows `resuming n/total Name` and marks earlier steps `done`; the transcript has `--- resumed at "<step>", from the run at <time>`
 
 **Files likely touched:** `rundot/cli.py`, `rundot/transcript.py`, `tests/test_cli.py`, `tests/test_transcript.py`, `tests/runbooks/resume-example.md`
 

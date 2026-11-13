@@ -1,5 +1,6 @@
 import os
 import sys
+from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -17,7 +18,7 @@ from rich.text import Text
 
 from rundot import library, runner, settings, state
 from rundot.backends import Backend, BackendError, load_backend_sources, load_backends
-from rundot.inputs import Input, InputError
+from rundot.inputs import Input, InputError, NeedsHumanInput
 from rundot.runbook import Runbook, RunbookError, Step, parse, parse_inputs, read_frontmatter
 from rundot.state import RunState, StateError, StateRecorder
 from rundot.transcript import Transcript, TranscriptError
@@ -100,8 +101,21 @@ class RunbookArgument(click.ParamType):
 @click.option("--show-code", is_flag=True, help="Show each block's code above its output. --dry always shows it.")
 @click.option("--resume", is_flag=True, help="Resume the last run that stopped part way, without asking.")
 @click.option("--restart", is_flag=True, help="Forget the last run that stopped part way, and start from step 1.")
+@click.option(
+    "--no-input",
+    is_flag=True,
+    help="Never ask anything, for agents and CI. Inputs come from the environment, the run that stopped or "
+    "their default. A confirm, or an input block with no value, stops the run with exit code 3. "
+    "RUNDOT_NO_INPUT=1 does the same.",
+)
 def run_runbook(
-    runbook: Path | None, dry: bool, step: bool | None, show_code: bool, resume: bool, restart: bool
+    runbook: Path | None,
+    dry: bool,
+    step: bool | None,
+    show_code: bool,
+    resume: bool,
+    restart: bool,
+    no_input: bool,
 ) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
@@ -109,12 +123,25 @@ def run_runbook(
     With no RUNBOOK, pick a book from the library. rundot RUNBOOK, with no command, does the same.
 
     A run that stops part way can be resumed at the step it stopped in: rundot asks the next time it's run
-    in the same directory.
+    in the same directory. Exit codes: 0 success, 1 failure, 2 usage error, 3 human input is needed.
     """
-    flags = {"dry": dry, "resume": resume, "restart": restart}
-    for first, second in (("resume", "restart"), ("dry", "resume"), ("dry", "restart")):
+    # Only exactly 1, so a stray RUNDOT_NO_INPUT= or =0 can't turn it on.
+    no_input_by = "--no-input" if no_input else "RUNDOT_NO_INPUT=1" if os.environ.get(NO_INPUT_VARIABLE) == "1" else ""
+    # Named for the error: the flag, or the variable if that's what turned it on.
+    no_input_name = no_input_by or "--no-input"
+    flags = {
+        "--dry": dry,
+        "--resume": resume,
+        "--restart": restart,
+        "--step": bool(step),
+        no_input_name: bool(no_input_by),
+    }
+    conflicts = [("--resume", "--restart"), ("--dry", "--resume"), ("--dry", "--restart")]
+    for first, second in [*conflicts, (no_input_name, "--step"), (no_input_name, "--dry")]:
         if flags[first] and flags[second]:
-            raise click.UsageError(f"--{first} and --{second} can't be used together")
+            raise click.UsageError(f"{first} and {second} can't be used together")
+    if no_input_by and runbook is None:
+        raise click.UsageError(f"{no_input_by} can't pick a book from the library: give a runbook to run")
     console = Console(highlight=False)
     if runbook is None:
         runbook = _pick(console)
@@ -126,8 +153,14 @@ def run_runbook(
     cwd = Path.cwd()
     # Dry runs never read or write state, so a dry run can't lose or change a run that stopped.
     saved_at = state.state_path(os.environ, runbook, cwd)
-    resuming = None if dry else _resuming(console, parsed, runbook, cwd, saved_at, resume=resume, restart=restart)
+    resuming = (
+        None
+        if dry
+        else _resuming(console, parsed, runbook, cwd, saved_at, resume=resume, restart=restart, ask=not no_input_by)
+    )
     start, saved = (None, {}) if resuming is None else ((resuming.step, resuming.block), resuming.inputs)
+    if no_input_by and (missing := _missing(parsed, start, saved)):
+        raise click.ClickException(f"missing inputs: {', '.join(missing)}. Set them in the environment.")
     recorder = None if dry else StateRecorder(saved_at, parsed, cwd, saved=saved)
     # Nothing runs under --dry, so there's nothing to record.
     transcript = (
@@ -136,8 +169,8 @@ def run_runbook(
         else None
     )
 
-    # --step or --no-step wins; with neither, the runbook's step key decides.
-    step_by_step = parsed.step if step is None else step
+    # --step or --no-step wins; with neither, the runbook's step key decides. Nobody answers under --no-input.
+    step_by_step = False if no_input_by else parsed.step if step is None else step
     printer = _Printer(console, dry=dry, show_code=show_code or dry)
 
     def sink(event: runner.Event) -> None:
@@ -153,20 +186,48 @@ def run_runbook(
                 parsed,
                 backends,
                 sink,
-                ClickPrompter(console),
+                NoInputPrompter() if no_input_by else ClickPrompter(console),
                 cwd=cwd,
                 dry=dry,
                 step_by_step=step_by_step,
                 start=start,
                 saved=saved,
+                ask_to_start=not no_input_by,
             )
     except (runner.RunnerError, InputError, TranscriptError, StateError) as e:
         raise click.ClickException(str(e)) from e
     if transcript is not None and transcript.written:
         assert transcript.path is not None  # set once the run started, which it has if anything was written
         console.out(f"transcript: {_shown_from(transcript.path, cwd)}")
+    if result.status == "needs_human_input":
+        # Last, so it's the first thing an agent or a person reads.
+        console.out(f"needs human input: {result.message}", style="yellow")
+        sys.exit(NEEDS_HUMAN_INPUT)
     if result.status not in ("ok", "dry"):
         sys.exit(1)
+
+
+NO_INPUT_VARIABLE = "RUNDOT_NO_INPUT"
+
+# The exit code for a run stopped because only a person can do what's next. Click uses 2 for usage errors.
+NEEDS_HUMAN_INPUT = 3
+
+
+def _missing(runbook: Runbook, start: tuple[int, int] | None, saved: Mapping[str, str]) -> list[str]:
+    """The inputs a run with nobody to ask can't get: not in the environment, saved or with a default.
+
+    The frontmatter's, and those of input blocks the run starts after, which it collects before it starts.
+    """
+    step, block = start or (0, 0)
+    skipped = [b for s in runbook.steps[:step] for b in s.blocks] + [
+        b for s in runbook.steps[step : step + 1] for b in s.blocks[:block]
+    ]
+    inputs = [*runbook.inputs, *(b.input for b in skipped if b.input is not None)]
+    return [
+        input.name
+        for input in inputs
+        if not os.environ.get(input.name) and not (not input.secret and saved.get(input.name)) and input.default is None
+    ]
 
 
 RESUME_QUESTION = "[r]esume / [s]tart over / [q]uit:"
@@ -181,13 +242,22 @@ _STOPPED = {
 
 
 def _resuming(
-    console: Console, runbook: Runbook, given: Path, cwd: Path, saved_at: Path, *, resume: bool, restart: bool
+    console: Console,
+    runbook: Runbook,
+    given: Path,
+    cwd: Path,
+    saved_at: Path,
+    *,
+    resume: bool,
+    restart: bool,
+    ask: bool = True,
 ) -> RunState | None:
     """The stopped run to resume, or None to run from the start.
 
     --restart forgets the stopped run. Otherwise, if there's one, say where it stopped, warn about steps it
     did that have changed since, then resume it with --resume or ask. Quitting exits 1 and keeps it; starting
     over forgets it. A runbook that's now shorter than the stopped run can't be resumed, so it starts over.
+    Without ask, as under --no-input, it resumes by itself and says so.
     """
     if restart:
         RunState.delete(saved_at)
@@ -207,7 +277,9 @@ def _resuming(
     console.out(f"Last run stopped at {stopped.step + 1}/{len(runbook.steps)} {name}: {how}, {when}.")
     if changes := _changes(runbook, stopped):
         console.out(f"{given.name} has changed since that run: {changes}.", style="yellow")
-    if not resume and _resume_answer() != "r":
+    if not ask:
+        console.out(f"resuming at {stopped.step + 1}/{len(runbook.steps)} {name}")
+    elif not resume and _resume_answer() != "r":
         RunState.delete(saved_at)
         return None
     if stopped.block and state.step_hash(runbook.steps[stopped.step]) != stopped.steps[stopped.step][1]:
@@ -469,6 +541,24 @@ class ClickPrompter:
         return _prompt(question, default="", show_default=False, prompt_suffix=" ")
 
 
+class NoInputPrompter:
+    """A prompter for --no-input, with nobody to ask.
+
+    An input with a default takes it, as pressing enter would. Every other input and every question needs a
+    person, so the run stops for one. A default that isn't accepted is an error, since asking again can't help.
+    """
+
+    def ask(self, input: Input, problem: str | None) -> str:
+        if problem is not None:
+            raise InputError(problem)
+        if input.default is None:
+            raise NeedsHumanInput
+        return ""
+
+    def confirm(self, question: str) -> str:
+        raise NeedsHumanInput
+
+
 def _prompt(text: str, **options: Any) -> str:
     """click.prompt, but Ctrl-C raises KeyboardInterrupt so the runner can finish the run as interrupted.
 
@@ -581,6 +671,9 @@ class _Printer:
                 self._finished("✓", "green", "finished ok", duration)
             case runner.RunFinished(status="dry"):
                 self._finished("", "yellow", "dry run, nothing was run")
+            case runner.RunFinished(status="needs_human_input", step=step):
+                assert step is not None  # it stops at a confirm or an input block, which is always in a step
+                self._finished("⏸", "yellow", f'needs human input at "{step.name}"')
             case runner.RunFinished(status="aborted" | "interrupted" as status, step=step):
                 where = "before starting" if step is None else f'at "{step.name}"'
                 self._finished("✗", "red", f"{status} {where}")

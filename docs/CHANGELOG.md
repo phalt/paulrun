@@ -15,6 +15,13 @@
 - `--resume` resumes without asking, and is an error if there's nothing to resume. `--restart` forgets the stopped run and starts from step 1.
 - If a step the last run did has changed since, or the step it resumes at has been renamed, rundot warns before asking. A runbook that now has fewer steps starts over.
 - The overview shows `resuming` and marks the steps already done. A resumed run's transcript says where it resumed and which run it resumed.
+- `--no-input` never asks anything, so an agent or a CI job can run a runbook. `RUNDOT_NO_INPUT=1` does the same; any other value leaves it off.
+    - Inputs come from the environment, the run that stopped, or their `default`. If any are still missing, the run fails before anything runs and names every one: `missing inputs: VERSION, BRANCH. Set them in the environment.`
+    - `Start?` is taken as yes, and stepping is off, even with `step: true` in the runbook.
+    - A run that stopped part way is resumed by itself, and rundot prints `resuming at 3/4 Publish`. `--restart` starts over.
+    - A `confirm`, or an `input` block with no value, stops the run with exit code 3 and says what a person has to do, e.g. `needs human input: Publish the release notes for v1.2.0. Run again once it's done.` The next run carries on from there, taking the confirm as answered yes.
+    - `--no-input` with `--step` or `--dry`, or with no runbook to run, is a usage error.
+- Exit code 3 means human input is needed.
 - Where each run got to is kept in `$XDG_STATE_HOME/rundot/runs/`, or `~/.local/state/rundot/runs/`, never in your project. It's deleted when the run finishes ok. `--dry` never reads or writes it.
 
 ## 0.6.0
