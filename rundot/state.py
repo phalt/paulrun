@@ -172,9 +172,10 @@ class StateRecorder:
     """Saves where a run has got to as it goes, so it can be resumed. Call it with each of the runner's events.
 
     Nothing is saved until the first step starts, so a run stopped at Start? leaves any saved run as it
-    was. Don't listen to a dry run: its steps start too, but dry runs never read or write state. It's saved again as each step starts, and as each plain input block is answered. A run
-    that finishes ok deletes it. Only plain values are saved, and step names as the runner sends them, with
-    secrets masked, so no secret's value can reach the file.
+    was. Don't listen to a dry run: its steps start too, but dry runs never read or write state. It's saved
+    again as each step starts, and as each plain input block is answered. A run that finishes ok deletes it.
+    Only plain values are saved, and step names as the runner sends them, with secrets masked, so no secret's
+    value can reach the file.
     """
 
     def __init__(
