@@ -1,7 +1,7 @@
 import os
 import sys
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from importlib.metadata import EntryPoint
 from pathlib import Path
@@ -15,10 +15,11 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from rundot import library, runner, settings
+from rundot import library, runner, settings, state
 from rundot.backends import Backend, BackendError, load_backend_sources, load_backends
 from rundot.inputs import Input, InputError
 from rundot.runbook import Runbook, RunbookError, Step, parse, parse_inputs, read_frontmatter
+from rundot.state import RunState, StateError, StateRecorder
 from rundot.transcript import Transcript, TranscriptError
 from rundot.validate import Report, validate
 
@@ -97,12 +98,23 @@ class RunbookArgument(click.ParamType):
     "--no-step runs straight through, even if the runbook sets step: true.",
 )
 @click.option("--show-code", is_flag=True, help="Show each block's code above its output. --dry always shows it.")
-def run_runbook(runbook: Path | None, dry: bool, step: bool | None, show_code: bool) -> None:
+@click.option("--resume", is_flag=True, help="Resume the last run that stopped part way, without asking.")
+@click.option("--restart", is_flag=True, help="Forget the last run that stopped part way, and start from step 1.")
+def run_runbook(
+    runbook: Path | None, dry: bool, step: bool | None, show_code: bool, resume: bool, restart: bool
+) -> None:
     """Run a runbook's steps in order, stopping at the first that fails. Blocks run in the current directory.
 
     RUNBOOK is a file, or the name of a book in your runbook library: ~/runbooks, or $RUNDOT_LIBRARY.
     With no RUNBOOK, pick a book from the library. rundot RUNBOOK, with no command, does the same.
+
+    A run that stops part way can be resumed at the step it stopped in: rundot asks the next time it's run
+    in the same directory.
     """
+    flags = {"dry": dry, "resume": resume, "restart": restart}
+    for first, second in (("resume", "restart"), ("dry", "resume"), ("dry", "restart")):
+        if flags[first] and flags[second]:
+            raise click.UsageError(f"--{first} and --{second} can't be used together")
     console = Console(highlight=False)
     if runbook is None:
         runbook = _pick(console)
@@ -112,8 +124,17 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool | None, show_code: b
         sys.exit(1)
     # Blocks and the transcript both go where rundot was started.
     cwd = Path.cwd()
+    # Dry runs never read or write state, so a dry run can't lose or change a run that stopped.
+    saved_at = state.state_path(os.environ, runbook, cwd)
+    resuming = None if dry else _resuming(console, parsed, runbook, cwd, saved_at, resume=resume, restart=restart)
+    start, saved = (None, {}) if resuming is None else ((resuming.step, resuming.block), resuming.inputs)
+    recorder = None if dry else StateRecorder(saved_at, parsed, cwd, saved=saved)
     # Nothing runs under --dry, so there's nothing to record.
-    transcript = Transcript.for_runbook(parsed, cwd) if parsed.output_path is not None and not dry else None
+    transcript = (
+        Transcript.for_runbook(parsed, cwd, resumed_from=None if resuming is None else resuming.started_at)
+        if parsed.output_path is not None and not dry
+        else None
+    )
 
     # --step or --no-step wins; with neither, the runbook's step key decides.
     step_by_step = parsed.step if step is None else step
@@ -123,19 +144,106 @@ def run_runbook(runbook: Path | None, dry: bool, step: bool | None, show_code: b
         printer(event)
         if transcript is not None:
             transcript(event)
+        if recorder is not None:
+            recorder(event)
 
     try:
         with transcript or nullcontext():
             result = runner.run(
-                parsed, backends, sink, ClickPrompter(console), cwd=cwd, dry=dry, step_by_step=step_by_step
+                parsed,
+                backends,
+                sink,
+                ClickPrompter(console),
+                cwd=cwd,
+                dry=dry,
+                step_by_step=step_by_step,
+                start=start,
+                saved=saved,
             )
-    except (runner.RunnerError, InputError, TranscriptError) as e:
+    except (runner.RunnerError, InputError, TranscriptError, StateError) as e:
         raise click.ClickException(str(e)) from e
     if transcript is not None and transcript.written:
         assert transcript.path is not None  # set once the run started, which it has if anything was written
         console.out(f"transcript: {_shown_from(transcript.path, cwd)}")
     if result.status not in ("ok", "dry"):
         sys.exit(1)
+
+
+RESUME_QUESTION = "[r]esume / [s]tart over / [q]uit:"
+
+# How each way a run can stop is said in "Last run stopped at …: <how>, <when>."
+_STOPPED = {
+    "aborted": "aborted",
+    "interrupted": "interrupted",
+    "needs_human_input": "needs human input",
+    "running": "killed while running",
+}
+
+
+def _resuming(
+    console: Console, runbook: Runbook, given: Path, cwd: Path, saved_at: Path, *, resume: bool, restart: bool
+) -> RunState | None:
+    """The stopped run to resume, or None to run from the start.
+
+    --restart forgets the stopped run. Otherwise, if there's one, say where it stopped, warn about steps it
+    did that have changed since, then resume it with --resume or ask. Quitting exits 1 and keeps it; starting
+    over forgets it. A runbook that's now shorter than the stopped run can't be resumed, so it starts over.
+    """
+    if restart:
+        RunState.delete(saved_at)
+        return None
+    stopped = RunState.load(saved_at, warn=lambda warning: console.out(warning, style="yellow"))
+    if stopped is None:
+        if resume:
+            raise click.ClickException(f"nothing to resume for {given.name} in {cwd}")
+        return None
+    if len(runbook.steps) < len(stopped.steps):
+        console.out(f"{given.name} now has fewer steps than that run, so it starts over.", style="yellow")
+        RunState.delete(saved_at)
+        return None
+    name, _ = stopped.steps[stopped.step]
+    how = f"failed (exit {stopped.exit_code})" if stopped.stopped == "failed" else _STOPPED[stopped.stopped]
+    when = datetime.fromisoformat(stopped.started_at).astimezone().strftime("%Y-%m-%d %H:%M")
+    console.out(f"Last run stopped at {stopped.step + 1}/{len(runbook.steps)} {name}: {how}, {when}.")
+    if changes := _changes(runbook, stopped):
+        console.out(f"{given.name} has changed since that run: {changes}.", style="yellow")
+    if not resume and _resume_answer() != "r":
+        RunState.delete(saved_at)
+        return None
+    if stopped.block and state.step_hash(runbook.steps[stopped.step]) != stopped.steps[stopped.step][1]:
+        # The step has changed, so the block it stopped at may not be the same block. Run all of it again.
+        return replace(stopped, block=0)
+    return stopped
+
+
+def _changes(runbook: Runbook, stopped: RunState) -> str:
+    """What's changed in the steps a stopped run did, and the name of the one it resumes at, or "" if nothing."""
+    different = [
+        f'"{name}"'
+        for step, (name, hash) in zip(runbook.steps[: stopped.step], stopped.steps, strict=False)
+        if state.step_hash(step) != hash
+    ]
+    changes = []
+    if different:
+        verb = "is" if len(different) == 1 else "are"
+        changes.append(f"{' and '.join(different)} {verb} different")
+    name, _ = stopped.steps[stopped.step]
+    if runbook.steps[stopped.step].name != name:
+        changes.append(f'step {stopped.step + 1} was "{name}" and is now "{runbook.steps[stopped.step].name}"')
+    return "; ".join(changes)
+
+
+def _resume_answer() -> str:
+    """Ask whether to resume until the answer is r, s or q. q, or Ctrl-C, exits 1, like answering no to Start?."""
+    while True:
+        try:
+            answer = _prompt(RESUME_QUESTION, default="", show_default=False, prompt_suffix=" ").strip()
+        except KeyboardInterrupt:
+            sys.exit(1)
+        if answer == "q":
+            sys.exit(1)
+        if answer in ("r", "s"):
+            return answer
 
 
 def _pick(console: Console) -> Path:
@@ -408,9 +516,16 @@ class _Printer:
     def _print(self, event: runner.Event) -> None:
         # Everything from the runbook or a block is Text, so it's never read as markup or emoji, and never wrapped.
         match event:
-            case runner.Overview(title=title, steps=steps, run_blocks=run_blocks, inputs=inputs, directory=directory):
+            case runner.Overview(
+                title=title,
+                steps=steps,
+                run_blocks=run_blocks,
+                inputs=inputs,
+                directory=directory,
+                resuming_at=resuming_at,
+            ):
                 self.steps = steps
-                self._overview(title, steps, run_blocks, inputs, directory)
+                self._overview(title, steps, run_blocks, inputs, directory, resuming_at)
                 if self.dry:
                     self.console.out("dry run: nothing will be run", style="yellow")
             case runner.StepStarted(step=step):
@@ -484,16 +599,29 @@ class _Printer:
         run_blocks: int,
         inputs: tuple[tuple[str, str], ...],
         directory: Path,
+        resuming_at: int | None,
     ) -> None:
         grid = Table.grid(padding=(0, 2))
         grid.add_column(style=FRAME)
         # Fold rather than cut a value too long for the box, so a long directory is still shown whole.
         grid.add_column(overflow="fold")
         grid.add_row(Text("directory"), Text(str(directory)))
+        if resuming_at is not None:
+            grid.add_row(Text("resuming"), Text(f"{resuming_at + 1}/{len(steps)} {steps[resuming_at].name}"))
         if inputs:
             grid.add_row(Text("inputs"), Text(" ".join(f"{name}={value}" for name, value in inputs)))
-        numbered = "\n".join(f"{number}. {step.name}" for number, step in enumerate(steps, start=1))
-        grid.add_row(Text("steps"), Text(numbered))
+        # Steps a resumed run has already done are dim, and marked done after the longest name.
+        width = max((len(f"{number}. {step.name}") for number, step in enumerate(steps, start=1)), default=0)
+        numbered = Text()
+        for index, step in enumerate(steps):
+            line = f"{index + 1}. {step.name}"
+            if index:
+                numbered.append("\n")
+            if resuming_at is not None and index < resuming_at:
+                numbered.append(f"{line:<{width}}  done", style=FRAME)
+            else:
+                numbered.append(line)
+        grid.add_row(Text("steps"), numbered)
         grid.add_row(Text("blocks"), Text(f"{run_blocks} run block{'' if run_blocks == 1 else 's'}"))
         self._box(grid, STRUCTURE, title=Text(title, style=f"bold {STRUCTURE}"))
 

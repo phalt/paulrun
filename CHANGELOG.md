@@ -9,6 +9,14 @@
 >
 > Entries below this note use the old name, as they were written at the time.
 
+## 0.7.0
+
+- A run that stops part way, because a block failed, a confirm was answered no or Ctrl-C was pressed, can be resumed at the step it stopped in. The next time you run the same runbook in the same directory, rundot says where the last run stopped and asks `[r]esume / [s]tart over / [q]uit`. Resuming skips the steps already done. Plain inputs are kept from the last run, but secrets are asked for again.
+- `--resume` resumes without asking, and is an error if there's nothing to resume. `--restart` forgets the stopped run and starts from step 1.
+- If a step the last run did has changed since, or the step it resumes at has been renamed, rundot warns before asking. A runbook that now has fewer steps starts over.
+- The overview shows `resuming` and marks the steps already done. A resumed run's transcript says where it resumed and which run it resumed.
+- Where each run got to is kept in `$XDG_STATE_HOME/rundot/runs/`, or `~/.local/state/rundot/runs/`, never in your project. It's deleted when the run finishes ok. `--dry` never reads or writes it.
+
 ## 0.6.0
 
 - `paulrun run`'s output is easier to scan:

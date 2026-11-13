@@ -35,7 +35,9 @@ class Transcript:
         clock: Callable[[], datetime] = lambda: datetime.now().astimezone(),
         runbook: Runbook | None = None,
         cwd: Path | None = None,
+        resumed_from: str | None = None,
     ):
+        """resumed_from is when the run being resumed started, for a run that resumes one that stopped."""
         self.path = path
         self._runbook_name = runbook_name
         self._clock = clock
@@ -44,13 +46,19 @@ class Transcript:
         self._file: TextIO | None = None
         self._written = False
         self._inputs: tuple[tuple[str, str], ...] = ()
+        self._resumed_from = resumed_from
+        self._resumed_at: str | None = None  # the name of the step the run resumes at
 
     @classmethod
     def for_runbook(
-        cls, runbook: Runbook, cwd: Path, clock: Callable[[], datetime] = lambda: datetime.now().astimezone()
+        cls,
+        runbook: Runbook,
+        cwd: Path,
+        clock: Callable[[], datetime] = lambda: datetime.now().astimezone(),
+        resumed_from: str | None = None,
     ) -> "Transcript":
         """A transcript at the runbook's output_path from cwd, worked out once the run's inputs are known."""
-        return cls(None, runbook.path.name, clock, runbook=runbook, cwd=cwd)
+        return cls(None, runbook.path.name, clock, runbook=runbook, cwd=cwd, resumed_from=resumed_from)
 
     @property
     def written(self) -> bool:
@@ -69,8 +77,10 @@ class Transcript:
 
     def __call__(self, event: runner.Event) -> None:
         match event:
-            case runner.Overview(inputs=inputs):
+            case runner.Overview(inputs=inputs, steps=steps, resuming_at=resuming_at):
                 self._inputs = inputs
+                if resuming_at is not None:
+                    self._resumed_at = steps[resuming_at].name
                 if self._runbook is not None:
                     assert self._cwd is not None  # given with the runbook, by for_runbook
                     # Secrets are **** here, but they're never placeholders in output_path, which check enforces.
@@ -108,6 +118,8 @@ class Transcript:
         if has_runs:
             self._write("")
         self._write(f"--- rundot {self._runbook_name} @ {self._clock().isoformat(timespec='seconds')}")
+        if self._resumed_at is not None and self._resumed_from is not None:
+            self._write(f'--- resumed at "{self._resumed_at}", from the run at {self._resumed_from}')
         if self._inputs:
             self._write("--- inputs: " + " ".join(f"{name}={value}" for name, value in self._inputs))
 

@@ -61,6 +61,7 @@ class RunState:
     block: int  # the index of the block in it to start at: 0, unless it stopped for human input
     steps: tuple[tuple[str, str], ...]  # (name, step_hash) of every step, to warn if the runbook has changed
     inputs: Mapping[str, str]  # plain values only
+    exit_code: int | None = None  # the failed block's exit code, for a run that failed
 
     @classmethod
     def load(cls, path: Path, warn: Callable[[str], None]) -> "RunState | None":
@@ -130,6 +131,7 @@ class RunState:
             "block": self.block,
             "steps": [{"name": name, "hash": hash} for name, hash in self.steps],
             "inputs": dict(self.inputs),
+            "exit_code": self.exit_code,
         }
 
 
@@ -141,6 +143,7 @@ def _from_json(data: Any) -> RunState:
     numbers = [data.get(name) for name in ("step", "block")]
     steps = data.get("steps")
     inputs = data.get("inputs")
+    exit_code = data.get("exit_code")
     if (
         not all(isinstance(value, str) for value in strings)
         # bool is an int in Python, but true isn't a step.
@@ -150,6 +153,7 @@ def _from_json(data: Any) -> RunState:
         or not all(isinstance(step, dict) and _strings(step.get("name"), step.get("hash")) for step in steps)
         or not isinstance(inputs, dict)
         or not _strings(*inputs.values())
+        or not (exit_code is None or type(exit_code) is int)
     ):
         raise ValueError
     return RunState(
@@ -161,6 +165,7 @@ def _from_json(data: Any) -> RunState:
         block=data["block"],
         steps=tuple((step["name"], step["hash"]) for step in steps),
         inputs=inputs,
+        exit_code=exit_code,
     )
 
 
@@ -221,11 +226,14 @@ class StateRecorder:
             case runner.RunFinished(status="ok") if self._state is not None:
                 RunState.delete(self.path)
             case runner.RunFinished(
-                status="failed" | "aborted" | "interrupted" | "needs_human_input" as status, step=step, block=block
+                status="failed" | "aborted" | "interrupted" | "needs_human_input" as status,
+                step=step,
+                block=block,
+                exit_code=exit_code,
             ) if self._state is not None and step is not None:
                 index = self._indexes[step.line]
                 at = self._runbook.steps[index].blocks.index(block) if block is not None else 0
-                self._save(replace(self._state, stopped=status, step=index, block=at))
+                self._save(replace(self._state, stopped=status, step=index, block=at, exit_code=exit_code))
 
     def _new(self, stopped: Stopped, step: int, block: int) -> RunState:
         return RunState(
