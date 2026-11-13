@@ -1,6 +1,6 @@
 # Implementation Plan: rundot 0.7.0
 
-Status: draft (2026-11-13)
+Status: approved (2026-11-13)
 Spec: [specs/SPEC-0.7.0.md](../specs/SPEC-0.7.0.md)
 Tasks: [tasks/todo-0.7.0.md](todo-0.7.0.md)
 
