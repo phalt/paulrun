@@ -229,17 +229,17 @@ As the earlier specs, with 100% line and branch coverage.
 
 ## Success criteria
 
-- [ ] A run that fails at step 4 of 5, rerun and answered `r`, runs only steps 4 and 5, and asks for secrets again
-- [ ] `s` and `--restart` start from step 1 and delete the state; `q` exits 1 and keeps it
-- [ ] A run that finishes `ok` leaves no state file; a `--dry` run never reads or writes one
-- [ ] A run killed during step 3 resumes at step 3
-- [ ] A runbook changed in a skipped step warns before resuming, and one with fewer steps starts over
-- [ ] No secret's value is ever in a state file
-- [ ] With `--no-input`, no prompt is ever shown; missing inputs are all named and exit 1
-- [ ] With `--no-input`, a `confirm` exits 3 and the next run carries on after it; an `input` block with no value exits 3 and the next run with it set carries on from it
-- [ ] With `--json`, every stdout line is valid JSON, and the events match the table
-- [ ] The contradicting flags in decision 15 are usage errors
-- [ ] Docs and changelog updated as listed
+- [x] A run that fails at step 4 of 5, rerun and answered `r`, runs only steps 4 and 5, and asks for secrets again
+- [x] `s` and `--restart` start from step 1 and delete the state; `q` exits 1 and keeps it
+- [x] A run that finishes `ok` leaves no state file; a `--dry` run never reads or writes one
+- [x] A run killed during step 3 resumes at step 3
+- [x] A runbook changed in a skipped step warns before resuming, and one with fewer steps starts over
+- [x] No secret's value is ever in a state file
+- [x] With `--no-input`, no prompt is ever shown; missing inputs are all named and exit 1
+- [x] With `--no-input`, a `confirm` exits 3 and the next run carries on after it; an `input` block with no value exits 3 and the next run with it set carries on from it
+- [x] With `--json`, every stdout line is valid JSON, and the events match the table
+- [x] The contradicting flags in decision 15 are usage errors
+- [x] Docs and changelog updated as listed
 
 ## Open questions
 
